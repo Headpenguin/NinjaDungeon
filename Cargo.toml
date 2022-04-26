@@ -1,0 +1,16 @@
+[package]
+name = "ninjadungeon"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies.sdl2]
+version = "^0.35.2"
+default-feature = false
+feature = ["image", "mixer"]
+
+[dependencies.BinaryFileIO]
+path = "../BinaryFileIO/"
+
+[dependencies.rlua]
+version = "^0.19.1"
+
