@@ -7,6 +7,15 @@ name = "BinaryFileIO"
 version = "0.1.0"
 
 [[package]]
+name = "NinjaDungeon"
+version = "0.1.0"
+dependencies = [
+ "BinaryFileIO",
+ "rlua",
+ "sdl2",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -56,15 +65,6 @@ name = "memchr"
 version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "308cc39be01b73d0d18f82a0e7b2a3df85245f84af96fdddc5d202d27e47b86a"
-
-[[package]]
-name = "ninjadungeon"
-version = "0.1.0"
-dependencies = [
- "BinaryFileIO",
- "rlua",
- "sdl2",
-]
 
 [[package]]
 name = "num-traits"
