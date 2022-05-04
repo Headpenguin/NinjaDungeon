@@ -23,12 +23,23 @@ pub struct Mapping {
 }
 
 impl Signals {
+    pub fn new(mapping: Mapping) -> Signals {
+		Signals {
+			up: None,
+			down: None,
+			left: None,
+			right: None,
+			attack: None,
+			mapping,
+		}
+
+    }
 	pub fn addEvent(&mut self, event: &Event) {
 		match event {
-			Event::KeyDown {timestamp: _, window_id: _, keycode: _, scancode: Some(scancode), ..} => {
+			Event::KeyDown {scancode: Some(scancode), ..} => {
 				self.evaluateScancode(scancode, true);
 			},
-			Event::KeyUp {timestamp: _, window_id: _, keycode: _, scancode: Some(scancode), ..} => {
+			Event::KeyUp {scancode: Some(scancode), ..} => {
 				self.evaluateScancode(scancode, false);
 			},
 			_ => (),
@@ -47,15 +58,8 @@ impl Signals {
 
 impl Default for Signals {
 	fn default() -> Self {
-		Signals {
-			up: None,
-			down: None,
-			left: None,
-			right: None,
-			attack: None,
-			mapping: Mapping::default(),
-		}
-	}
+	    Self::new(Mapping::default())
+    }
 }
 
 impl Default for Mapping {
