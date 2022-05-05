@@ -7,6 +7,7 @@ use sdl2::hint;
 use sdl2::pixels::Color;
 
 pub mod PlayerMod;
+pub mod SpriteLoader;
 
 use PlayerMod::Signals;
 

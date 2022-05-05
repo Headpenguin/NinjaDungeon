@@ -1,16 +1,23 @@
 mod SignalsMod;
 
-use std::ops::Add;
+use std::ops::{Add, AddAssign};
 
 pub use SignalsMod::{Signals, Mapping};
 
+#[derive(Copy, Clone)]
 struct Vector(f32, f32);
 
 impl Add for Vector {
-    type Rhs = Vector;
-    fn add(&self, other: Rhs) -> Self {
+    type Output = Vector;
+    fn add(self, other: Self) -> Self::Output {
         Vector(self.0 + other.0, self.1 + other.1)
     }
+}
+
+impl AddAssign for Vector {
+	fn add_assign(&mut self, other: Self) {
+		*self = *self + other;
+	}
 }
 
 pub struct Player {
@@ -24,7 +31,7 @@ impl Player {
     pub fn new(positionX: f32, positionY: f32) -> Player {
         let (direction, velocity, position) = (
             Direction::Down, 
-            Vector(0, 0), 
+            Vector(0f32, 0f32), 
             Vector(positionX, positionY)
         );
 
@@ -39,34 +46,34 @@ impl Player {
         match signal {
             Signals {up: Some(true), ..} => {
                 self.direction = Direction::Up;
-                self.velocity.1 = -3;
+                self.velocity.1 = -3f32;
             },
             Signals {down: Some(true), ..} => {
                 self.direction = Direction::Down;
-                self.velocity.1 = 3;
+                self.velocity.1 = 3f32;
             },
             Signals {up: Some(false), ..} => {
-                self.velocity.1 = 0;
+                self.velocity.1 = 0f32;
             },
             Signals {down: Some(false), ..} => {
-                self.velocity.1 = 0;
+                self.velocity.1 = 0f32;
             },
             _ => (),
         }
         match signal {
             Signals {left: Some(true), ..} => {
                 self.direction = Direction::Left;
-                self.velocity.0 = -3;
+                self.velocity.0 = -3f32;
             },
             Signals {right: Some(true), ..} => {
                 self.direction = Direction::Right;
-                self.velocity.0 = 3;
+                self.velocity.0 = 3f32;
             },
             Signals {left: Some(false), ..} => {
-                self.velocity.0 = 0;
+                self.velocity.0 = 0f32;
             },
             Signals {right: Some(false), ..} => {
-                self.velocity.0 = 0;
+                self.velocity.0 = 0f32;
             },
             _ => (),
         }
