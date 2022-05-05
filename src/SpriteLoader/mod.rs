@@ -7,6 +7,10 @@ use sdl2::video::{WindowContext, Window};
 
 use std::ops::Deref;
 
+mod Parsing;
+
+pub use Parsing::AnimationLocation;
+
 const MIRROR_PATTERN: &'static str = "__half";
 
 fn loadSprites<'a, 'b> (creator: &'a TextureCreator<WindowContext>, filenames: &'b [&'b str]) -> Result<Vec<Sprite<'a>>, String> {
@@ -27,19 +31,10 @@ impl<'a> Sprites<'a> {
             sprites: loadSprites(creator, filenames)?,
         })
     }
-
-/*    #[inline]
-    pub fn from_vec(sprites: Vec<Sprite>) -> Sprites {
-        Sprites{sprites,}
-    }*/
-
-    pub fn getSprite(&self, idx: usize) -> &Sprite {
+    
+	pub fn getSprite(&self, idx: usize) -> &Sprite {
         &self.sprites[idx]
     }
-
-    /*pub fn len(&self) -> usize {
-        self.sprites.len()
-    }*/
 }
 
 pub struct Animations<'a> {
@@ -49,13 +44,9 @@ pub struct Animations<'a> {
 }
 
 impl<'a> Animations<'a> {
-    pub fn new(animations: Vec<Animation>) -> Animations {
+    pub fn new(filename: &str, animations: Vec<AnimationLocation>, creator: &'a TextureCreator <WindowContext>) -> Animations<'a> {
         Animations{animations, activeAnimation: 0, frameCounter: 0,}
     }
-
-    /*pub fn getAnimation(&self, idx: usize) -> &Animation {
-        &self.animations[idx]
-    }*/
 
     pub fn update(&mut self) {
         self.frameCounter = (self.frameCounter + 1) % usize::max_value();
@@ -63,16 +54,6 @@ impl<'a> Animations<'a> {
 
     fn getAnimation<'b>(&'b self) -> &Animation<'b> {
         &self.animations[self.activeAnimation]
-        /*match &self.animations[self.activeAnimation] {
-            Animation::Standard(animation) => animation.getFrame(self.frameCounter),
-            Animation::Flip(animation) => 
-            if let Animation::Standard(animation) = &self.animations[animation.getIndex()] {
-               animation.getFrame(self.frameCounter)
-            }
-            else {
-                panic!("Flipped animation is a flip of a flipped animation");
-            }
-        }//.getFrame(self.frameCounter)*/
     }
 
     pub fn drawNextFrame(&self, canvas: &mut Canvas<Window>, position: Rect) {
