@@ -1,8 +1,28 @@
-mod SignalsMod;
+extern crate sdl2;
+
+use sdl2::render::{TextureCreator, Canvas};
+use sdl2::video::{Window, WindowContext};
+use sdl2::rect::Rect;
 
 use std::ops::{Add, AddAssign};
+use std::io;
+
+mod SignalsMod;
 
 pub use SignalsMod::{Signals, Mapping};
+
+use crate::SpriteLoader::Animations;
+
+const NAMES: &'static[&'static str] = &[
+	"Ninja float",
+	"Ninja right float",
+	"Ninja left float",
+	"Ninja up float",
+	"Ninja attack",
+	"Ninja right attack",
+	"Ninja left attack",
+	"Ninja up attack",
+];
 
 #[derive(Copy, Clone)]
 struct Vector(f32, f32);
@@ -20,26 +40,49 @@ impl AddAssign for Vector {
 	}
 }
 
-pub struct Player {
+impl From<Vector> for (i32, i32) {
+	fn from(input: Vector) -> (i32, i32) {
+		(input.0.round() as i32, input.1.round() as i32)
+	}
+}
+
+pub struct Player<'a> {
+	animations: Animations<'a>,
 	direction: Direction,
+	timer: u32,
 
 	velocity: Vector,
     position: Vector,
+	renderPosition: Rect,
 }
 
-impl Player {
-    pub fn new(positionX: f32, positionY: f32) -> Player {
-        let (direction, velocity, position) = (
+impl<'a> Player<'a> {
+    pub fn new(creator: &'a TextureCreator<WindowContext>, positionX: f32, positionY: f32) -> io::Result<Player<'a>> {
+        let (direction, velocity, position, timer) = (
             Direction::Down, 
             Vector(0f32, 0f32), 
-            Vector(positionX, positionY)
+            Vector(positionX, positionY),
+			0u32,
         );
+		let animations = Animations::new("Resources/Images/Ninja.anim", NAMES, creator)?;
+		let renderPosition = Rect::new(positionX.round() as i32, positionY.round() as i32, 50, 50);
+		
 
-        Player {direction, velocity, position,}
+        Ok(Player {animations: animations, direction, velocity, position, timer, renderPosition,})
     }
+
+	pub fn draw(&self, canvas: &mut Canvas<Window>) {
+		self.animations.drawNextFrame(canvas, self.renderPosition);
+	}
 
     pub fn update(&mut self) {
         self.position += self.velocity;
+		self.renderPosition.reposition(self.position);
+		self.timer += 1;
+		if self.timer > 20 {
+			self.timer = 0;
+			self.animations.update();
+		}
     }
     
     pub fn signal(&mut self, signal: Signals) {

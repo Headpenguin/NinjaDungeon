@@ -6,12 +6,14 @@ use sdl2::image::LoadTexture;
 use sdl2::video::{WindowContext, Window};
 
 use std::ops::Deref;
+use std::io::{self, ErrorKind, Error};
+use std::fs;
+
+const MIRROR_PATTERN: &'static str = "__half";
 
 mod Parsing;
 
-pub use Parsing::AnimationLocation;
-
-const MIRROR_PATTERN: &'static str = "__half";
+use Parsing::*;
 
 fn loadSprites<'a, 'b> (creator: &'a TextureCreator<WindowContext>, filenames: &'b [&'b str]) -> Result<Vec<Sprite<'a>>, String> {
     let mut sprites = vec![];
@@ -44,8 +46,23 @@ pub struct Animations<'a> {
 }
 
 impl<'a> Animations<'a> {
-    pub fn new(filename: &str, animations: Vec<AnimationLocation>, creator: &'a TextureCreator <WindowContext>) -> Animations<'a> {
-        Animations{animations, activeAnimation: 0, frameCounter: 0,}
+    pub fn new(filename: &str, animationPaths: &[&str], creator: &'a TextureCreator <WindowContext>) -> io::Result<Animations<'a>> {
+		let file = fs::read_to_string(filename)?;
+		let animationPaths = parse(&file, animationPaths)?;
+
+		let mut animations = vec![];
+		for animation in animationPaths {
+			match animation {
+				ParsedAnimation::Flip(p) => animations.push(Animation::Flip(FlipAnimation::new(p))),
+				ParsedAnimation::Standard(paths, positions) => animations.push(Animation::Standard(
+						match StandardAnimation::fromFiles(creator, &paths, &positions) {
+							Ok(animation) => animation,
+							Err(m) => return Err(Error::new(ErrorKind::Other, m)),
+						}
+					)),
+			}
+		}
+        Ok(Animations{animations, activeAnimation: 0, frameCounter: 0,})
     }
 
     pub fn update(&mut self) {
@@ -194,7 +211,8 @@ pub type Mirror = bool;
 pub struct Sprite<'a> (Texture<'a>, Mirror);
 
 impl<'a> Sprite<'a> {
-    pub fn draw(&self, canvas: &mut Canvas<Window>, quad: Rect, flipHorizontal: bool, flipVertical: bool) {
+	#[allow(unused_must_use)]
+	pub fn draw(&self, canvas: &mut Canvas<Window>, quad: Rect, flipHorizontal: bool, flipVertical: bool) {
         if self.1 {
             let mut quad = quad;
             quad.w = (0.5 * quad.w as f32) as i32;

@@ -1,0 +1,40 @@
+Ninja float:
+	"Resources/Images/Ninja_float_0__half.png"
+	"Resources/Images/Ninja_float_1__half.png"
+	"Resources/Images/Ninja_float_2__half.png"
+	"Resources/Images/Ninja_float_1__half.png"
+;
+
+Ninja right float:
+	"Resources/Images/Ninja_right_float_0.png"
+	"Resources/Images/Ninja_right_float_1.png"
+	"Resources/Images/Ninja_right_float_2.png"
+	"Resources/Images/Ninja_right_float_1.png"
+;
+
+Ninja left float:
+	&Ninja right float
+;
+
+Ninja up float:
+	"Resources/Images/Ninja_up_float_0__half.png"
+	"Resources/Images/Ninja_up_float_1__half.png"
+	"Resources/Images/Ninja_up_float_2__half.png"
+	"Resources/Images/Ninja_up_float_1__half.png"
+;
+
+Ninja attack:
+	"Resources/Images/Ninja_attack__half.png"
+;
+
+Ninja up attack:
+	"Resources/Images/Ninja_up_attack__half.png"
+;
+
+Ninja right attack:
+	"Resources/Images/Ninja_right_attack.png"
+;
+
+Ninja left attack:
+	&Ninja right attack
+;

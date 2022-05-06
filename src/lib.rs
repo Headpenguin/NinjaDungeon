@@ -9,6 +9,8 @@ use sdl2::pixels::Color;
 pub mod PlayerMod;
 pub mod SpriteLoader;
 
+pub use PlayerMod::Player;
+
 use PlayerMod::Signals;
 
 pub struct GameContext {
@@ -55,7 +57,7 @@ impl GameContext {
 	}
 	
 	#[inline(always)]
-	pub fn mainLoop(&mut self, texture: &Texture) -> bool {
+	pub fn mainLoop(&mut self, player: &mut Player) -> bool {
 			
 		self.canvas.clear();
 		
@@ -68,9 +70,13 @@ impl GameContext {
 			}
 		}
 
-		if let Some(true) = signals.attack {
-			self.canvas.copy(texture, None, None).unwrap();
+		if !self.scriptPlayerInputs {
+			player.signal(signals);
 		}
+
+		player.update();
+
+		player.draw(&mut self.canvas);
 		
 		self.canvas.present();
 		

@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 extern crate sdl2;
 
-use NinjaDungeon::GameContext;
+use NinjaDungeon::{GameContext, Player};
 
 use sdl2::pixels::Color;
 use sdl2::image::LoadTexture;
@@ -18,9 +18,9 @@ fn main()
 
 	let (mut context, creator) = GameContext::initialize(NAME, WIDTH, HEIGHT, COLOR);
 	
-	let texture = creator.load_texture("Resources/Images/roundup-peoplekiller.png").unwrap();
+	let mut player = Player::new(&creator, 0f32, 0f32).unwrap();
 
-	while context.mainLoop(&texture) {}
+	while context.mainLoop(&mut player) {}
 
 }
 
