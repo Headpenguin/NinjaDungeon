@@ -9,7 +9,9 @@ use sdl2::pixels::Color;
 pub mod PlayerMod;
 pub mod SpriteLoader;
 pub mod MapMod;
+pub mod Vec2dMod;
 
+pub use Vec2dMod::Vec2d;
 pub use PlayerMod::Player;
 
 use PlayerMod::SignalsBuilder;
