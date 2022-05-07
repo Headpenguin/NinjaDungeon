@@ -8,6 +8,7 @@ use sdl2::pixels::Color;
 
 pub mod PlayerMod;
 pub mod SpriteLoader;
+pub mod MapMod;
 
 pub use PlayerMod::Player;
 
