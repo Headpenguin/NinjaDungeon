@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 use sdl2::{Sdl, VideoSubsystem, EventPump};
-use sdl2::render::{Canvas, TextureCreator, Texture};
+use sdl2::render::{Canvas, TextureCreator};
 use sdl2::video::{WindowContext, Window};
 use sdl2::event::Event;
 use sdl2::hint;
@@ -11,7 +11,7 @@ pub mod SpriteLoader;
 
 pub use PlayerMod::Player;
 
-use PlayerMod::Signals;
+use PlayerMod::SignalsBuilder;
 
 pub struct GameContext {
 	sdlContext: Sdl,
@@ -61,7 +61,7 @@ impl GameContext {
 			
 		self.canvas.clear();
 		
-		let mut signals = Signals::default();
+		let mut signals = SignalsBuilder::default();
 
 		for event in self.events.poll_iter() {
 			self.quit = Self::windowEvents(&event);
@@ -71,7 +71,7 @@ impl GameContext {
 		}
 
 		if !self.scriptPlayerInputs {
-			player.signal(signals);
+			player.signal(signals.build(&self.events));
 		}
 
 		player.update();

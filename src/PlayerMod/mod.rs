@@ -9,7 +9,7 @@ use std::io;
 
 mod SignalsMod;
 
-pub use SignalsMod::{Signals, Mapping};
+pub use SignalsMod::{SignalsBuilder, Signals, Mapping};
 
 use crate::SpriteLoader::Animations;
 

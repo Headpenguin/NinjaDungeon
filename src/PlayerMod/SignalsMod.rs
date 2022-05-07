@@ -2,8 +2,14 @@ extern crate sdl2;
 
 use std::default::Default;
 
+use sdl2::EventPump;
 use sdl2::event::Event;
 use sdl2::keyboard::Scancode;
+
+pub struct SignalsBuilder {
+	event: bool,
+	mapping: Mapping,
+}
 
 pub struct Signals {
 	pub up: Option<bool>,
@@ -11,7 +17,6 @@ pub struct Signals {
 	pub left: Option<bool>,
 	pub right: Option<bool>,
 	pub attack: Option<bool>,
-	mapping: Mapping,
 }
 
 pub struct Mapping {	
@@ -22,44 +27,42 @@ pub struct Mapping {
 	pub attack: Scancode,
 }
 
-impl Signals {
-    pub fn new(mapping: Mapping) -> Signals {
-		Signals {
-			up: None,
-			down: None,
-			left: None,
-			right: None,
-			attack: None,
-			mapping,
-		}
-
-    }
+impl SignalsBuilder {
+	pub fn new(mapping: Mapping) -> SignalsBuilder {
+		SignalsBuilder{event: false, mapping}
+	}
 	pub fn addEvent(&mut self, event: &Event) {
-		match event {
-			Event::KeyDown {scancode: Some(scancode), ..} => {
-				self.evaluateScancode(scancode, true);
-			},
-			Event::KeyUp {scancode: Some(scancode), ..} => {
-				self.evaluateScancode(scancode, false);
-			},
-			_ => (),
+		if let Event::KeyDown{..} | Event::KeyUp{..} = event {
+			self.event = true;
 		}
 	}
-
-	fn evaluateScancode(&mut self, scancode: &Scancode, pressOrRelease: bool) {
-		let mapping = &self.mapping;
-		if scancode == &mapping.up {self.up = Some(pressOrRelease)}
-		if scancode == &mapping.down {self.down = Some(pressOrRelease)}
-		if scancode == &mapping.left {self.left = Some(pressOrRelease)}
-		if scancode == &mapping.right {self.right = Some(pressOrRelease)}
-		if scancode == &mapping.attack {self.attack = Some(pressOrRelease)}
+	pub fn build(self, events: &EventPump) -> Signals {
+		if self.event {
+			let state = events.keyboard_state();
+			Signals {
+				up: Some(state.is_scancode_pressed(self.mapping.up)),
+				down: Some(state.is_scancode_pressed(self.mapping.down)),
+				left: Some(state.is_scancode_pressed(self.mapping.left)),
+				right: Some(state.is_scancode_pressed(self.mapping.right)),
+				attack: Some(state.is_scancode_pressed(self.mapping.attack)),
+			}
+		}
+		else {
+			Signals {
+				up: None,
+				down: None,
+				left: None,
+				right: None,
+				attack: None,	
+			}
+		}
 	}
 }
 
-impl Default for Signals {
+impl Default for SignalsBuilder {
 	fn default() -> Self {
-	    Self::new(Mapping::default())
-    }
+		Self::new(Mapping::default())
+	}
 }
 
 impl Default for Mapping {
