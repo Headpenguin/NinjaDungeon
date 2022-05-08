@@ -2,12 +2,11 @@
 name = "NinjaDungeon"
 version = "0.1.0"
 edition = "2021"
-default-run = "NinjaDungeon"
+default-run = "Editor"
 
 [[bin]]
 name = "Editor"
 path = "src/Editor.rs"
-required-features = ["editor"]
 
 [dependencies.sdl2]
 version = "^0.35.2"

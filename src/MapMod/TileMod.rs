@@ -1,3 +1,4 @@
+#[derive(Clone)]
 pub struct Tile (u16, CollisionType);
 
 impl Tile {
@@ -9,12 +10,19 @@ impl Tile {
 	}
 }
 
+impl Default for Tile {
+	fn default() -> Tile {
+		Tile(0, CollisionType::None)
+	}
+}
+
 /*
  CollisionType can be used for almost anything. Obviously, walls and other damaging tiles,
  but with switches, for example, you merely need to put a box in front of the player for the sword
  and check collision like that. For a sign, check some amount in front of the player (probably
  the same amount as the walking velocity). Also, just add an index to a vector to have additional data.
 */
+#[derive(Clone)]
 pub enum CollisionType {
 	None, //Do nothing
 	Block, //Block the player

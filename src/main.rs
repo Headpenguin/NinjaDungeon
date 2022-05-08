@@ -6,8 +6,8 @@ use NinjaDungeon::{GameContext, Player};
 use sdl2::pixels::Color;
 use sdl2::image::LoadTexture;
 
-const WIDTH: u32 = 640;
-const HEIGHT: u32 = 480;
+const WIDTH: u32 = 17*50;
+const HEIGHT: u32 = 12*50;
 
 const NAME: &str = "test";
 

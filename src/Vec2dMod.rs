@@ -1,5 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
+#[derive(Clone)]
 pub struct Vec2d<T> (pub Vec<T>, usize);
 
 impl<T> Vec2d<T> {

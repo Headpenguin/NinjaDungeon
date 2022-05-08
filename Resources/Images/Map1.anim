@@ -1,0 +1,11 @@
+Ground:
+	"Resources/Images/Ground.png"
+;
+
+Gate:
+	"Resources/Images/Gate__half.png"
+;
+
+Wall:
+	"Resources/Images/Wall.png"
+;

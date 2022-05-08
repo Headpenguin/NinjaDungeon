@@ -6,13 +6,15 @@ use sdl2::event::Event;
 use sdl2::hint;
 use sdl2::pixels::Color;
 
-pub mod PlayerMod;
-pub mod SpriteLoader;
-pub mod MapMod;
-pub mod Vec2dMod;
+mod PlayerMod;
+mod SpriteLoader;
+mod MapMod;
+mod Vec2dMod;
 
 pub use Vec2dMod::Vec2d;
 pub use PlayerMod::Player;
+
+pub use MapMod::*;
 
 use PlayerMod::SignalsBuilder;
 
