@@ -29,18 +29,17 @@ impl<'a> Map<'a> {
 		
 	}*/
 	pub fn new(id: usize, activeScreen: usize, tileset: &str, textureCreator: &'a TextureCreator<WindowContext>) -> io::Result<Map<'a>> {
-		let mut v = vec![];
 		Ok(Map {
-			screens: v,
+			screens: vec![],
 			activeScreen: activeScreen,
 			renderer: TileRenderer::new(id, tileset, textureCreator)?,
 		})
 	}
-	pub fn draw(&self, canvas: &mut Canvas<Window>) {
-		let mut rect = Rect::new(0, 0, 50, 50);
-		for tile in self.screens[self.activeScreen]. {
-			
-		}
+	pub fn draw(&mut self, canvas: &mut Canvas<Window>) {
+		self.screens[self.activeScreen].draw(&mut self.renderer, canvas);
+	}
+	pub fn addScreen(&mut self, width: u16, height: u16, location: Location) {
+		self.screens.push(Screen::new(width, height, location));
 	}
 }
 
@@ -49,6 +48,11 @@ impl<'a> TileRenderer<'a> {
 		Ok(TileRenderer {
 			animations: Animations::new(tileset, TILESETS[id], creator)?,
 		})
+	}
+	// Make this better pls
+	pub fn draw(&mut self, tile: &Tile, canvas: &mut Canvas<Window>, position: Rect) {
+		self.animations.changeAnimation(tile.getId() as usize).unwrap();
+		self.animations.drawNextFrame(canvas, position);
 	}
 }
 

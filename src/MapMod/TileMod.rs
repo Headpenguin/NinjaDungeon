@@ -8,6 +8,9 @@ impl Tile {
 			_ => Err("Recieved invalid tile id"),
 		}
 	}
+	pub fn getId(&self) -> u16 {
+		self.0
+	}
 }
 
 impl Default for Tile {

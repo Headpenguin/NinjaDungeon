@@ -2,7 +2,7 @@
 extern crate BinaryFileIO;
 extern crate sdl2;
 
-use NinjaDungeon::Map;
+use NinjaDungeon::{Map, Location};
 
 use sdl2::hint;
 use sdl2::pixels::Color;
@@ -35,7 +35,9 @@ fn main() {
 
 	let textureCreator = canvas.texture_creator();
 
-	let map = Map::new(0, 0, "Resources/Images/Map1.anim", &textureCreator).unwrap();
+	let mut map = Map::new(0, 0, "Resources/Images/Map1.anim", &textureCreator).unwrap();
+
+	map.addScreen(17, 12, Location::default());
 
 	let mut events = sdlContext.event_pump().unwrap();
 	
@@ -53,6 +55,8 @@ fn main() {
 				_ => (),
 			}
 		}
+
+		map.draw(&mut canvas);
 		
 		canvas.present();
 
