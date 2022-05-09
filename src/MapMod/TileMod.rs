@@ -35,3 +35,5 @@ pub enum CollisionType {
 	Burn, //Burn the player
 }
 
+pub const MAX_TILE_IDX: u16 = 1;
+

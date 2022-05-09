@@ -13,25 +13,17 @@ pub use TileMod::*;
 pub use ScreenMod::*;
 
 use crate::SpriteLoader::Animations;
-use crate::Entities::Codes;
-use crate::Direction;
 
 pub struct Map<'a> {
 	screens: Vec<Screen>,
 	activeScreen: usize,
 	renderer: TileRenderer<'a>,
-	entities: Vec<Entity>,
 }
 
 pub struct TileRenderer<'a> {
 	animations: Animations<'a>,
 }
 
-struct Entity {
-	code: Codes,
-	position: (i32, i32),
-	direction: Direction,
-}
 
 impl<'a> Map<'a> {
 	/*pub fn fromFile(filename: &str, tileset: &str, textureCreator: &'a TextureCreator) -> Map<'a> {
@@ -42,7 +34,6 @@ impl<'a> Map<'a> {
 			screens: vec![],
 			activeScreen: activeScreen,
 			renderer: TileRenderer::new(id, tileset, textureCreator)?,
-			entities: vec![],
 		})
 	}
 	pub fn draw(&mut self, canvas: &mut Canvas<Window>) {
@@ -54,12 +45,8 @@ impl<'a> Map<'a> {
 	pub fn changeTile(&mut self, position: (u16, u16), replacement: Tile) {
 		self.screens[self.activeScreen].replaceTile(position, replacement);
 	}
-	pub fn addEntity(&mut self, code: Codes, position: (i32, i32), direction: Direction) {
-		self.entities.push(Entity{code, position, direction});
-	}
-	pub fn removeEntity(&mut self, position: (i32, i32)) -> Result<(), ()> {
-		self.entities.remove(self.entities.iter().position(|e| e.position == position).ok_or(())?);
-		Ok(())
+	pub fn renderTile(&mut self, position: Rect, tile: &Tile, canvas: &mut Canvas<Window>) {
+		self.renderer.draw(tile, canvas, position);
 	}
 }
 
