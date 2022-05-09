@@ -12,6 +12,7 @@ mod SignalsMod;
 pub use SignalsMod::{SignalsBuilder, Signals, Mapping};
 
 use crate::SpriteLoader::Animations;
+use crate::Direction;
 
 const NAMES: &'static[&'static str] = &[
 	"Ninja float",
@@ -121,12 +122,5 @@ impl<'a> Player<'a> {
             _ => (),
         }
     }
-}
-
-enum Direction {
-	Up,
-	Down,
-	Left,
-	Right,
 }
 

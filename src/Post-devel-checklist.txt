@@ -1,0 +1,3 @@
+-Replace all vector/array accesses with unchecked accesses
+-Make unchecked version of changeAnimation and implement everywhere
+

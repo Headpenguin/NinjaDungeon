@@ -10,6 +10,7 @@ mod PlayerMod;
 mod SpriteLoader;
 mod MapMod;
 mod Vec2dMod;
+pub mod Entities;
 
 pub use Vec2dMod::Vec2d;
 pub use PlayerMod::Player;
@@ -94,5 +95,13 @@ impl GameContext {
 			_ => false,
 		}
 	}
+}
+
+#[repr(u8)]
+pub enum Direction {
+	Up,
+	Down,
+	Left,
+	Right,
 }
 

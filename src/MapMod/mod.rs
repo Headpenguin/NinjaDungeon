@@ -13,6 +13,8 @@ pub use TileMod::*;
 pub use ScreenMod::*;
 
 use crate::SpriteLoader::Animations;
+use crate::Entities::Codes;
+use crate::Direction;
 
 pub struct Map<'a> {
 	screens: Vec<Screen>,
@@ -22,6 +24,12 @@ pub struct Map<'a> {
 
 pub struct TileRenderer<'a> {
 	animations: Animations<'a>,
+}
+
+struct Entity {
+	code: Codes,
+	position: (i32, i32),
+	direction: Direction,
 }
 
 impl<'a> Map<'a> {
@@ -40,6 +48,9 @@ impl<'a> Map<'a> {
 	}
 	pub fn addScreen(&mut self, width: u16, height: u16, location: Location) {
 		self.screens.push(Screen::new(width, height, location));
+	}
+	pub fn changeTile(&mut self, position: (u16, u16), replacement: Tile) {
+		self.screens[self.activeScreen].replaceTile(position, replacement);
 	}
 }
 

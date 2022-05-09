@@ -54,5 +54,8 @@ impl Screen {
 			rect.reposition((x * (!gtEq) as i32, y + gtEq as i32 * 50));
 		}
 	}
+	pub fn replaceTile(&mut self, position: (u16, u16), replacement: Tile) {
+		*self.tiles.indexMut(position.1 as usize, position.0 as usize) = replacement;
+	}
 }
 

@@ -2,11 +2,12 @@
 extern crate BinaryFileIO;
 extern crate sdl2;
 
-use NinjaDungeon::{Map, Location};
+use NinjaDungeon::{Map, Location, Tile};
 
 use sdl2::hint;
 use sdl2::pixels::Color;
 use sdl2::event::Event;
+use sdl2::mouse::MouseButton;
 
 const WIDTH: u32 = 17*50;
 const HEIGHT: u32 = 13*50;
@@ -39,6 +40,8 @@ fn main() {
 
 	map.addScreen(17, 12, Location::default());
 
+	map.changeTile((0, 0), Tile::new(1, 0).unwrap());
+
 	let mut events = sdlContext.event_pump().unwrap();
 	
 	canvas.set_draw_color(COLOR);
@@ -52,6 +55,11 @@ fn main() {
 		for event in events.poll_iter() {
 			match event {
 				Event::Quit {..} => quit = true,
+				Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} => {
+					if (y as i64) < (HEIGHT - 50) as i64 {
+						map.changeTile(((x / 50) as u16, (y / 50) as u16), Tile::new(1, 0).unwrap());
+					}
+				}
 				_ => (),
 			}
 		}

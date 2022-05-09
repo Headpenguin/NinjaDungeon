@@ -5,6 +5,7 @@ impl Tile {
 	pub fn new(id: u16, object: usize) -> Result<Tile, &'static str> {
 		match id {
 			0 => Ok(Tile(0, CollisionType::None)),
+			1 => Ok(Tile(1, CollisionType::Block)),
 			_ => Err("Recieved invalid tile id"),
 		}
 	}
