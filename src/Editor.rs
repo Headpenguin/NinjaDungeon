@@ -61,12 +61,12 @@ fn main() {
 
 	let mut map: Map = match map {
 		Ok((mut map,)) => unsafe {map.createRenderer("Resources/Images/Map1.anim", &textureCreator); map},
-		Err(..) => Map::new(0, 0, "Resources/Images/Map1.anim", &textureCreator).unwrap(),
+		Err(..) => {
+			let mut map = Map::new(0, 0, "Resources/Images/Map1.anim", &textureCreator).unwrap();
+			map.addScreen(17, 12, Location::default());
+			map
+		},
 	};
-
-	map.addScreen(17, 12, Location::default());
-
-	map.changeTile((0, 0), Tile::new(1, 0).unwrap());
 
 	let mut entities = Vec::<Entity>::new();
 
