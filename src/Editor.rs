@@ -12,7 +12,9 @@ use sdl2::mouse::MouseButton;
 use sdl2::keyboard::Scancode;
 use sdl2::rect::Rect;
 
-use BinaryFileIO::dump;
+use BinaryFileIO::{load, dump};
+
+use std::io;
 
 const WIDTH: u32 = 17*50;
 const HEIGHT: u32 = 13*50;
@@ -55,7 +57,12 @@ fn main() {
 
 	let textureCreator = canvas.texture_creator();
 
-	let mut map = Map::new(0, 0, "Resources/Images/Map1.anim", &textureCreator).unwrap();
+	let map: io::Result<(Map,)> = unsafe{load!(OUTPUT_NAME, map)};
+
+	let mut map: Map = match map {
+		Ok((mut map,)) => unsafe {map.createRenderer("Resources/Images/Map1.anim", &textureCreator); map},
+		Err(..) => Map::new(0, 0, "Resources/Images/Map1.anim", &textureCreator).unwrap(),
+	};
 
 	map.addScreen(17, 12, Location::default());
 

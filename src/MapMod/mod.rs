@@ -5,9 +5,11 @@ use sdl2::render::{TextureCreator, Canvas};
 use sdl2::video::{Window, WindowContext};
 use sdl2::rect::Rect;
 
-use BinaryFileIO::BFStream::{ProvideReferencesDynamic, DynamicBinaryTranslator};
+use BinaryFileIO::BFStream::{ProvideReferencesDynamic, DynamicBinaryTranslator, ProvidePointersMutDynamic, DynamicTypedTranslator, SelfOwned};
+use BinaryFileIO::BinaryDataContainer;
 
 use std::io;
+use std::ptr::addr_of_mut;
 
 pub use TileMod::*;
 pub use ScreenMod::*;
@@ -55,12 +57,36 @@ impl<'a> Map<'a> {
 	pub fn decrementCurrentScreen(&mut self) {
 		if self.activeScreen > 0 {self.activeScreen-=1;}
 	}
+	pub unsafe fn createRenderer(&mut self, tileset: &str, textureCreator: &'a TextureCreator<WindowContext>) {
+		addr_of_mut!(self.renderer).write(TileRenderer::new(0, tileset, textureCreator).unwrap());
+	}
 }
+
+unsafe impl<'a> SelfOwned for Map<'a> {}
 
 impl<'a> ProvideReferencesDynamic<'a> for Map<'a> {
 	type Type = Map<'static>;
 	fn provideReferencesDyn<T: DynamicBinaryTranslator<'a>>(&'a self, translator: &mut T) {
 		unsafe{translator.translateSlice(self.screens.as_slice())};
+	}
+}
+
+impl<'a> ProvidePointersMutDynamic<'a> for Map<'a> {
+	type Type = Map<'static>;
+	unsafe fn providePointersMutDyn<T: DynamicTypedTranslator<'a>>(uninitialized: *mut Self, depth: usize, translator: &mut T) -> bool {
+		if depth == 0 {
+			let size = translator.getSliceSize().unwrap();
+			let mut v = Vec::with_capacity(size);
+			let ptr = v.as_mut_ptr();
+			let translatedPtr: *mut [Screen] = BinaryDataContainer::reinterpretAllocatedToSlice(ptr as *mut u8, size);
+			translator.translateRawSlice(translatedPtr);
+			v.set_len(size);
+			addr_of_mut!((*uninitialized).screens).write(v);
+			false
+		}
+		else {
+			translator.translateSlice(depth - 1, (*uninitialized).screens.as_mut_slice())
+		}
 	}
 }
 

@@ -1,11 +1,11 @@
-extern crate sdl2;
+use std::ptr::addr_of_mut;
 
 use sdl2::render::Canvas;
 use sdl2::video::Window;
 use sdl2::rect::{Rect, Point};
 
 use BinaryFileIO::BinaryDataContainer::SelfContained;
-use BinaryFileIO::BFStream::{ProvideReferencesDynamic, DynamicBinaryTranslator};
+use BinaryFileIO::BFStream::{ProvideReferencesDynamic, DynamicBinaryTranslator, ProvidePointersMutDynamic, DynamicTypedTranslator};
 
 use super::{Tile, TileRenderer};
 use crate::Vec2d;
@@ -68,6 +68,13 @@ impl<'a> ProvideReferencesDynamic<'a> for Screen {
 	type Type = Self;
 	fn provideReferencesDyn<T: DynamicBinaryTranslator<'a>>(&'a self, translator: &mut T) {
 		self.tiles.provideReferencesDyn(translator);
+	}
+}
+
+impl<'a> ProvidePointersMutDynamic<'a> for Screen {
+	type Type = Self;
+	unsafe fn providePointersMutDyn<T: DynamicTypedTranslator<'a>>(uninitialized: *mut Self, depth: usize, translator: &mut T) -> bool {
+		Vec2d::providePointersMutDyn(addr_of_mut!((*uninitialized).tiles), depth, translator)
 	}
 }
 
