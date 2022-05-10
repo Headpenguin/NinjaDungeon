@@ -1,11 +1,11 @@
-extern crate sdl2;
-
 mod TileMod;
 mod ScreenMod;
 
 use sdl2::render::{TextureCreator, Canvas};
 use sdl2::video::{Window, WindowContext};
 use sdl2::rect::Rect;
+
+use BinaryFileIO::BFStream::{ProvideReferencesDynamic, DynamicBinaryTranslator};
 
 use std::io;
 
@@ -41,12 +41,26 @@ impl<'a> Map<'a> {
 	}
 	pub fn addScreen(&mut self, width: u16, height: u16, location: Location) {
 		self.screens.push(Screen::new(width, height, location));
+		self.activeScreen = self.screens.len() - 1;
 	}
 	pub fn changeTile(&mut self, position: (u16, u16), replacement: Tile) {
 		self.screens[self.activeScreen].replaceTile(position, replacement);
 	}
 	pub fn renderTile(&mut self, position: Rect, tile: &Tile, canvas: &mut Canvas<Window>) {
 		self.renderer.draw(tile, canvas, position);
+	}
+	pub fn incrementCurrentScreen(&mut self) {
+		if self.activeScreen + 1 < self.screens.len() {self.activeScreen+=1;}
+	}
+	pub fn decrementCurrentScreen(&mut self) {
+		if self.activeScreen > 0 {self.activeScreen-=1;}
+	}
+}
+
+impl<'a> ProvideReferencesDynamic<'a> for Map<'a> {
+	type Type = Map<'static>;
+	fn provideReferencesDyn<T: DynamicBinaryTranslator<'a>>(&'a self, translator: &mut T) {
+		unsafe{translator.translateSlice(self.screens.as_slice())};
 	}
 }
 

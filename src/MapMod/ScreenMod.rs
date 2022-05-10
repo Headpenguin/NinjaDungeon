@@ -4,6 +4,9 @@ use sdl2::render::Canvas;
 use sdl2::video::Window;
 use sdl2::rect::{Rect, Point};
 
+use BinaryFileIO::BinaryDataContainer::SelfContained;
+use BinaryFileIO::BFStream::{ProvideReferencesDynamic, DynamicBinaryTranslator};
+
 use super::{Tile, TileRenderer};
 use crate::Vec2d;
 
@@ -22,6 +25,8 @@ pub struct Location {
 	left: usize,
 	right: usize,
 }
+
+unsafe impl SelfContained for Location {}
 
 impl Default for Location {
 	fn default() -> Self {
@@ -58,4 +63,12 @@ impl Screen {
 		*self.tiles.indexMut(position.1 as usize, position.0 as usize) = replacement;
 	}
 }
+
+impl<'a> ProvideReferencesDynamic<'a> for Screen {
+	type Type = Self;
+	fn provideReferencesDyn<T: DynamicBinaryTranslator<'a>>(&'a self, translator: &mut T) {
+		self.tiles.provideReferencesDyn(translator);
+	}
+}
+
 

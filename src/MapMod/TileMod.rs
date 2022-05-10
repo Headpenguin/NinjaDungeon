@@ -1,3 +1,6 @@
+use BinaryFileIO::BinaryDataContainer::SelfContained;
+use BinaryFileIO::BFStream::Extend;
+
 #[derive(Clone)]
 pub struct Tile (u16, CollisionType);
 
@@ -36,4 +39,8 @@ pub enum CollisionType {
 }
 
 pub const MAX_TILE_IDX: u16 = 1;
+
+unsafe impl SelfContained for Tile {}
+
+impl Extend for Tile {}
 

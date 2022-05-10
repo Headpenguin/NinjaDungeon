@@ -12,10 +12,14 @@ use sdl2::mouse::MouseButton;
 use sdl2::keyboard::Scancode;
 use sdl2::rect::Rect;
 
+use BinaryFileIO::dump;
+
 const WIDTH: u32 = 17*50;
 const HEIGHT: u32 = 13*50;
 const NAME: &str = "test";
 const COLOR: Color = Color::RGB(0x88, 0x88, 0x88);
+
+const OUTPUT_NAME: &str = "Fuck yeah!";
 
 /*pub fn addEntity(&mut self, code: Codes, position: (i32, i32), direction: Direction) {
 	self.entities.push(Entity{code, position, direction});
@@ -94,6 +98,18 @@ fn main() {
 						currentTileId += 1;
 						currentTile = Tile::new(currentTileId, 0).unwrap();
 					}
+				},
+				Event::KeyDown{scancode: Some(Scancode::S), ..} => {
+					dump!(OUTPUT_NAME, map).unwrap();
+				},	
+				Event::KeyDown{scancode: Some(Scancode::N), ..} => {
+					map.addScreen(17, 12, Location::default());
+				},
+				Event::KeyDown{scancode: Some(Scancode::A), ..} => {
+					map.decrementCurrentScreen();
+				},
+				Event::KeyDown{scancode: Some(Scancode::D), ..} => {
+					map.incrementCurrentScreen();
 				},
 				_ => (),
 			}

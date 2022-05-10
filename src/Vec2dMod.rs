@@ -1,3 +1,5 @@
+use BinaryFileIO::BFStream::{ProvideReferencesDynamic, DynamicBinaryTranslator};
+
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
@@ -25,6 +27,13 @@ impl<T> Deref for Vec2d<T> {
 impl<T> DerefMut for Vec2d<T> {
 	fn deref_mut(&mut self) -> &mut Vec<T> {
 		&mut self.0
+	}
+}
+
+impl<'a, Ty> ProvideReferencesDynamic<'a> for Vec2d<Ty> where Ty: ProvideReferencesDynamic<'a> {
+	type Type = ();
+	fn provideReferencesDyn<T: DynamicBinaryTranslator<'a>>(&'a self, translator: &mut T) {
+		unsafe{translator.translateSlice(self.0.as_slice());}
 	}
 }
 

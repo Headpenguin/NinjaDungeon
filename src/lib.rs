@@ -1,4 +1,7 @@
 #![allow(non_snake_case)]
+extern crate sdl2;
+extern crate BinaryFileIO;
+
 use sdl2::{Sdl, VideoSubsystem, EventPump};
 use sdl2::render::{Canvas, TextureCreator};
 use sdl2::video::{WindowContext, Window};
