@@ -31,12 +31,15 @@ impl<'a> Map<'a> {
 	/*pub fn fromFile(filename: &str, tileset: &str, textureCreator: &'a TextureCreator) -> Map<'a> {
 		
 	}*/
-	pub fn new(id: usize, activeScreen: usize, tileset: &str, textureCreator: &'a TextureCreator<WindowContext>) -> io::Result<Map<'a>> {
+	pub fn new(id: usize, tileset: &str, textureCreator: &'a TextureCreator<WindowContext>) -> io::Result<Map<'a>> {
 		Ok(Map {
 			screens: vec![],
-			activeScreen: activeScreen,
+			activeScreen: 0,
 			renderer: TileRenderer::new(id, tileset, textureCreator)?,
 		})
+	}
+	pub fn update(&mut self) {
+		self.renderer.update();
 	}
 	pub fn draw(&mut self, canvas: &mut Canvas<Window>) {
 		self.screens[self.activeScreen].draw(&mut self.renderer, canvas);
@@ -95,6 +98,9 @@ impl<'a> TileRenderer<'a> {
 		Ok(TileRenderer {
 			animations: Animations::new(tileset, TILESETS[id], creator)?,
 		})
+	}
+	pub fn update(&mut self) {
+		self.animations.update();
 	}
 	// Make this better pls
 	pub fn draw(&mut self, tile: &Tile, canvas: &mut Canvas<Window>, position: Rect) {

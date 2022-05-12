@@ -9,6 +9,7 @@ impl Tile {
 		match id {
 			0 => Ok(Tile(0, CollisionType::None)),
 			1 => Ok(Tile(1, CollisionType::Block)),
+			2 => Ok(Tile(2, CollisionType::Block)),
 			_ => Err("Recieved invalid tile id"),
 		}
 	}
@@ -38,7 +39,7 @@ pub enum CollisionType {
 	Burn, //Burn the player
 }
 
-pub const MAX_TILE_IDX: u16 = 1;
+pub const MAX_TILE_IDX: u16 = 2;
 
 unsafe impl SelfContained for Tile {}
 

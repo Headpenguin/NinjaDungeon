@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 extern crate sdl2;
 
-use NinjaDungeon::{GameContext, Player};
+use NinjaDungeon::{GameContext, Player, loadMap};
 
 use sdl2::pixels::Color;
 use sdl2::image::LoadTexture;
@@ -20,7 +20,9 @@ fn main()
 	
 	let mut player = Player::new(&creator, 0f32, 0f32).unwrap();
 
-	while context.mainLoop(&mut player) {}
+	let mut map = loadMap("Resources/Levels/urMom.mp", "Resources/Images/Map1.anim", &creator).unwrap();
+
+	while context.mainLoop(&mut player, &mut map) {}
 
 }
 

@@ -9,6 +9,10 @@ use sdl2::event::Event;
 use sdl2::hint;
 use sdl2::pixels::Color;
 
+use BinaryFileIO::load;
+
+use std::io;
+
 mod PlayerMod;
 mod SpriteLoader;
 mod MapMod;
@@ -66,7 +70,7 @@ impl GameContext {
 	}
 	
 	#[inline(always)]
-	pub fn mainLoop(&mut self, player: &mut Player) -> bool {
+	pub fn mainLoop(&mut self, player: &mut Player, map: &mut Map) -> bool {
 			
 		self.canvas.clear();
 		
@@ -83,8 +87,10 @@ impl GameContext {
 			player.signal(signals.build(&self.events));
 		}
 
+		map.update();
 		player.update();
 
+		map.draw(&mut self.canvas);
 		player.draw(&mut self.canvas);
 		
 		self.canvas.present();
@@ -97,6 +103,15 @@ impl GameContext {
 			Event::Quit{..} => true,
 			_ => false,
 		}
+	}
+}
+
+pub fn loadMap<'a>(filename: &str, tileSprites: &str, creator: &'a TextureCreator<WindowContext>) -> io::Result<Map<'a>> {
+	let map: io::Result<(Map,)> = unsafe{load!(filename, map)};
+
+	match map {
+		Ok((mut map,)) => Ok(unsafe {map.createRenderer(tileSprites, &creator); map}),
+		Err(e) => Err(e),
 	}
 }
 

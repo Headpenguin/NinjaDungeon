@@ -15,13 +15,15 @@ use sdl2::rect::Rect;
 use BinaryFileIO::{load, dump};
 
 use std::io;
+use std::env;
+use std::fs;
+
+const DEFAULT_LOOKUP: &str = "MapName.txt";
 
 const WIDTH: u32 = 17*50;
 const HEIGHT: u32 = 13*50;
 const NAME: &str = "test";
 const COLOR: Color = Color::RGB(0x88, 0x88, 0x88);
-
-const OUTPUT_NAME: &str = "Fuck yeah!";
 
 /*pub fn addEntity(&mut self, code: Codes, position: (i32, i32), direction: Direction) {
 	self.entities.push(Entity{code, position, direction});
@@ -36,6 +38,14 @@ struct Entity {
 	direction: Direction,
 }
 fn main() {    
+	let file = match env::args().skip(1).next() {
+		Some(name) => name,
+		None => fs::read_to_string(DEFAULT_LOOKUP).unwrap_or_else(|_| {
+			println!("Warning: Could not find backup map file!");
+			String::from("")
+		}),
+	};
+
 	let sdlContext = sdl2::init().unwrap();
 	let videoSubsystem = sdlContext.video().unwrap();
 	
@@ -57,11 +67,12 @@ fn main() {
 
 	let textureCreator = canvas.texture_creator();
 
-	let map: io::Result<(Map,)> = unsafe{load!(OUTPUT_NAME, map)};
+	let map: io::Result<(Map,)> = unsafe{load!(&file, map)};
 
 	let mut map: Map = match map {
 		Ok((mut map,)) => unsafe {map.createRenderer("Resources/Images/Map1.anim", &textureCreator); map},
 		Err(..) => {
+			println!("Warning: Could not read map file \"{}\"", &file);
 			let mut map = Map::new(0, 0, "Resources/Images/Map1.anim", &textureCreator).unwrap();
 			map.addScreen(17, 12, Location::default());
 			map
@@ -107,7 +118,7 @@ fn main() {
 					}
 				},
 				Event::KeyDown{scancode: Some(Scancode::S), ..} => {
-					dump!(OUTPUT_NAME, map).unwrap();
+					dump!(&file, map).unwrap();
 				},	
 				Event::KeyDown{scancode: Some(Scancode::N), ..} => {
 					map.addScreen(17, 12, Location::default());
