@@ -8,6 +8,7 @@ use sdl2::video::{WindowContext, Window};
 use sdl2::event::Event;
 use sdl2::hint;
 use sdl2::pixels::Color;
+use sdl2::rect::Rect;
 
 use BinaryFileIO::load;
 
@@ -22,7 +23,7 @@ pub mod Entities;
 pub use Vec2dMod::Vec2d;
 pub use PlayerMod::Player;
 
-pub use MapMod::*;
+pub use MapMod::{Map, Location, Tile, MAX_TILE_IDX, CollisionType, CollisionBounds};
 
 use PlayerMod::SignalsBuilder;
 
@@ -88,7 +89,7 @@ impl GameContext {
 		}
 
 		map.update();
-		player.update();
+		player.update(map);
 
 		map.draw(&mut self.canvas);
 		player.draw(&mut self.canvas);
@@ -121,5 +122,9 @@ pub enum Direction {
 	Down,
 	Left,
 	Right,
+}
+
+pub trait PlayerCollision {
+    fn collidePlayer(&self, player: &mut Player);
 }
 

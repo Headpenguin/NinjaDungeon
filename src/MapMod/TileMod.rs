@@ -16,6 +16,9 @@ impl Tile {
 	pub fn getId(&self) -> u16 {
 		self.0
 	}
+	pub fn getCollisionType(&self) -> CollisionType {
+		self.1
+	}
 }
 
 impl Default for Tile {
@@ -30,11 +33,11 @@ impl Default for Tile {
  and check collision like that. For a sign, check some amount in front of the player (probably
  the same amount as the walking velocity). Also, just add an index to a vector to have additional data.
 */
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub enum CollisionType {
 	None, //Do nothing
 	Block, //Block the player
-	Switch(usize), //Collision type for switches
+	Switch, //Collision type for switches
 	Hit, //Hurt the player
 	Burn, //Burn the player
 }

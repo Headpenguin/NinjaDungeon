@@ -18,7 +18,7 @@ fn main()
 
 	let (mut context, creator) = GameContext::initialize(NAME, WIDTH, HEIGHT, COLOR);
 	
-	let mut player = Player::new(&creator, 0f32, 0f32).unwrap();
+	let mut player = Player::new(&creator, 50f32, 50f32).unwrap();
 
 	let mut map = loadMap("Resources/Levels/urMom.mp", "Resources/Images/Map1.anim", &creator).unwrap();
 

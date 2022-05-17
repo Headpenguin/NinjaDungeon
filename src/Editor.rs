@@ -73,7 +73,7 @@ fn main() {
 		Ok((mut map,)) => unsafe {map.createRenderer("Resources/Images/Map1.anim", &textureCreator); map},
 		Err(..) => {
 			println!("Warning: Could not read map file \"{}\"", &file);
-			let mut map = Map::new(0, 0, "Resources/Images/Map1.anim", &textureCreator).unwrap();
+			let mut map = Map::new(0, "Resources/Images/Map1.anim", &textureCreator).unwrap();
 			map.addScreen(17, 12, Location::default());
 			map
 		},

@@ -4,7 +4,7 @@ use sdl2::render::{TextureCreator, Canvas};
 use sdl2::video::{Window, WindowContext};
 use sdl2::rect::Rect;
 
-use std::ops::{Add, AddAssign};
+use std::ops::{Add, AddAssign, Sub, SubAssign};
 use std::io;
 
 mod SignalsMod;
@@ -12,7 +12,7 @@ mod SignalsMod;
 pub use SignalsMod::{SignalsBuilder, Signals, Mapping};
 
 use crate::SpriteLoader::Animations;
-use crate::Direction;
+use crate::{Direction, Map, CollisionType};
 
 const NAMES: &'static[&'static str] = &[
 	"Ninja float",
@@ -41,6 +41,19 @@ impl AddAssign for Vector {
 	}
 }
 
+impl Sub for Vector {
+	type Output = Vector;
+	fn sub(self, other: Self) -> Self::Output {	
+        Vector(self.0 - other.0, self.1 - other.1)
+	}
+}
+
+impl SubAssign for Vector {
+	fn sub_assign(&mut self, other: Self) {
+		*self = *self - other;
+	}
+}
+
 impl From<Vector> for (i32, i32) {
 	fn from(input: Vector) -> (i32, i32) {
 		(input.0.round() as i32, input.1.round() as i32)
@@ -54,6 +67,7 @@ pub struct Player<'a> {
 
 	velocity: Vector,
     position: Vector,
+	hitbox: Rect,
 	renderPosition: Rect,
 }
 
@@ -67,18 +81,52 @@ impl<'a> Player<'a> {
         );
 		let animations = Animations::new("Resources/Images/Ninja.anim", NAMES, creator)?;
 		let renderPosition = Rect::new(positionX.round() as i32, positionY.round() as i32, 50, 50);
-		
+		let hitbox = Rect::new(positionX.round() as i32 + 2, positionY as i32 + 2, 46, 46);
 
-        Ok(Player {animations: animations, direction, velocity, position, timer, renderPosition,})
+        Ok(Player {animations: animations, direction, velocity, position, timer, hitbox, renderPosition,})
     }
 
 	pub fn draw(&self, canvas: &mut Canvas<Window>) {
 		self.animations.drawNextFrame(canvas, self.renderPosition);
 	}
 
-    pub fn update(&mut self) {
-        self.position += self.velocity;
+	fn updatePositions(&mut self) {		
 		self.renderPosition.reposition(self.position);
+		self.hitbox.reposition(self.position + Vector(2f32, 2f32));
+	}
+	fn doCollision(&mut self, map: &mut Map) {
+		let mut iter = Map::calculateCollisionBounds(self.hitbox);
+
+		let mut blocked = false;
+
+		while let Some(tile) = map.collide(&mut iter) {
+			match tile.getCollisionType() {
+				CollisionType::Block if !blocked => {
+					self.position -= self.velocity;	
+					self.updatePositions();
+					blocked = true;
+				}
+				_ => (),
+			}
+		}
+	}
+
+    pub fn update(&mut self, map: &mut Map) {
+		let tmp = self.velocity;
+        self.velocity.1 = 0f32;
+		self.position += self.velocity;
+		self.updatePositions();
+		self.doCollision(map);
+
+		self.velocity = tmp;
+		self.velocity.0 = 0f32;
+		self.position += self.velocity;
+		self.updatePositions();
+		self.doCollision(map);
+
+		self.velocity = tmp;
+
+
 		self.timer += 1;
 		if self.timer > 20 {
 			self.timer = 0;

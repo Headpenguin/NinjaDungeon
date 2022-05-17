@@ -16,16 +16,25 @@ pub use ScreenMod::*;
 
 use crate::SpriteLoader::Animations;
 
+const TILE_DIVISOR: f32 = 1f32/50f32;
+
 pub struct Map<'a> {
 	screens: Vec<Screen>,
 	activeScreen: usize,
 	renderer: TileRenderer<'a>,
 }
 
+pub struct CollisionBounds {
+	startX: u16,
+	endX: u16,
+	endY: u16,
+	x: u16,
+	y: u16,
+}
+
 pub struct TileRenderer<'a> {
 	animations: Animations<'a>,
 }
-
 
 impl<'a> Map<'a> {
 	/*pub fn fromFile(filename: &str, tileset: &str, textureCreator: &'a TextureCreator) -> Map<'a> {
@@ -60,8 +69,48 @@ impl<'a> Map<'a> {
 	pub fn decrementCurrentScreen(&mut self) {
 		if self.activeScreen > 0 {self.activeScreen-=1;}
 	}
+	pub fn setCurrentScreen(&mut self, screen: usize) -> Result<(), &'static str> {
+		if screen < self.screens.len() {
+			self.activeScreen = screen;
+			Ok(())
+		}
+		else {Err("Attempted to switch to out-of-bounds screen")}
+	}
+	#[inline(always)]
+	pub fn calculateCollisionBounds(hitbox: Rect) -> CollisionBounds {
+		let leftBound = (hitbox.x as f32 * TILE_DIVISOR ).floor() as u16;
+        let rightBound = ((hitbox.x + hitbox.w) as f32 * TILE_DIVISOR ).floor() as u16;
+        let topBound = (hitbox.y as f32 * TILE_DIVISOR ).floor() as u16;
+        let bottomBound = ((hitbox.y + hitbox.h) as f32 * TILE_DIVISOR ).floor() as u16;
+		CollisionBounds	{
+			startX: leftBound,
+			endX: rightBound,
+			endY: bottomBound,
+			x: leftBound,
+			y: topBound,
+		}
+	}
+	pub fn collide(&'a self, bounds: &mut CollisionBounds) -> Option<&'a Tile> {
+		Some(self.screens[self.activeScreen].getTile(bounds.next()?))
+	}
 	pub unsafe fn createRenderer(&mut self, tileset: &str, textureCreator: &'a TextureCreator<WindowContext>) {
 		addr_of_mut!(self.renderer).write(TileRenderer::new(0, tileset, textureCreator).unwrap());
+	}
+}
+
+impl Iterator for CollisionBounds {
+	type Item = (u16, u16);
+	fn next(&mut self) -> Option<Self::Item> {
+		let result = Some((self.x, self.y));
+		if self.y > self.endY {
+			return None;
+		}
+		if self.x >= self.endX {
+			self.x = self.startX;
+			self.y += 1;
+		}
+		else{self.x += 1;}
+		result
 	}
 }
 

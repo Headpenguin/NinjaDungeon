@@ -62,6 +62,9 @@ impl Screen {
 	pub fn replaceTile(&mut self, position: (u16, u16), replacement: Tile) {
 		*self.tiles.indexMut(position.1 as usize, position.0 as usize) = replacement;
 	}
+	pub fn getTile(&self, position: (u16, u16)) -> &Tile {
+		self.tiles.index(position.1 as usize, position.0 as usize)
+	}
 }
 
 impl<'a> ProvideReferencesDynamic<'a> for Screen {
