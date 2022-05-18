@@ -37,6 +37,7 @@ impl Default for Tile {
 pub enum CollisionType {
 	None, //Do nothing
 	Block, //Block the player
+    SharpBlock, //Block the player and push diagonally at corners
 	Switch, //Collision type for switches
 	Hit, //Hurt the player
 	Burn, //Burn the player

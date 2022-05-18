@@ -76,6 +76,19 @@ impl<'a> Player<'a> {
 					self.position += ejectionVector;	
 					self.updatePositions();
 				},
+                CollisionType::SharpBlock => {
+					let ejectionDirection = Vector::fromPoints((location.0 as f32 * 50f32, location.1 as f32 * 50f32), self.position);
+					let (mut x, mut y) = (0f32, 0f32);
+					if ejectionDirection.0.abs() >= ejectionDirection.1.abs() {
+						x = (50f32 - ejectionDirection.0.abs()) * ejectionDirection.0.signum();
+					}
+					if ejectionDirection.0.abs() <= ejectionDirection.1.abs() {
+						y = (50f32 - ejectionDirection.1.abs()) * ejectionDirection.1.signum();
+					}
+					let ejectionVector = Vector(x, y);
+					self.position += ejectionVector;	
+					self.updatePositions();
+                },
 				_ => (),
 			}
 		}
