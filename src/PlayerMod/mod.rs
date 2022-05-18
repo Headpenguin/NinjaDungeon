@@ -4,7 +4,6 @@ use sdl2::render::{TextureCreator, Canvas};
 use sdl2::video::{Window, WindowContext};
 use sdl2::rect::Rect;
 
-use std::ops::{Add, AddAssign, Sub, SubAssign};
 use std::io;
 
 mod SignalsMod;
@@ -12,7 +11,7 @@ mod SignalsMod;
 pub use SignalsMod::{SignalsBuilder, Signals, Mapping};
 
 use crate::SpriteLoader::Animations;
-use crate::{Direction, Map, CollisionType};
+use crate::{Direction, Map, CollisionType, Vector};
 
 const NAMES: &'static[&'static str] = &[
 	"Ninja float",
@@ -24,41 +23,6 @@ const NAMES: &'static[&'static str] = &[
 	"Ninja left attack",
 	"Ninja up attack",
 ];
-
-#[derive(Copy, Clone)]
-struct Vector(f32, f32);
-
-impl Add for Vector {
-    type Output = Vector;
-    fn add(self, other: Self) -> Self::Output {
-        Vector(self.0 + other.0, self.1 + other.1)
-    }
-}
-
-impl AddAssign for Vector {
-	fn add_assign(&mut self, other: Self) {
-		*self = *self + other;
-	}
-}
-
-impl Sub for Vector {
-	type Output = Vector;
-	fn sub(self, other: Self) -> Self::Output {	
-        Vector(self.0 - other.0, self.1 - other.1)
-	}
-}
-
-impl SubAssign for Vector {
-	fn sub_assign(&mut self, other: Self) {
-		*self = *self - other;
-	}
-}
-
-impl From<Vector> for (i32, i32) {
-	fn from(input: Vector) -> (i32, i32) {
-		(input.0.round() as i32, input.1.round() as i32)
-	}
-}
 
 pub struct Player<'a> {
 	animations: Animations<'a>,
@@ -97,35 +61,30 @@ impl<'a> Player<'a> {
 	fn doCollision(&mut self, map: &mut Map) {
 		let mut iter = Map::calculateCollisionBounds(self.hitbox);
 
-		let mut blocked = false;
-
-		while let Some(tile) = map.collide(&mut iter) {
+		while let Some((location, tile)) = map.collide(&mut iter) {
 			match tile.getCollisionType() {
-				CollisionType::Block if !blocked => {
-					self.position -= self.velocity;	
+				CollisionType::Block => {
+					let ejectionDirection = Vector::fromPoints((location.0 as f32 * 50f32, location.1 as f32 * 50f32), self.position);
+					let (mut x, mut y) = (0f32, 0f32);
+					if ejectionDirection.0.abs() > ejectionDirection.1.abs() {
+						x = (50f32 - ejectionDirection.0.abs()) * ejectionDirection.0.signum();
+					}
+					if ejectionDirection.0.abs() < ejectionDirection.1.abs() {
+						y = (50f32 - ejectionDirection.1.abs()) * ejectionDirection.1.signum();
+					}
+					let ejectionVector = Vector(x, y);
+					self.position += ejectionVector;	
 					self.updatePositions();
-					blocked = true;
-				}
+				},
 				_ => (),
 			}
 		}
 	}
 
     pub fn update(&mut self, map: &mut Map) {
-		let tmp = self.velocity;
-        self.velocity.1 = 0f32;
 		self.position += self.velocity;
 		self.updatePositions();
 		self.doCollision(map);
-
-		self.velocity = tmp;
-		self.velocity.0 = 0f32;
-		self.position += self.velocity;
-		self.updatePositions();
-		self.doCollision(map);
-
-		self.velocity = tmp;
-
 
 		self.timer += 1;
 		if self.timer > 20 {

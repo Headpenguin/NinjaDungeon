@@ -90,8 +90,9 @@ impl<'a> Map<'a> {
 			y: topBound,
 		}
 	}
-	pub fn collide(&'a self, bounds: &mut CollisionBounds) -> Option<&'a Tile> {
-		Some(self.screens[self.activeScreen].getTile(bounds.next()?))
+	pub fn collide(&'a self, bounds: &mut CollisionBounds) -> Option<((u16, u16), &'a Tile)> {
+		let location = bounds.next()?;
+		Some((location, self.screens[self.activeScreen].getTile(location)))
 	}
 	pub unsafe fn createRenderer(&mut self, tileset: &str, textureCreator: &'a TextureCreator<WindowContext>) {
 		addr_of_mut!(self.renderer).write(TileRenderer::new(0, tileset, textureCreator).unwrap());

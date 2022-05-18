@@ -18,8 +18,10 @@ mod PlayerMod;
 mod SpriteLoader;
 mod MapMod;
 mod Vec2dMod;
+mod VectorMod;
 pub mod Entities;
 
+pub use VectorMod::Vector;
 pub use Vec2dMod::Vec2d;
 pub use PlayerMod::Player;
 
