@@ -76,12 +76,32 @@ impl<'a> Map<'a> {
 		}
 		else {Err("Attempted to switch to out-of-bounds screen")}
 	}
+    pub fn transitionScreen(&mut self, hitbox: Rect) -> Rect {
+        let activeScreen = self.screens[self.activeScreen];
+        let result;
+        if hitbox.x < 0 { //Left transition
+            
+        }
+        else if hitbox.x >= activeScreen.getWidth().0 { //Right transition
+            self.activeScreen = activeScreen.
+        }
+        else if hitbox.y < 0 { //Top transition
+
+        }
+        else if hitbox.y >= activeScreen.getWidth().0 { //Bottom transition
+
+        }
+
+    }
 	#[inline(always)]
-	pub fn calculateCollisionBounds(hitbox: Rect) -> CollisionBounds {
-		let leftBound = (hitbox.x as f32 * TILE_DIVISOR ).floor() as u16;
-        let rightBound = ((hitbox.x + hitbox.w) as f32 * TILE_DIVISOR ).floor() as u16;
-        let topBound = (hitbox.y as f32 * TILE_DIVISOR ).floor() as u16;
-        let bottomBound = ((hitbox.y + hitbox.h) as f32 * TILE_DIVISOR ).floor() as u16;
+	pub fn calculateCollisionBounds(&self, hitbox: Rect) -> CollisionBounds {
+        let screen = self.screens[self.activeScreen];
+        let (maxX, maxY) = screen.getDimensions();
+        let (maxX, maxY) = (maxX as f32 - 1f32, maxY as f32 - 1f32);
+		let leftBound = (hitbox.x as f32 * TILE_DIVISOR ).floor().clamp(0f32, maxX) as u16;
+        let rightBound = ((hitbox.x + hitbox.w) as f32 * TILE_DIVISOR ).floor().clamp(0f32, maxX) as u16;
+        let topBound = (hitbox.y as f32 * TILE_DIVISOR ).floor().clamp(0f32, maxY) as u16;
+        let bottomBound = ((hitbox.y + hitbox.h) as f32 * TILE_DIVISOR ).floor().clamp(0f32, maxY) as u16;
 		CollisionBounds	{
 			startX: leftBound,
 			endX: rightBound,

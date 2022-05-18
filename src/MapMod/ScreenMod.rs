@@ -8,7 +8,7 @@ use BinaryFileIO::BinaryDataContainer::SelfContained;
 use BinaryFileIO::BFStream::{ProvideReferencesDynamic, DynamicBinaryTranslator, ProvidePointersMutDynamic, DynamicTypedTranslator};
 
 use super::{Tile, TileRenderer};
-use crate::Vec2d;
+use crate::{Vec2d, Direction};
 
 #[derive(Clone)]
 pub struct Screen {
@@ -65,6 +65,10 @@ impl Screen {
 	pub fn getTile(&self, position: (u16, u16)) -> &Tile {
 		self.tiles.index(position.1 as usize, position.0 as usize)
 	}
+    pub fn getDimensions(&self) -> (u16, u16) {(self.width, self.height)}
+    pub fn getLocation(&self, direction: Directions) -> usize {
+        
+    }
 }
 
 impl<'a> ProvideReferencesDynamic<'a> for Screen {
