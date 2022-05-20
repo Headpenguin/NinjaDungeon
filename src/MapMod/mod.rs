@@ -16,20 +16,10 @@ pub use ScreenMod::*;
 
 use crate::SpriteLoader::Animations;
 
-const TILE_DIVISOR: f32 = 1f32/50f32;
-
 pub struct Map<'a> {
 	screens: Vec<Screen>,
 	activeScreen: usize,
 	renderer: TileRenderer<'a>,
-}
-
-pub struct CollisionBounds {
-	startX: u16,
-	endX: u16,
-	endY: u16,
-	x: u16,
-	y: u16,
 }
 
 pub struct TileRenderer<'a> {
@@ -53,9 +43,12 @@ impl<'a> Map<'a> {
 	pub fn draw(&mut self, canvas: &mut Canvas<Window>) {
 		self.screens[self.activeScreen].draw(&mut self.renderer, canvas);
 	}
-	pub fn addScreen(&mut self, width: u16, height: u16, location: Location) {
+	pub fn addScreen(&mut self, width: u16, height: u16, location: (u32, u32)) {
 		self.screens.push(Screen::new(width, height, location));
 		self.activeScreen = self.screens.len() - 1;
+	}
+	pub fn getScreen(&self, screen: usize) -> &Screen {
+		&self.screens[screen]
 	}
 	pub fn changeTile(&mut self, position: (u16, u16), replacement: Tile) {
 		self.screens[self.activeScreen].replaceTile(position, replacement);
@@ -76,64 +69,33 @@ impl<'a> Map<'a> {
 		}
 		else {Err("Attempted to switch to out-of-bounds screen")}
 	}
-    pub fn transitionScreen(&mut self, hitbox: Rect) -> Rect {
-        let activeScreen = self.screens[self.activeScreen];
-        let result;
-        if hitbox.x < 0 { //Left transition
-            
-        }
-        else if hitbox.x >= activeScreen.getWidth().0 { //Right transition
-            self.activeScreen = activeScreen.
-        }
-        else if hitbox.y < 0 { //Top transition
-
-        }
-        else if hitbox.y >= activeScreen.getWidth().0 { //Bottom transition
-
-        }
-
+    pub fn transitionScreen(&mut self, hitbox: Rect) -> Option<Rect> {
+        let activeScreen = &self.screens[self.activeScreen];
+		let (w, h) = activeScreen.getDimensions();
+		let screenRect = Rect::new(0, 0, w as u32, h as u32);
+		let center = hitbox.center();
+		if screenRect.contains_point(center) {
+			let (screen, center) = match activeScreen.getScreen(center, self) {
+				Some(data) => data,
+				None => (self.activeScreen, center),
+			};
+			self.activeScreen = screen;
+			Some(Rect::from_center(center, hitbox.width(), hitbox.height()))
+		}
+		else {None}
     }
 	#[inline(always)]
 	pub fn calculateCollisionBounds(&self, hitbox: Rect) -> CollisionBounds {
-        let screen = self.screens[self.activeScreen];
-        let (maxX, maxY) = screen.getDimensions();
-        let (maxX, maxY) = (maxX as f32 - 1f32, maxY as f32 - 1f32);
-		let leftBound = (hitbox.x as f32 * TILE_DIVISOR ).floor().clamp(0f32, maxX) as u16;
-        let rightBound = ((hitbox.x + hitbox.w) as f32 * TILE_DIVISOR ).floor().clamp(0f32, maxX) as u16;
-        let topBound = (hitbox.y as f32 * TILE_DIVISOR ).floor().clamp(0f32, maxY) as u16;
-        let bottomBound = ((hitbox.y + hitbox.h) as f32 * TILE_DIVISOR ).floor().clamp(0f32, maxY) as u16;
-		CollisionBounds	{
-			startX: leftBound,
-			endX: rightBound,
-			endY: bottomBound,
-			x: leftBound,
-			y: topBound,
-		}
+		self.screens[self.activeScreen].calculateCollisionBounds(hitbox)
 	}
 	pub fn collide(&'a self, bounds: &mut CollisionBounds) -> Option<((u16, u16), &'a Tile)> {
-		let location = bounds.next()?;
-		Some((location, self.screens[self.activeScreen].getTile(location)))
+		self.screens[self.activeScreen].collide(bounds)
 	}
 	pub unsafe fn createRenderer(&mut self, tileset: &str, textureCreator: &'a TextureCreator<WindowContext>) {
 		addr_of_mut!(self.renderer).write(TileRenderer::new(0, tileset, textureCreator).unwrap());
 	}
 }
 
-impl Iterator for CollisionBounds {
-	type Item = (u16, u16);
-	fn next(&mut self) -> Option<Self::Item> {
-		let result = Some((self.x, self.y));
-		if self.y > self.endY {
-			return None;
-		}
-		if self.x >= self.endX {
-			self.x = self.startX;
-			self.y += 1;
-		}
-		else{self.x += 1;}
-		result
-	}
-}
 
 unsafe impl<'a> SelfOwned for Map<'a> {}
 

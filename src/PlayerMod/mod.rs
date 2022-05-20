@@ -59,7 +59,7 @@ impl<'a> Player<'a> {
 		self.hitbox.reposition(self.position + Vector(2f32, 2f32));
 	}
 	fn doCollision(&mut self, map: &mut Map) {
-		let mut iter = Map::calculateCollisionBounds(self.hitbox);
+		let mut iter = map.calculateCollisionBounds(self.hitbox);
 
 		while let Some((location, tile)) = map.collide(&mut iter) {
 			match tile.getCollisionType() {

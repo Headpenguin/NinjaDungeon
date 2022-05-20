@@ -74,7 +74,7 @@ fn main() {
 		Err(..) => {
 			println!("Warning: Could not read map file \"{}\"", &file);
 			let mut map = Map::new(0, "Resources/Images/Map1.anim", &textureCreator).unwrap();
-			map.addScreen(17, 12, Location::default());
+			map.addScreen(17, 12, (0, 0));
 			map
 		},
 	};
@@ -121,7 +121,7 @@ fn main() {
 					dump!(&file, map).unwrap();
 				},	
 				Event::KeyDown{scancode: Some(Scancode::N), ..} => {
-					map.addScreen(17, 12, Location::default());
+					map.addScreen(17, 12, (0, 0));
 				},
 				Event::KeyDown{scancode: Some(Scancode::A), ..} => {
 					map.decrementCurrentScreen();

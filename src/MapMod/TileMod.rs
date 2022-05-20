@@ -10,6 +10,7 @@ impl Tile {
 			0 => Ok(Tile(0, CollisionType::None)),
 			1 => Ok(Tile(1, CollisionType::Block)),
 			2 => Ok(Tile(2, CollisionType::Block)),
+			3 => Ok(Tile(0, CollisionType::Transition(object))),
 			_ => Err("Recieved invalid tile id"),
 		}
 	}
@@ -38,7 +39,8 @@ pub enum CollisionType {
 	None, //Do nothing
 	Block, //Block the player
     SharpBlock, //Block the player and push diagonally at corners
-	Switch, //Collision type for switches
+	Transition(usize),
+	Switch(usize), //Collision type for switches
 	Hit, //Hurt the player
 	Burn, //Burn the player
 }
