@@ -2,7 +2,7 @@
 extern crate BinaryFileIO;
 extern crate sdl2;
 
-use NinjaDungeon::{Map, Location, Tile, Direction, MAX_TILE_IDX};
+use NinjaDungeon::{Map, Location, Tile, Direction, MAX_TILE_IDX, TileBuilder, TileBuilderSignals};
 use NinjaDungeon::Entities::Codes;
 
 use sdl2::hint;
@@ -11,12 +11,16 @@ use sdl2::event::Event;
 use sdl2::mouse::MouseButton;
 use sdl2::keyboard::Scancode;
 use sdl2::rect::Rect;
+use sdl2::ttf::{self, Font};
+use sdl2::render::{TextureCreator, Texture};
+use sdl2::video::WindowContext;
 
 use BinaryFileIO::{load, dump};
 
 use std::io;
 use std::env;
 use std::fs;
+use std::str::FromStr;
 
 const DEFAULT_LOOKUP: &str = "MapName.txt";
 
@@ -38,6 +42,7 @@ struct Entity {
 	direction: Direction,
 }
 fn main() {    
+	let SCREEN_RECT: Rect = Rect::new(0, 0, WIDTH, HEIGHT);
 	let file = match env::args().skip(1).next() {
 		Some(name) => name,
 		None => fs::read_to_string(DEFAULT_LOOKUP).unwrap_or_else(|_| {
@@ -67,6 +72,14 @@ fn main() {
 
 	let textureCreator = canvas.texture_creator();
 
+	let ttfContext = ttf::init().unwrap();
+
+	let font = ttfContext.load_font("Resources/Font/Symbola_hint.ttf", 16).unwrap();
+
+	let mut fontTexture = None;
+
+	let textInput = videoSubsystem.text_input();
+
 	let map: io::Result<(Map,)> = unsafe{load!(&file, map)};
 
 	let mut map: Map = match map {
@@ -88,7 +101,17 @@ fn main() {
 	let tileRect = Rect::new(0, HEIGHT as i32 - 50, 50, 50);
 
 	let mut events = sdlContext.event_pump().unwrap();
-	
+
+	let mut builder = TileBuilder::new(currentTileId);
+
+	let mut state = State::Idle;
+
+	let mut lock = false;
+
+	let mut message = String::from("");
+
+	let mut messageLen = 0;
+
 	canvas.set_draw_color(COLOR);
 
 	let mut quit = false;
@@ -98,13 +121,15 @@ fn main() {
 		canvas.clear();
 	
 		for event in events.poll_iter() {
-			match event {
+			if !lock {match event {
 				Event::Quit {..} => quit = true,
-				Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} => {
-					if (y as i64) < (HEIGHT - 50) as i64 {
-						map.changeTile(((x / 50) as u16, (y / 50) as u16), Tile::new(currentTileId, 0).unwrap());
-					}
+
+				Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} 
+				if (y as i64) < (HEIGHT - 50) as i64 => {
+					builder = TileBuilder::new(currentTileId);
+					buil
 				},
+
 				Event::KeyDown{scancode: Some(Scancode::Left), ..} => {
 					if currentTileId > 0 {
 						currentTileId -= 1;
@@ -130,15 +155,76 @@ fn main() {
 					map.incrementCurrentScreen();
 				},
 				_ => (),
-			}
+			}}
+			else {match (event, &state) {
+				(Event::Quit {..}, _) => quit = true,
+				(_, State::Idle) => lock = false,
+				(Event::KeyDown {scancode: Some(Scancode::Escape), ..}, _) => {
+					lock = false;
+					state = State::Idle;
+					fontTexture = None;
+				}
+				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, State::GetUserUsize) => {
+					println!("{}", &message[messageLen..]);
+					if let Ok(id) = usize::from_str(&message[messageLen..].trim()) {
+						lock = false;
+						builder.addUsize(id);
+						state = State::AttemptBuild;
+						fontTexture = None;
+					}
+					else {
+						message.truncate(messageLen);
+						fontTexture = Some(font.render(&message).shaded(Color::BLACK, Color::WHITE).unwrap().as_texture(&textureCreator).unwrap());
+					}
+				},
+				(Event::TextInput {text, ..}, _) => {
+					message.push_str(&text);
+					fontTexture = Some(font.render(&message).shaded(Color::BLACK, Color::WHITE).unwrap().as_texture(&textureCreator).unwrap());
+				},
+				(Event::KeyDown {scancode: Some(Scancode::Backspace), ..}, _) if message.len() > messageLen => {
+					message.pop();
+					fontTexture = Some(font.render(&message).shaded(Color::BLACK, Color::WHITE).unwrap().as_texture(&textureCreator).unwrap());
+				},
+				_ => (),
+			}}
 		}
 
 		map.draw(&mut canvas);
+
+		if let Some(ref texture) = fontTexture {
+			let q = texture.query();
+			canvas.copy(texture, None, Some(Rect::from_center(SCREEN_RECT.center(), q.width, q.height)));
+		}
 
 		map.renderTile(tileRect, &currentTile, &mut canvas);
 		
 		canvas.present();
 
 	}
+}
+
+fn build<'a>(builder: &mut TileBuilder, map: &mut Map, state: &mut State, lock: &mut bool, 
+	message: &mut String, messageLen: &mut usize, fontTexture: &'a mut Option<Texture<'a>>, 
+	font: &Font, textureCreator: &'a TextureCreator<WindowContext>, x: &i32, y: &i32) {
+	match builder.build() {
+		TileBuilderSignals::GetUserUsize(tmpMessage) => {
+			*state = State::GetUserUsize;
+			*lock = true;
+			*message = String::from(tmpMessage);
+			*messageLen = tmpMessage.len() - 1;
+			*fontTexture = Some(font.render(&message).shaded(Color::BLACK, Color::WHITE).unwrap().as_texture(&textureCreator).unwrap());
+		},
+		TileBuilderSignals::Complete(tile) => {
+			*state = State::Idle;
+			map.changeTile(((x / 50) as u16, (y / 50) as u16), tile);
+		},
+		TileBuilderSignals::InvalidId => (),
+	}	
+}
+
+enum State {
+	GetUserUsize,
+	AttemptBuild,
+	Idle,
 }
 

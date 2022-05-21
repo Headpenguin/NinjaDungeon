@@ -11,7 +11,7 @@ path = "src/Editor.rs"
 [dependencies.sdl2]
 version = "^0.35.2"
 default-features = false
-features = ["image", "mixer"]
+features = ["image", "mixer", "ttf"]
 
 [dependencies.BinaryFileIO]
 path = "../BinaryFileIO/"

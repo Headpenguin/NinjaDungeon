@@ -4,6 +4,17 @@ use BinaryFileIO::BFStream::Extend;
 #[derive(Clone)]
 pub struct Tile (u16, CollisionType);
 
+pub struct TileBuilder {
+	id: u16,
+	mapId: Option<usize>,
+}
+
+pub enum TileBuilderSignals {
+	GetUserUsize(&'static str),
+	Complete(Tile),
+	InvalidId,
+}
+
 impl Tile {
 	pub fn new(id: u16, object: usize) -> Result<Tile, &'static str> {
 		match id {
@@ -25,6 +36,33 @@ impl Tile {
 impl Default for Tile {
 	fn default() -> Tile {
 		Tile(0, CollisionType::None)
+	}
+}
+
+impl TileBuilder {
+	pub fn new(id: u16) -> TileBuilder {
+		TileBuilder {
+			id,
+			mapId: None,
+		}
+	}
+	pub fn build(&self) -> TileBuilderSignals {
+		match self.id {
+			3 => TileBuilderSignals::GetUserUsize("Enter the map id to transition to: "),
+
+			id => if let Ok(tile) = Tile::new(id, 0) {
+				TileBuilderSignals::Complete(tile)
+			}
+			else {
+				TileBuilderSignals::InvalidId
+			},
+		}
+	}
+	pub fn addUsize(&mut self, num: usize) {
+		match self.id {
+			3 => self.mapId = Some(num),
+			_ => (),
+		}
 	}
 }
 

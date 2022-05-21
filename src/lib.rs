@@ -25,7 +25,7 @@ pub use VectorMod::Vector;
 pub use Vec2dMod::Vec2d;
 pub use PlayerMod::Player;
 
-pub use MapMod::{Map, Location, Tile, MAX_TILE_IDX, CollisionType, CollisionBounds};
+pub use MapMod::{Map, Location, Tile, MAX_TILE_IDX, CollisionType, CollisionBounds, TileBuilder, TileBuilderSignals};
 
 use PlayerMod::SignalsBuilder;
 
