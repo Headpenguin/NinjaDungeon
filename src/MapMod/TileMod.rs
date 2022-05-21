@@ -45,7 +45,7 @@ pub enum CollisionType {
 	Burn, //Burn the player
 }
 
-pub const MAX_TILE_IDX: u16 = 2;
+pub const MAX_TILE_IDX: u16 = 3;
 
 unsafe impl SelfContained for Tile {}
 

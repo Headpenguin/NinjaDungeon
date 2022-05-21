@@ -72,9 +72,9 @@ impl<'a> Map<'a> {
     pub fn transitionScreen(&mut self, hitbox: Rect) -> Option<Rect> {
         let activeScreen = &self.screens[self.activeScreen];
 		let (w, h) = activeScreen.getDimensions();
-		let screenRect = Rect::new(0, 0, w as u32, h as u32);
+		let screenRect = Rect::new(0, 0, w as u32 * 50, h as u32 * 50);
 		let center = hitbox.center();
-		if screenRect.contains_point(center) {
+		if !screenRect.contains_point(center) {
 			let (screen, center) = match activeScreen.getScreen(center, self) {
 				Some(data) => data,
 				None => (self.activeScreen, center),

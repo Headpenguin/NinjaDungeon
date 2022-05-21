@@ -24,11 +24,22 @@ const NAMES: &'static[&'static str] = &[
 	"Ninja up attack",
 ];
 
+enum ANIMATION_IDX {
+	DownFloat = 0,
+	RightFloat,
+	LeftFloat,
+	UpFloat,
+	DownAttack,
+	RightAttack,
+	LeftAttack,
+	UpAttack,
+}
+
 pub struct Player<'a> {
 	animations: Animations<'a>,
 	direction: Direction,
 	timer: u32,
-
+	idle: bool,
 	velocity: Vector,
     position: Vector,
 	hitbox: Rect,
@@ -37,17 +48,18 @@ pub struct Player<'a> {
 
 impl<'a> Player<'a> {
     pub fn new(creator: &'a TextureCreator<WindowContext>, positionX: f32, positionY: f32) -> io::Result<Player<'a>> {
-        let (direction, velocity, position, timer) = (
+        let (direction, velocity, position, timer, idle) = (
             Direction::Down, 
             Vector(0f32, 0f32), 
             Vector(positionX, positionY),
 			0u32,
+			true,
         );
 		let animations = Animations::new("Resources/Images/Ninja.anim", NAMES, creator)?;
 		let renderPosition = Rect::new(positionX.round() as i32, positionY.round() as i32, 50, 50);
 		let hitbox = Rect::new(positionX.round() as i32 + 2, positionY as i32 + 2, 46, 46);
 
-        Ok(Player {animations: animations, direction, velocity, position, timer, hitbox, renderPosition,})
+        Ok(Player {animations, direction, velocity, position, timer, idle, hitbox, renderPosition,})
     }
 
 	pub fn draw(&self, canvas: &mut Canvas<Window>) {
@@ -97,6 +109,20 @@ impl<'a> Player<'a> {
     pub fn update(&mut self, map: &mut Map) {
 		self.position += self.velocity;
 		self.updatePositions();
+
+		if let Some(hitbox) = map.transitionScreen(self.hitbox) {
+			let point: (i32, i32) = hitbox.top_left().into();
+			self.position = Vector::from(point);
+			self.updatePositions();
+		}
+
+		if self.idle{match self.direction {
+			Direction::Up => {self.animations.changeAnimation(ANIMATION_IDX::UpFloat as usize);},
+			Direction::Down => {self.animations.changeAnimation(ANIMATION_IDX::DownFloat as usize);},
+			Direction::Left => {self.animations.changeAnimation(ANIMATION_IDX::LeftFloat as usize);},
+			Direction::Right => {self.animations.changeAnimation(ANIMATION_IDX::RightFloat as usize);},
+		}}
+
 		self.doCollision(map);
 
 		self.timer += 1;
