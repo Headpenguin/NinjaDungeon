@@ -16,8 +16,6 @@ use sdl2::mouse::MouseButton;
 use BinaryFileIO::{load, dump};
 
 use std::io;
-use std::fs;
-use std::env;
 use std::str::FromStr;
 
 mod PlayerMod;
@@ -234,7 +232,6 @@ impl EditorContext {
 					*fontTexture = None;
 				}
 				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, State::GetUserUsize) => {
-					println!("{}", &self.message[self.messageLen..]);
 					if let Ok(id) = usize::from_str(&self.message[self.messageLen..].trim()) {
 						self.lock = false;
 						self.tileBuilder.addUsize(id);

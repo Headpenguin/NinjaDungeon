@@ -48,7 +48,14 @@ impl TileBuilder {
 	}
 	pub fn build(&self) -> TileBuilderSignals {
 		match self.id {
-			3 => TileBuilderSignals::GetUserUsize("Enter the map id to transition to: "),
+			3 => {
+				if let Some(id) = self.mapId {
+					TileBuilderSignals::Complete(Tile::new(self.id, id).unwrap())
+				}
+				else {
+					TileBuilderSignals::GetUserUsize("Enter the map id to transition to: ")
+				}
+			},
 
 			id => if let Ok(tile) = Tile::new(id, 0) {
 				TileBuilderSignals::Complete(tile)
