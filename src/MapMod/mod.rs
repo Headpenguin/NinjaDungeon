@@ -102,6 +102,9 @@ impl<'a> Map<'a> {
 	}
 }
 
+pub fn convertScreenCoordToTileCoord(res: (u32, u32), screenPos: Point, point: Point) -> Point {
+    Point::from(point.x / res.0, point.y / res.1) - screenPos
+}
 
 unsafe impl<'a> SelfOwned for Map<'a> {}
 

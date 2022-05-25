@@ -122,6 +122,9 @@ pub struct EditorContext {
 	events: EventPump,
 	textInput: TextInputUtil,
 	quit: bool,
+    mapResX: u32,
+    mapResY: u32,
+    mapPos: Rect,
 	currentTileId: u16,
 	currentTilePosition: (u16, u16),
 	currentTile: Tile,
@@ -175,6 +178,9 @@ impl EditorContext {
 			currentTile: Tile::new(0, 0).unwrap(),
 			previewTile: Tile::new(0, 0).unwrap(),
 			screenRect: Rect::new(0, 0, width, height),
+            mapResX: 136,
+            mapResY: 104,
+			mapRect: Rect::new(0, 0, width, height),
 			previewRect: Rect::new(0, height as i32 - 50, 50, 50),
 			tileBuilder: TileBuilder::new(0),
 			state: State::Idle,
@@ -217,9 +223,6 @@ impl EditorContext {
 				Event::KeyDown{scancode: Some(Scancode::S), ..} => {
 					dump!(filename, *map).unwrap();
 				},	
-				Event::KeyDown{scancode: Some(Scancode::N), ..} => {
-					map.addScreen(17, 12, (0, 0));
-				},
 				Event::KeyDown{scancode: Some(Scancode::A), ..} => {
 					map.decrementCurrentScreen();
 				},
@@ -233,6 +236,13 @@ impl EditorContext {
 			},
 			State::ViewMap => match event {
 				Event::Quit {..} => self.quit = true,
+                Event::Keydown {scancode: Some(Scancode::Escape), ..} => {
+                    self.state = State::Idle;
+                }
+				Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} => {
+                    let topLeft = MapMod::convertScreenToMapCoord(self.res, self.pos, Point::from(x, y));
+                    
+                },
 				_ => (),
 			}
 			_ => match (event, &self.state) {
@@ -273,7 +283,7 @@ impl EditorContext {
 		}
 
 		match self.state {
-			State::ViewMap => map.drawAll(&mut self.canvas, 170, 130, self.screenRect),
+			State::ViewMap => map.drawAll(&mut self.canvas, self.mapResX, self.mapResY, self.mapRect),
 			_ => map.draw(&mut self.canvas),
 		}
 		if let Some(ref texture) = fontTexture {
@@ -337,6 +347,7 @@ pub struct Entity {
 enum State {
 	GetUserUsize,
 	ViewMap,
+    NewMap,
 	AttemptBuild,
 	Idle,
 }
