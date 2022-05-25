@@ -91,6 +91,25 @@ impl Screen {
 			rect.reposition((x * (!gtEq) as i32, y + gtEq as i32 * 50));
 		}
 	}
+	pub fn generateIconRect(&self, scaleX: f32, scaleY: f32, topLeft: Point) -> Rect {
+		Rect::new((self.position.0 as f32 * scaleX) as i32 - topLeft.x, 
+			(self.position.1 as f32 * scaleY) as i32 - topLeft.y, 
+			(self.width as f32 * scaleX) as u32 - topLeft.x as u32, 
+			(self.height as f32 * scaleY) as u32 - topLeft.y as u32)
+	}
+	pub fn iconDraw(&self, tileRenderer: &mut TileRenderer, canvas: &mut Canvas<Window>, location: Rect) {
+		let (xIncrement, yIncrement) = (location.width() as f32 / self.width as f32, location.height() as f32 / self.height as f32);
+		let (mut posX, mut posY) = (location.x() as f32, location.y() as f32);
+		let mut rect = Rect::new(location.left(), location.top(), xIncrement as u32, yIncrement as u32);
+		for tile in self.tiles.iter() {
+			tileRenderer.draw(tile, canvas, rect);
+			posX += xIncrement;
+			let gtEq = (location.right() as f32 - posX - 0.0001).is_sign_negative();
+			posY += gtEq as u8 as f32 * yIncrement;
+			posX *= (!gtEq) as u8 as f32;
+			rect.reposition((posX as i32, posY as i32));
+		}
+	}
 	pub fn replaceTile(&mut self, position: (u16, u16), replacement: Tile) {
 		*self.tiles.indexMut(position.1 as usize, position.0 as usize) = replacement;
 	}

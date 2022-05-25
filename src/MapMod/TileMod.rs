@@ -22,6 +22,7 @@ impl Tile {
 			1 => Ok(Tile(1, CollisionType::Block)),
 			2 => Ok(Tile(2, CollisionType::Block)),
 			3 => Ok(Tile(0, CollisionType::Transition(object))),
+			4 => Ok(Tile(1, CollisionType::SharpBlock)),
 			_ => Err("Recieved invalid tile id"),
 		}
 	}
@@ -71,6 +72,11 @@ impl TileBuilder {
 			_ => (),
 		}
 	}
+	pub fn cloneTile(&self, tile: &Tile) -> Tile {
+		match tile.0 {
+			_ => tile.clone()
+		}
+	}
 }
 
 /*
@@ -90,7 +96,7 @@ pub enum CollisionType {
 	Burn, //Burn the player
 }
 
-pub const MAX_TILE_IDX: u16 = 3;
+pub const MAX_TILE_IDX: u16 = 4;
 
 unsafe impl SelfContained for Tile {}
 

@@ -125,6 +125,7 @@ pub struct EditorContext {
 	currentTileId: u16,
 	currentTilePosition: (u16, u16),
 	currentTile: Tile,
+	previewTile: Tile,
 	previewRect: Rect,
 	tileBuilder: TileBuilder,
 	screenRect: Rect,
@@ -172,6 +173,7 @@ impl EditorContext {
 			currentTileId: 0,
 			currentTilePosition: (0, 0),
 			currentTile: Tile::new(0, 0).unwrap(),
+			previewTile: Tile::new(0, 0).unwrap(),
 			screenRect: Rect::new(0, 0, width, height),
 			previewRect: Rect::new(0, height as i32 - 50, 50, 50),
 			tileBuilder: TileBuilder::new(0),
@@ -185,8 +187,8 @@ impl EditorContext {
 	pub fn mainLoop<'a>(&mut self, filename: &str, map: &mut Map, font: &Font, fontTexture: &mut Option<Texture<'a>>, textureCreator: &'a TextureCreator<WindowContext>) -> bool {
 		self.canvas.clear();
 	
-		for event in self.events.poll_iter() {
-			if !self.lock {match event {
+		for event in self.events.poll_iter() {match &self.state {
+			State::Idle => match event {
 				Event::Quit {..} => self.quit = true,
 
 				Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} 
@@ -196,17 +198,20 @@ impl EditorContext {
 					self.state = State::AttemptBuild;
 					break;
 				},
-
+				Event::MouseButtonDown {mouse_btn: MouseButton::Right, x, y, ..} => {
+					self.currentTilePosition = ((x / 50) as u16, (y / 50) as u16);
+					map.changeTile(self.currentTilePosition, self.tileBuilder.cloneTile(&self.currentTile));
+				},
 				Event::KeyDown{scancode: Some(Scancode::Left), ..} => {
 					if self.currentTileId > 0 {
 						self.currentTileId -= 1;
-						self.currentTile = Tile::new(self.currentTileId, 0).unwrap();
+						self.previewTile = Tile::new(self.currentTileId, 0).unwrap();
 					}
 				},
 				Event::KeyDown{scancode: Some(Scancode::Right), ..} => {
 					if self.currentTileId < MAX_TILE_IDX {
 						self.currentTileId += 1;
-						self.currentTile = Tile::new(self.currentTileId, 0).unwrap();
+						self.previewTile = Tile::new(self.currentTileId, 0).unwrap();
 					}
 				},
 				Event::KeyDown{scancode: Some(Scancode::S), ..} => {
@@ -221,9 +226,16 @@ impl EditorContext {
 				Event::KeyDown{scancode: Some(Scancode::D), ..} => {
 					map.incrementCurrentScreen();
 				},
+				Event::KeyDown{scancode: Some(Scancode::Escape), ..} => {
+					self.state = State::ViewMap;
+				}
 				_ => (),
-			}}
-			else {match (event, &self.state) {
+			},
+			State::ViewMap => match event {
+				Event::Quit {..} => self.quit = true,
+				_ => (),
+			}
+			_ => match (event, &self.state) {
 				(Event::Quit {..}, _) => self.quit = true,
 				(_, State::Idle) => self.lock = false,
 				(Event::KeyDown {scancode: Some(Scancode::Escape), ..}, _) => {
@@ -252,22 +264,24 @@ impl EditorContext {
 					*fontTexture = Some(font.render(&self.message).shaded(Color::BLACK, Color::WHITE).unwrap().as_texture(&textureCreator).unwrap());
 				},
 				_ => (),
-			}}
-		}
+			},
+		}}
 
 		match self.state {
 			State::AttemptBuild => self.build(map, font, fontTexture, textureCreator),
 			_ => (),
 		}
 
-		map.draw(&mut self.canvas);
-
+		match self.state {
+			State::ViewMap => map.drawAll(&mut self.canvas, 170, 130, self.screenRect),
+			_ => map.draw(&mut self.canvas),
+		}
 		if let Some(ref texture) = fontTexture {
 			let q = texture.query();
 			self.canvas.copy(texture, None, Some(Rect::from_center(self.screenRect.center(), q.width, q.height)));
 		}
 
-		map.renderTile(self.previewRect, &self.currentTile, &mut self.canvas);
+		map.renderTile(self.previewRect, &self.previewTile, &mut self.canvas);
 		
 		self.canvas.present();
 
@@ -284,7 +298,8 @@ impl EditorContext {
 			},
 			TileBuilderSignals::Complete(tile) => {
 				self.state = State::Idle;
-				map.changeTile(self.currentTilePosition, tile);
+				self.currentTile = tile;
+				map.changeTile(self.currentTilePosition, self.tileBuilder.cloneTile(&self.currentTile));
 			},
 			TileBuilderSignals::InvalidId => (),
 		}	
@@ -321,6 +336,7 @@ pub struct Entity {
 
 enum State {
 	GetUserUsize,
+	ViewMap,
 	AttemptBuild,
 	Idle,
 }

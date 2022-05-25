@@ -43,6 +43,12 @@ impl<'a> Map<'a> {
 	pub fn draw(&mut self, canvas: &mut Canvas<Window>) {
 		self.screens[self.activeScreen].draw(&mut self.renderer, canvas);
 	}
+	pub fn drawAll(&mut self, canvas: &mut Canvas<Window>, tileWidth: u32, tileHeight: u32, cameraRect: Rect) {
+		let scale = (cameraRect.width() as f32 / tileWidth as f32, cameraRect.height() as f32 / tileHeight as f32);
+		for screen in self.screens.iter_mut() {
+			screen.iconDraw(&mut self.renderer, canvas, screen.generateIconRect(scale.0, scale.1, cameraRect.top_left()));
+		}
+	}
 	pub fn addScreen(&mut self, width: u16, height: u16, location: (u32, u32)) {
 		self.screens.push(Screen::new(width, height, location));
 		self.activeScreen = self.screens.len() - 1;
