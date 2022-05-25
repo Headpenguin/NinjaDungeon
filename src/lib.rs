@@ -130,7 +130,6 @@ pub struct EditorContext {
 	tileBuilder: TileBuilder,
 	screenRect: Rect,
 	state: State,
-    builderState: TileBuilderSignals,
 	lock: bool,
 	message: String,
 	messageLen: usize,
@@ -179,7 +178,6 @@ impl EditorContext {
 			previewRect: Rect::new(0, height as i32 - 50, 50, 50),
 			tileBuilder: TileBuilder::new(0),
 			state: State::Idle,
-            builderState: TileBuilderSignals::InvalidId,
 			lock: false,
 			message: String::new(),
 			messageLen: 0,
@@ -235,10 +233,9 @@ impl EditorContext {
 			},
 			State::ViewMap => match event {
 				Event::Quit {..} => self.quit = true,
-                Event::KeyDown {scancode: Some(Scancode::Escape), ..} => self.state = State::Idle,
 				_ => (),
 			}
-			State::GetUserInfo => match (event, &self.builderState) {
+			_ => match (event, &self.state) {
 				(Event::Quit {..}, _) => self.quit = true,
 				(_, State::Idle) => self.lock = false,
 				(Event::KeyDown {scancode: Some(Scancode::Escape), ..}, _) => {
@@ -246,7 +243,7 @@ impl EditorContext {
 					self.state = State::Idle;
 					*fontTexture = None;
 				}
-				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, TileBuilderSignal::GetUserUsize) => {
+				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, State::GetUserUsize) => {
 					if let Ok(id) = usize::from_str(&self.message[self.messageLen..].trim()) {
 						self.lock = false;
 						self.tileBuilder.addUsize(id);
@@ -291,10 +288,9 @@ impl EditorContext {
 		self.quit
 	}
 	fn build<'a>(&mut self, map: &mut Map, font: &Font, fontTexture: &mut Option<Texture<'a>>, textureCreator: &'a TextureCreator<WindowContext>) {
-		self.builderState = self.tileBuilder.build();
-        match &self.builderState {
+		match self.tileBuilder.build() {
 			TileBuilderSignals::GetUserUsize(tmpMessage) => {
-				self.state = State::GetUserInfo;
+				self.state = State::GetUserUsize;
 				self.lock = true;
 				self.message = String::from(tmpMessage);
 				self.messageLen = tmpMessage.len() - 1;
@@ -339,7 +335,7 @@ pub struct Entity {
 }
 
 enum State {
-	GetUserInfo,
+	GetUserUsize,
 	ViewMap,
 	AttemptBuild,
 	Idle,
