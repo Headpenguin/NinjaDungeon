@@ -43,10 +43,9 @@ impl<'a> Map<'a> {
 	pub fn draw(&mut self, canvas: &mut Canvas<Window>) {
 		self.screens[self.activeScreen].draw(&mut self.renderer, canvas);
 	}
-	pub fn drawAll(&mut self, canvas: &mut Canvas<Window>, scale: (u32, u32), cameraRect: Rect) {
-		let scale = (cameraRect.width() as f32 / scale.0 as f32, cameraRect.height() as f32 / scale.1 as f32);
+	pub fn drawAll(&mut self, canvas: &mut Canvas<Window>, scale: f32, cameraRect: Rect) {
 		for screen in self.screens.iter() {
-			screen.iconDraw(&mut self.renderer, canvas, screen.generateIconRect(scale.0, scale.1, cameraRect.top_left()));
+			screen.iconDraw(&mut self.renderer, canvas, screen.generateIconRect(scale, cameraRect.top_left()));
 		}
 	}
 	pub fn addScreen(&mut self, width: u16, height: u16, location: (u32, u32)) {
@@ -56,6 +55,13 @@ impl<'a> Map<'a> {
 	pub fn getScreen(&self, screen: usize) -> &Screen {
 		&self.screens[screen]
 	}
+	/*pub fn getScreenAtPosition(&self, pos: Point, screenPos: Point, res: (u32, u32)) -> Option<usize> {
+		pos += screenPos;
+		pos.
+		for screen in self.screens.iter() {
+			if screen.containsPoint
+		}
+	}*/
 	pub fn changeTile(&mut self, position: (u16, u16), replacement: Tile) {
 		self.screens[self.activeScreen].replaceTile(position, replacement);
 	}
@@ -102,9 +108,9 @@ impl<'a> Map<'a> {
 	}
 }
 
-pub fn convertScreenCoordToTileCoord(res: (u32, u32), screenRect: Rect, mut point: Point) -> Point {
+pub fn convertScreenCoordToTileCoord(res: f32, screenRect: Rect, mut point: Point) -> Point {
 	point -= screenRect.top_left();
-    Point::from((point.x * res.0 as i32 / screenRect.width() as i32, point.y * res.1 as i32 / screenRect.height() as i32))
+	point - screenRect.top_left())
 }
 
 unsafe impl<'a> SelfOwned for Map<'a> {}

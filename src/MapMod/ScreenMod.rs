@@ -91,11 +91,11 @@ impl Screen {
 			rect.reposition((x * (!gtEq) as i32, y + gtEq as i32 * 50));
 		}
 	}
-	pub fn generateIconRect(&self, scaleX: f32, scaleY: f32, topLeft: Point) -> Rect {
-		Rect::new(((self.position.0 as f32 - topLeft.x as f32) * scaleX) as i32, 
-			((self.position.1 as f32 - topLeft.y as f32) * scaleY) as i32, 
-			(self.width as f32 * scaleX) as u32, 
-			(self.height as f32 * scaleY) as u32)
+	pub fn generateIconRect(&self, scale: f32, topLeft: Point) -> Rect {
+		Rect::new(((self.position.0 as f32 - topLeft.x as f32) * scale) as i32, 
+			((self.position.1 as f32 - topLeft.y as f32) * scale) as i32, 
+			(self.width as f32 * scale) as u32, 
+			(self.height as f32 * scale) as u32)
 	}
 	pub fn iconDraw(&self, tileRenderer: &mut TileRenderer, canvas: &mut Canvas<Window>, location: Rect) {
 		let (xIncrement, yIncrement) = (location.width() as f32 / self.width as f32, location.height() as f32 / self.height as f32);
