@@ -16,7 +16,7 @@ use sdl2::mouse::{MouseButton, MouseWheelDirection};
 use BinaryFileIO::{load, dump};
 
 use std::io;
-use std::f32;
+use std::i32;
 use std::str::FromStr;
 
 mod PlayerMod;
@@ -35,8 +35,6 @@ pub use MapMod::{Map, Location, Tile, MAX_TILE_IDX, CollisionType, CollisionBoun
 use PlayerMod::SignalsBuilder;
 
 use Entities::Codes;
-
-const ONE_HALF: f32 = 1f32/2f32;
 
 pub struct GameContext {
 	sdlContext: Sdl,
@@ -125,7 +123,7 @@ pub struct EditorContext {
 	events: EventPump,
 	textInput: TextInputUtil,
 	quit: bool,
-    mapRes: f32,
+    mapRes: (u32, u32),
     mapRect: Rect,
 	currentTileId: u16,
 	currentTilePosition: (u16, u16),
@@ -180,7 +178,7 @@ impl EditorContext {
 			currentTile: Tile::new(0, 0).unwrap(),
 			previewTile: Tile::new(0, 0).unwrap(),
 			screenRect: Rect::new(0, 0, width, height),
-            mapRes: 1f32,
+            mapRes: (136, 104),
 			mapRect: Rect::new(0, 0, width, height),
 			previewRect: Rect::new(0, height as i32 - 50, 50, 50),
 			tileBuilder: TileBuilder::new(0),
@@ -241,30 +239,27 @@ impl EditorContext {
                     self.state = State::Idle;
                 }
 				Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} => {
-					if let Some(screen) = map.getScreenAtPosition(x, y) {
-						map.setCurrentScreen(screen);
-					}
-					else {
-						let (x, y) = MapMod::convertScreenCoordToTileCoord(self.mapRes, self.mapRect, Point::from((x, y))).into();
-						println!("{}, {}", x, y);
-						map.addScreen(17, 12, (x as u32, y as u32));
-						self.state = State::Idle;
-					}
+                    let (x, y) = MapMod::convertScreenCoordToTileCoord(self.mapRes, self.mapRect, Point::from((x, y))).into();
+					println!("{}, {}", x, y);
+                    map.addScreen(17, 12, (x as u32, y as u32));
+					self.state = State::Idle;
                 },
 				Event::MouseWheel {y: 1, ..} => {
-					if self.mapRes * 2f32 <= f32::MAX {
-						self.mapRes *= 2f32;
+					if self.mapRes.0 > 1 && self.mapRes.1 > 1 {
+						self.mapRes.0 /= 2;
+						self.mapRes.1 /= 2;
 					}
 				},
 				Event::MouseWheel {y: -1, ..} => {
-					if self.mapRes * ONE_HALF >= f32::MIN_POSITIVE {
-						self.mapRes *= ONE_HALF;
+					if self.mapRes.0 < i32::MAX as u32 && self.mapRes.1 < i32::MAX as u32 {
+						self.mapRes.0 *= 2;
+						self.mapRes.1 *= 2;
 					}
 				}
-				Event::KeyDown {scancode: Some(Scancode::H), ..} => self.mapRect.offset(((self.screenRect.width() >> 1) as i32).clamp(0, self.mapRect.x()) * -1, 0),
-				Event::KeyDown {scancode: Some(Scancode::J), ..} => self.mapRect.offset(0, ((self.screenRect.height() >> 1) as i32).clamp(0, self.mapRect.y()) * -1),
-				Event::KeyDown {scancode: Some(Scancode::K), ..} => self.mapRect.offset(0, ((self.screenRect.height() >> 1) as i32).clamp(0, i32::MAX - self.mapRect.y())),
-				Event::KeyDown {scancode: Some(Scancode::L), ..} => self.mapRect.offset(((self.screenRect.width() >> 1) as i32).clamp(0, i32::MAX - self.mapRect.x()), 0),
+				Event::KeyDown {scancode: Some(Scancode::H), ..} => self.mapRect.offset(((self.mapRes.0 >> 1) as i32).clamp(0, self.mapRect.x()) * -1, 0),
+				Event::KeyDown {scancode: Some(Scancode::J), ..} => self.mapRect.offset(0, ((self.mapRes.1 >> 1) as i32).clamp(0, self.mapRect.y()) * -1),
+				Event::KeyDown {scancode: Some(Scancode::K), ..} => self.mapRect.offset(0, ((self.mapRes.1 >> 1) as i32).clamp(0, i32::MAX - self.mapRect.y())),
+				Event::KeyDown {scancode: Some(Scancode::L), ..} => self.mapRect.offset(((self.mapRes.0 >> 1) as i32).clamp(0, i32::MAX - self.mapRect.x()), 0),
 				_ => (),
 			}
 			_ => match (event, &self.state) {
@@ -287,16 +282,6 @@ impl EditorContext {
 						*fontTexture = Some(font.render(&self.message).shaded(Color::BLACK, Color::WHITE).unwrap().as_texture(&textureCreator).unwrap());
 					}
 				},
-				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, State::MapUserUsize) => {
-					if let Ok(id) = usize::from_str(&self.message[self.messageLen..].trim()) {
-						
-						*fontTexture = None;
-					}
-					else {
-						self.message.truncate(self.messageLen);
-						*fontTexture = Some(font.render(&self.message).shaded(Color::BLACK, Color::WHITE).unwrap().as_texture(&textureCreator).unwrap());
-					}	
-				},
 				(Event::TextInput {text, ..}, _) => {
 					self.message.push_str(&text);
 					*fontTexture = Some(font.render(&self.message).shaded(Color::BLACK, Color::WHITE).unwrap().as_texture(&textureCreator).unwrap());
@@ -315,7 +300,7 @@ impl EditorContext {
 		}
 
 		match self.state {
-			State::ViewMap | State::MapUserUsize => map.drawAll(&mut self.canvas, self.mapRes, self.mapRect),
+			State::ViewMap => map.drawAll(&mut self.canvas, self.mapRes, self.mapRect),
 			_ => {
 				map.draw(&mut self.canvas);
 				map.renderTile(self.previewRect, &self.previewTile, &mut self.canvas);
@@ -380,7 +365,7 @@ pub struct Entity {
 enum State {
 	GetUserUsize,
 	ViewMap,
-    MapUserUsize,
+    NewMap,
 	AttemptBuild,
 	Idle,
 }
