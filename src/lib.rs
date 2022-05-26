@@ -8,14 +8,15 @@ use sdl2::video::{WindowContext, Window};
 use sdl2::event::Event;
 use sdl2::hint;
 use sdl2::pixels::Color;
-use sdl2::rect::Rect;
+use sdl2::rect::{Rect, Point};
 use sdl2::ttf::{Sdl2TtfContext, Font, self};
 use sdl2::keyboard::{TextInputUtil, Scancode};
-use sdl2::mouse::MouseButton;
+use sdl2::mouse::{MouseButton, MouseWheelDirection};
 
 use BinaryFileIO::{load, dump};
 
 use std::io;
+use std::i32;
 use std::str::FromStr;
 
 mod PlayerMod;
@@ -122,9 +123,8 @@ pub struct EditorContext {
 	events: EventPump,
 	textInput: TextInputUtil,
 	quit: bool,
-    mapResX: u32,
-    mapResY: u32,
-    mapPos: Rect,
+    mapRes: (u32, u32),
+    mapRect: Rect,
 	currentTileId: u16,
 	currentTilePosition: (u16, u16),
 	currentTile: Tile,
@@ -178,8 +178,7 @@ impl EditorContext {
 			currentTile: Tile::new(0, 0).unwrap(),
 			previewTile: Tile::new(0, 0).unwrap(),
 			screenRect: Rect::new(0, 0, width, height),
-            mapResX: 136,
-            mapResY: 104,
+            mapRes: (136, 104),
 			mapRect: Rect::new(0, 0, width, height),
 			previewRect: Rect::new(0, height as i32 - 50, 50, 50),
 			tileBuilder: TileBuilder::new(0),
@@ -236,13 +235,31 @@ impl EditorContext {
 			},
 			State::ViewMap => match event {
 				Event::Quit {..} => self.quit = true,
-                Event::Keydown {scancode: Some(Scancode::Escape), ..} => {
+                Event::KeyDown {scancode: Some(Scancode::Escape), ..} => {
                     self.state = State::Idle;
                 }
 				Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} => {
-                    let topLeft = MapMod::convertScreenToMapCoord(self.res, self.pos, Point::from(x, y));
-                    
+                    let (x, y) = MapMod::convertScreenCoordToTileCoord(self.mapRes, self.mapRect, Point::from((x, y))).into();
+					println!("{}, {}", x, y);
+                    map.addScreen(17, 12, (x as u32, y as u32));
+					self.state = State::Idle;
                 },
+				Event::MouseWheel {y: 1, ..} => {
+					if self.mapRes.0 > 1 && self.mapRes.1 > 1 {
+						self.mapRes.0 /= 2;
+						self.mapRes.1 /= 2;
+					}
+				},
+				Event::MouseWheel {y: -1, ..} => {
+					if self.mapRes.0 < i32::MAX as u32 && self.mapRes.1 < i32::MAX as u32 {
+						self.mapRes.0 *= 2;
+						self.mapRes.1 *= 2;
+					}
+				}
+				Event::KeyDown {scancode: Some(Scancode::H), ..} => self.mapRect.offset(((self.mapRes.0 >> 1) as i32).clamp(0, self.mapRect.x()) * -1, 0),
+				Event::KeyDown {scancode: Some(Scancode::J), ..} => self.mapRect.offset(0, ((self.mapRes.1 >> 1) as i32).clamp(0, self.mapRect.y()) * -1),
+				Event::KeyDown {scancode: Some(Scancode::K), ..} => self.mapRect.offset(0, ((self.mapRes.1 >> 1) as i32).clamp(0, i32::MAX - self.mapRect.y())),
+				Event::KeyDown {scancode: Some(Scancode::L), ..} => self.mapRect.offset(((self.mapRes.0 >> 1) as i32).clamp(0, i32::MAX - self.mapRect.x()), 0),
 				_ => (),
 			}
 			_ => match (event, &self.state) {
@@ -283,15 +300,16 @@ impl EditorContext {
 		}
 
 		match self.state {
-			State::ViewMap => map.drawAll(&mut self.canvas, self.mapResX, self.mapResY, self.mapRect),
-			_ => map.draw(&mut self.canvas),
+			State::ViewMap => map.drawAll(&mut self.canvas, self.mapRes, self.mapRect),
+			_ => {
+				map.draw(&mut self.canvas);
+				map.renderTile(self.previewRect, &self.previewTile, &mut self.canvas);
+			},
 		}
 		if let Some(ref texture) = fontTexture {
 			let q = texture.query();
 			self.canvas.copy(texture, None, Some(Rect::from_center(self.screenRect.center(), q.width, q.height)));
 		}
-
-		map.renderTile(self.previewRect, &self.previewTile, &mut self.canvas);
 		
 		self.canvas.present();
 

@@ -3,7 +3,7 @@ mod ScreenMod;
 
 use sdl2::render::{TextureCreator, Canvas};
 use sdl2::video::{Window, WindowContext};
-use sdl2::rect::Rect;
+use sdl2::rect::{Rect, Point};
 
 use BinaryFileIO::BFStream::{ProvideReferencesDynamic, DynamicBinaryTranslator, ProvidePointersMutDynamic, DynamicTypedTranslator, SelfOwned};
 use BinaryFileIO::BinaryDataContainer;
@@ -43,9 +43,9 @@ impl<'a> Map<'a> {
 	pub fn draw(&mut self, canvas: &mut Canvas<Window>) {
 		self.screens[self.activeScreen].draw(&mut self.renderer, canvas);
 	}
-	pub fn drawAll(&mut self, canvas: &mut Canvas<Window>, tileWidth: u32, tileHeight: u32, cameraRect: Rect) {
-		let scale = (cameraRect.width() as f32 / tileWidth as f32, cameraRect.height() as f32 / tileHeight as f32);
-		for screen in self.screens.iter_mut() {
+	pub fn drawAll(&mut self, canvas: &mut Canvas<Window>, scale: (u32, u32), cameraRect: Rect) {
+		let scale = (cameraRect.width() as f32 / scale.0 as f32, cameraRect.height() as f32 / scale.1 as f32);
+		for screen in self.screens.iter() {
 			screen.iconDraw(&mut self.renderer, canvas, screen.generateIconRect(scale.0, scale.1, cameraRect.top_left()));
 		}
 	}
@@ -102,8 +102,9 @@ impl<'a> Map<'a> {
 	}
 }
 
-pub fn convertScreenCoordToTileCoord(res: (u32, u32), screenPos: Point, point: Point) -> Point {
-    Point::from(point.x / res.0, point.y / res.1) - screenPos
+pub fn convertScreenCoordToTileCoord(res: (u32, u32), screenRect: Rect, mut point: Point) -> Point {
+	point -= screenRect.top_left();
+    Point::from((point.x * res.0 as i32 / screenRect.width() as i32, point.y * res.1 as i32 / screenRect.height() as i32))
 }
 
 unsafe impl<'a> SelfOwned for Map<'a> {}

@@ -92,10 +92,10 @@ impl Screen {
 		}
 	}
 	pub fn generateIconRect(&self, scaleX: f32, scaleY: f32, topLeft: Point) -> Rect {
-		Rect::new((self.position.0 as f32 * scaleX) as i32 - topLeft.x, 
-			(self.position.1 as f32 * scaleY) as i32 - topLeft.y, 
-			(self.width as f32 * scaleX) as u32 - topLeft.x as u32, 
-			(self.height as f32 * scaleY) as u32 - topLeft.y as u32)
+		Rect::new(((self.position.0 as f32 - topLeft.x as f32) * scaleX) as i32, 
+			((self.position.1 as f32 - topLeft.y as f32) * scaleY) as i32, 
+			(self.width as f32 * scaleX) as u32, 
+			(self.height as f32 * scaleY) as u32)
 	}
 	pub fn iconDraw(&self, tileRenderer: &mut TileRenderer, canvas: &mut Canvas<Window>, location: Rect) {
 		let (xIncrement, yIncrement) = (location.width() as f32 / self.width as f32, location.height() as f32 / self.height as f32);
@@ -104,9 +104,9 @@ impl Screen {
 		for tile in self.tiles.iter() {
 			tileRenderer.draw(tile, canvas, rect);
 			posX += xIncrement;
-			let gtEq = (location.right() as f32 - posX - 0.0001).is_sign_negative();
+			let gtEq = (location.right() as f32 - posX - 0.001).is_sign_negative();
 			posY += gtEq as u8 as f32 * yIncrement;
-			posX *= (!gtEq) as u8 as f32;
+			posX = posX * (!gtEq) as u8 as f32 + gtEq as u8 as f32 * location.x() as f32;
 			rect.reposition((posX as i32, posY as i32));
 		}
 	}
