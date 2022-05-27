@@ -125,6 +125,8 @@ pub struct EditorContext {
 	quit: bool,
     mapRes: (u32, u32),
     mapRect: Rect,
+	newMapCoords: (u32, u32),
+	newMapDimensions: (Option<u16>, Option<u16>),
 	currentTileId: u16,
 	currentTilePosition: (u16, u16),
 	currentTile: Tile,
@@ -183,6 +185,8 @@ impl EditorContext {
 			screenRect: Rect::new(0, 0, width, height),
             mapRes: (136, 104),
 			mapRect: Rect::new(0, 0, width, height),
+			newMapCoords: (0, 0),
+			newMapDimensions: (None, None),
 			previewRect: Rect::new(0, height as i32 - 50, 50, 50),
 			tileBuilder: TileBuilder::new(0),
 			state: State::Idle,
@@ -255,8 +259,12 @@ impl EditorContext {
 					}
 					else {
 						let (x, y) = MapMod::convertScreenCoordToTileCoord(self.mapRes, self.mapRect, Point::from((x, y))).into();
-						map.addScreen(17, 12, (x as u32, y as u32));
-						self.state = State::Idle;
+						self.newMapCoords = (x as u32, y as u32);
+						self.message = String::from("Please enter the map width: ");
+						self.messageLen = self.message.len();
+						self.textInput.start();
+						*fontTexture = Some(createText(&self.message, textureCreator, font));
+						self.state = State::NewMap;
 					}
                 },
 				Event::MouseWheel {y: 1, ..} => {
@@ -306,6 +314,26 @@ impl EditorContext {
 					self.state = State::Idle;
 					*fontTexture = None;
 				},
+				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, State::NewMap) => {
+					if let Ok(dimension) = u16::from_str(&self.message[self.messageLen..].trim()) {
+						if let Some(width) = self.newMapDimensions.0  {
+							map.addScreen(width, dimension, self.newMapCoords);
+							self.state = State::Idle;
+							self.textInput.stop();
+							*fontTexture = None;
+						}
+						else {
+							self.newMapDimensions.0 = Some(dimension);
+							self.message = String::from("Please enter the map height: ");
+							self.messageLen = self.message.len();
+							*fontTexture = Some(createText(&self.message, textureCreator, font));
+						}
+					}
+					else {
+						self.message.truncate(self.messageLen);
+						*fontTexture = Some(createText(&self.message, textureCreator, font));
+					}
+				}
 				(Event::TextInput {text, ..}, _) => {
 					self.message.push_str(&text);
 					*fontTexture = Some(createText(&self.message, textureCreator, font));
@@ -324,7 +352,7 @@ impl EditorContext {
 		}
 
 		match self.state {
-			State::ViewMap => map.drawAll(&mut self.canvas, self.mapRes, self.mapRect),
+			State::ViewMap | State::NewMap => map.drawAll(&mut self.canvas, self.mapRes, self.mapRect),
 			_ => {
 				map.draw(&mut self.canvas);
 				map.renderTile(self.previewRect, &self.previewTile, &mut self.canvas);
@@ -395,7 +423,7 @@ enum State {
 	GetUserUsize,
 	UserConfirmDelete,
 	ViewMap,
-    NewMap,
+	NewMap,
 	AttemptBuild,
 	Idle,
 }
