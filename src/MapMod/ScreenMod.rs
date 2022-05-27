@@ -82,6 +82,9 @@ impl Screen {
 			position,
 		}
 	}
+	pub fn containsPoint(&self, point: Point) -> bool {
+		Rect::new(self.position.0 as i32, self.position.1 as i32, self.width as u32, self.height as u32).contains_point(point)
+	}
 	pub fn draw(&self, tileRenderer: &mut TileRenderer, canvas: &mut Canvas<Window>) {
 		let mut rect = Rect::new(0, 0, 50, 50);
 		for tile in self.tiles.iter() {

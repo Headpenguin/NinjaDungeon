@@ -143,6 +143,9 @@ impl EditorContext {
 
 		let sdlContext = sdl2::init().unwrap();
 		let videoSubsystem = sdlContext.video().unwrap();
+
+		let textInput = videoSubsystem.text_input();
+		textInput.stop();
 		
 		if !hint::set("SDL_RENDER_SCALE_QUALITY", "1") {
 		
@@ -169,7 +172,7 @@ impl EditorContext {
 		(textureCreator, ttfContext, EditorContext {
 			canvas,
 			events: sdlContext.event_pump().unwrap(),
-			textInput: videoSubsystem.text_input(),
+			textInput,
 			sdlContext,
 			videoSubsystem,
 			quit: false,
@@ -231,6 +234,13 @@ impl EditorContext {
 				Event::KeyDown{scancode: Some(Scancode::Escape), ..} => {
 					self.state = State::ViewMap;
 				}
+				Event::KeyDown{scancode: Some(Scancode::X), ..} => {
+					self.state = State::UserConfirmDelete;
+					self.textInput.start();
+					self.message = String::from("Are you sure you want to delete this map? (y/n): ");
+					self.messageLen = self.message.len();
+					*fontTexture = Some(createText(&self.message, textureCreator, font));
+				}
 				_ => (),
 			},
 			State::ViewMap => match event {
@@ -239,10 +249,15 @@ impl EditorContext {
                     self.state = State::Idle;
                 }
 				Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} => {
-                    let (x, y) = MapMod::convertScreenCoordToTileCoord(self.mapRes, self.mapRect, Point::from((x, y))).into();
-					println!("{}, {}", x, y);
-                    map.addScreen(17, 12, (x as u32, y as u32));
-					self.state = State::Idle;
+					if let Some(screen) = map.getScreenAtPosition(Point::new(x, y), self.mapRect, self.mapRes) {
+						map.setCurrentScreen(screen);
+						self.state = State::Idle;
+					}
+					else {
+						let (x, y) = MapMod::convertScreenCoordToTileCoord(self.mapRes, self.mapRect, Point::from((x, y))).into();
+						map.addScreen(17, 12, (x as u32, y as u32));
+						self.state = State::Idle;
+					}
                 },
 				Event::MouseWheel {y: 1, ..} => {
 					if self.mapRes.0 > 1 && self.mapRes.1 > 1 {
@@ -274,21 +289,30 @@ impl EditorContext {
 					if let Ok(id) = usize::from_str(&self.message[self.messageLen..].trim()) {
 						self.lock = false;
 						self.tileBuilder.addUsize(id);
+						self.textInput.stop();
 						self.state = State::AttemptBuild;
 						*fontTexture = None;
 					}
 					else {
 						self.message.truncate(self.messageLen);
-						*fontTexture = Some(font.render(&self.message).shaded(Color::BLACK, Color::WHITE).unwrap().as_texture(&textureCreator).unwrap());
+						*fontTexture = Some(createText(&self.message, textureCreator, font));
 					}
+				},
+				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, State::UserConfirmDelete) => {
+					if &"y" == &self.message[self.messageLen..].trim() {
+						map.removeActiveScreen();
+					}
+					self.textInput.stop();
+					self.state = State::Idle;
+					*fontTexture = None;
 				},
 				(Event::TextInput {text, ..}, _) => {
 					self.message.push_str(&text);
-					*fontTexture = Some(font.render(&self.message).shaded(Color::BLACK, Color::WHITE).unwrap().as_texture(&textureCreator).unwrap());
+					*fontTexture = Some(createText(&self.message, textureCreator, font));
 				},
 				(Event::KeyDown {scancode: Some(Scancode::Backspace), ..}, _) if self.message.len() > self.messageLen => {
 					self.message.pop();
-					*fontTexture = Some(font.render(&self.message).shaded(Color::BLACK, Color::WHITE).unwrap().as_texture(&textureCreator).unwrap());
+					*fontTexture = Some(createText(&self.message, textureCreator, font));
 				},
 				_ => (),
 			},
@@ -320,9 +344,10 @@ impl EditorContext {
 			TileBuilderSignals::GetUserUsize(tmpMessage) => {
 				self.state = State::GetUserUsize;
 				self.lock = true;
+				self.textInput.start();
 				self.message = String::from(tmpMessage);
 				self.messageLen = tmpMessage.len() - 1;
-				*fontTexture = Some(font.render(&self.message).shaded(Color::BLACK, Color::WHITE).unwrap().as_texture(&textureCreator).unwrap());
+				*fontTexture = Some(createText(&self.message, textureCreator, font));
 			},
 			TileBuilderSignals::Complete(tile) => {
 				self.state = State::Idle;
@@ -333,6 +358,10 @@ impl EditorContext {
 		}	
 	}
 
+}
+
+pub fn createText<'a>(message: &str, textureCreator: &'a TextureCreator<WindowContext>, font: &Font) -> Texture<'a> {
+	font.render(message).shaded(Color::BLACK, Color::WHITE).unwrap().as_texture(textureCreator).unwrap()
 }
 
 pub fn loadMap<'a>(filename: &str, tileSprites: &str, creator: &'a TextureCreator<WindowContext>) -> io::Result<Map<'a>> {
@@ -364,6 +393,7 @@ pub struct Entity {
 
 enum State {
 	GetUserUsize,
+	UserConfirmDelete,
 	ViewMap,
     NewMap,
 	AttemptBuild,

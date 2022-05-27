@@ -53,8 +53,23 @@ impl<'a> Map<'a> {
 		self.screens.push(Screen::new(width, height, location));
 		self.activeScreen = self.screens.len() - 1;
 	}
+	pub fn removeActiveScreen(&mut self) {
+		if self.screens.len() > 1 {
+			self.screens.remove(self.activeScreen);
+			self.activeScreen = self.activeScreen.clamp(0, self.screens.len() - 1);
+		}
+	}
 	pub fn getScreen(&self, screen: usize) -> &Screen {
 		&self.screens[screen]
+	}
+	pub fn getScreenAtPosition(&self, mut pos: Point, screenPos: Rect, res: (u32, u32)) -> Option<usize> {
+		pos = convertScreenCoordToTileCoord(res, screenPos, pos);
+		for (idx, screen) in self.screens.iter().enumerate() {
+		   if screen.containsPoint(pos) {
+				return Some(idx);
+		   }
+	   }
+	   None
 	}
 	pub fn changeTile(&mut self, position: (u16, u16), replacement: Tile) {
 		self.screens[self.activeScreen].replaceTile(position, replacement);
@@ -102,9 +117,8 @@ impl<'a> Map<'a> {
 	}
 }
 
-pub fn convertScreenCoordToTileCoord(res: (u32, u32), screenRect: Rect, mut point: Point) -> Point {
-	point -= screenRect.top_left();
-    Point::from((point.x * res.0 as i32 / screenRect.width() as i32, point.y * res.1 as i32 / screenRect.height() as i32))
+pub fn convertScreenCoordToTileCoord(res: (u32, u32), screenRect: Rect, point: Point) -> Point {
+    Point::from((point.x * res.0 as i32 / screenRect.width() as i32, point.y * res.1 as i32 / screenRect.height() as i32)) + screenRect.top_left()
 }
 
 unsafe impl<'a> SelfOwned for Map<'a> {}
