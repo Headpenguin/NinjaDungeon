@@ -85,13 +85,13 @@ impl Screen {
 	pub fn containsPoint(&self, point: Point) -> bool {
 		Rect::new(self.position.0 as i32, self.position.1 as i32, self.width as u32, self.height as u32).contains_point(point)
 	}
-	pub fn draw(&self, tileRenderer: &mut TileRenderer, canvas: &mut Canvas<Window>) {
-		let mut rect = Rect::new(0, 0, 50, 50);
+	pub fn draw(&self, tileRenderer: &mut TileRenderer, canvas: &mut Canvas<Window>, topLeft: Point) {
+		let mut rect = Rect::new(-topLeft.x, -topLeft.y, 50, 50);
 		for tile in self.tiles.iter() {
 			tileRenderer.draw(tile, canvas, rect);
 			let (x, y) = (rect.top_left() + Point::from((50, 0))).into();
-			let gtEq = !(self.width as i32 * 50 - x).is_positive();
-			rect.reposition((x * (!gtEq) as i32, y + gtEq as i32 * 50));
+			let gtEq = !(self.width as i32 * 50 - topLeft.x - x).is_positive();
+			rect.reposition((x * (!gtEq) as i32 - topLeft.x * gtEq as i32, y + gtEq as i32 * 50));
 		}
 	}
 	pub fn generateIconRect(&self, scaleX: f32, scaleY: f32, topLeft: Point) -> Rect {
@@ -120,6 +120,7 @@ impl Screen {
 		self.tiles.index(position.1 as usize, position.0 as usize)
 	}
     pub fn getDimensions(&self) -> (u16, u16) {(self.width, self.height)}
+	pub fn getMaxScreenCoords(&self) -> (u32, u32) {(self.width as u32 * 50, self.height as u32 * 50)}
 	fn pointToIndex(&self, point: Point) -> (u16, u16) {	
 		let x = (point.x() as f32 * TILE_DIVISOR).floor().clamp(0f32, (self.width - 1) as f32) as u16;
         let y = (point.y() as f32 * TILE_DIVISOR).floor().clamp(0f32, (self.height - 1) as f32) as u16;

@@ -40,8 +40,8 @@ impl<'a> Map<'a> {
 	pub fn update(&mut self) {
 		self.renderer.update();
 	}
-	pub fn draw(&mut self, canvas: &mut Canvas<Window>) {
-		self.screens[self.activeScreen].draw(&mut self.renderer, canvas);
+	pub fn draw(&mut self, canvas: &mut Canvas<Window>, topLeft: Point) {
+		self.screens[self.activeScreen].draw(&mut self.renderer, canvas, topLeft);
 	}
 	pub fn drawAll(&mut self, canvas: &mut Canvas<Window>, scale: (u32, u32), cameraRect: Rect) {
 		let scale = (cameraRect.width() as f32 / scale.0 as f32, cameraRect.height() as f32 / scale.1 as f32);
@@ -71,6 +71,7 @@ impl<'a> Map<'a> {
 	   }
 	   None
 	}
+	pub fn getMaxScreenCoords(&self) -> (u32, u32) {self.screens[self.activeScreen].getMaxScreenCoords()}
 	pub fn changeTile(&mut self, position: (u16, u16), replacement: Tile) {
 		self.screens[self.activeScreen].replaceTile(position, replacement);
 	}

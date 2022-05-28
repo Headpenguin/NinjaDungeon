@@ -42,6 +42,7 @@ pub struct GameContext {
 	canvas: Canvas<Window>,
 	events: EventPump,
 	scriptPlayerInputs: bool,
+	screenPos: Point,
 	quit: bool,
 }
 
@@ -76,7 +77,9 @@ impl GameContext {
 
 		let (scriptPlayerInputs, quit) = (false, false);
 
-		(GameContext {sdlContext, videoSubsystem, canvas, events, scriptPlayerInputs, quit,}, textureCreator) 
+		let screenPos = Point::new(0, 0);
+
+		(GameContext {sdlContext, videoSubsystem, canvas, events, scriptPlayerInputs, screenPos, quit,}, textureCreator) 
 	}
 	
 	#[inline(always)]
@@ -100,7 +103,7 @@ impl GameContext {
 		map.update();
 		player.update(map);
 
-		map.draw(&mut self.canvas);
+		map.draw(&mut self.canvas, self.screenPos);
 		player.draw(&mut self.canvas);
 		
 		self.canvas.present();
@@ -134,6 +137,7 @@ pub struct EditorContext {
 	previewRect: Rect,
 	tileBuilder: TileBuilder,
 	screenRect: Rect,
+	screenPos: Rect,
 	state: State,
 	lock: bool,
 	message: String,
@@ -183,6 +187,7 @@ impl EditorContext {
 			currentTile: Tile::new(0, 0).unwrap(),
 			previewTile: Tile::new(0, 0).unwrap(),
 			screenRect: Rect::new(0, 0, width, height),
+			screenPos: Rect::new(0, 0, width, height),
             mapRes: (136, 104),
 			mapRect: Rect::new(0, 0, width, height),
 			newMapCoords: (0, 0),
@@ -205,6 +210,7 @@ impl EditorContext {
 
 				Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} 
 				if (y as i64) < (self.screenRect.height() - 50) as i64 => {
+					let (x, y) = (x + self.screenPos.x, y + self.screenPos.y);
 					self.tileBuilder = TileBuilder::new(self.currentTileId);
 					self.currentTilePosition = ((x / 50) as u16, (y / 50) as u16);
 					self.state = State::AttemptBuild;
@@ -237,14 +243,27 @@ impl EditorContext {
 				},
 				Event::KeyDown{scancode: Some(Scancode::Escape), ..} => {
 					self.state = State::ViewMap;
-				}
+				},
 				Event::KeyDown{scancode: Some(Scancode::X), ..} => {
 					self.state = State::UserConfirmDelete;
 					self.textInput.start();
 					self.message = String::from("Are you sure you want to delete this map? (y/n): ");
 					self.messageLen = self.message.len();
 					*fontTexture = Some(createText(&self.message, textureCreator, font));
-				}
+				},
+
+				Event::KeyDown {scancode: Some(Scancode::H), ..} => 
+					self.screenPos.offset(self.screenRect.center().x.clamp(0, self.screenPos.x) * -1, 0),
+				
+				Event::KeyDown {scancode: Some(Scancode::J), ..} =>
+					self.screenPos.offset(0, self.screenRect.center().y.clamp(0, self.screenPos.y) * -1),
+			
+				Event::KeyDown {scancode: Some(Scancode::K), ..} =>
+					self.screenPos.offset(0, self.screenRect.center().y.min(map.getMaxScreenCoords().1 as i32 - self.screenPos.bottom()).max(0)),
+				
+				Event::KeyDown {scancode: Some(Scancode::L), ..} => 
+					self.screenPos.offset(self.screenRect.center().x.min(map.getMaxScreenCoords().0 as i32 - self.screenPos.right()).max(0), 0),
+				
 				_ => (),
 			},
 			State::ViewMap => match event {
@@ -354,7 +373,7 @@ impl EditorContext {
 		match self.state {
 			State::ViewMap | State::NewMap => map.drawAll(&mut self.canvas, self.mapRes, self.mapRect),
 			_ => {
-				map.draw(&mut self.canvas);
+				map.draw(&mut self.canvas, self.screenPos.top_left());
 				map.renderTile(self.previewRect, &self.previewTile, &mut self.canvas);
 			},
 		}
