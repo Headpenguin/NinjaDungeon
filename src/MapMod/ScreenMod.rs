@@ -119,6 +119,9 @@ impl Screen {
 	pub fn getTile(&self, position: (u16, u16)) -> &Tile {
 		self.tiles.index(position.1 as usize, position.0 as usize)
 	}
+	pub fn moveToPosition(&mut self, position: (u32, u32)) {
+		self.position = position;
+	}
     pub fn getDimensions(&self) -> (u16, u16) {(self.width, self.height)}
 	pub fn getMaxScreenCoords(&self) -> (u32, u32) {(self.width as u32 * 50, self.height as u32 * 50)}
 	fn pointToIndex(&self, point: Point) -> (u16, u16) {	
@@ -143,7 +146,7 @@ impl Screen {
 	}
 	fn getPosition(&self, topLeft: (u32, u32), center: Point, direction: Direction) -> Point {
 		let (x, y) = topLeft;
-		let v = Vector::fromPoints((self.position.0 as f32, self.position.1 as f32), (x as f32, y as f32));
+		let v = Vector::fromPoints((self.position.0 as f32, self.position.1 as f32), (x as f32, y as f32)) * 50f32;
 		match direction {
 			Direction::Up => {Point::new(center.x() + v.0 as i32, self.height as i32 * 50 - 3)},
 			Direction::Down => {Point::new(center.x() + v.0 as i32, 0)},

@@ -216,7 +216,9 @@ impl EditorContext {
 					self.state = State::AttemptBuild;
 					break;
 				},
-				Event::MouseButtonDown {mouse_btn: MouseButton::Right, x, y, ..} => {
+				Event::MouseButtonDown {mouse_btn: MouseButton::Right, x, y, ..}
+				if (y as i64) < (self.screenRect.height() - 50) as i64 => {
+					let (x, y) = (x + self.screenPos.x, y + self.screenPos.y);
 					self.currentTilePosition = ((x / 50) as u16, (y / 50) as u16);
 					map.changeTile(self.currentTilePosition, self.tileBuilder.cloneTile(&self.currentTile));
 				},
@@ -243,6 +245,9 @@ impl EditorContext {
 				},
 				Event::KeyDown{scancode: Some(Scancode::Escape), ..} => {
 					self.state = State::ViewMap;
+				},
+				Event::KeyDown{scancode: Some(Scancode::M), ..} => {
+					self.state = State::MoveScreen;
 				},
 				Event::KeyDown{scancode: Some(Scancode::X), ..} => {
 					self.state = State::UserConfirmDelete;
@@ -283,7 +288,7 @@ impl EditorContext {
 						self.messageLen = self.message.len();
 						self.textInput.start();
 						*fontTexture = Some(createText(&self.message, textureCreator, font));
-						self.state = State::NewMap;
+						self.state = State::NewScreen;
 					}
                 },
 				Event::MouseWheel {y: 1, ..} => {
@@ -303,7 +308,19 @@ impl EditorContext {
 				Event::KeyDown {scancode: Some(Scancode::K), ..} => self.mapRect.offset(0, ((self.mapRes.1 >> 1) as i32).clamp(0, i32::MAX - self.mapRect.y())),
 				Event::KeyDown {scancode: Some(Scancode::L), ..} => self.mapRect.offset(((self.mapRes.0 >> 1) as i32).clamp(0, i32::MAX - self.mapRect.x()), 0),
 				_ => (),
-			}
+			},
+			State::MoveScreen => match event {
+				Event::Quit {..} => self.quit = true,
+                Event::KeyDown {scancode: Some(Scancode::Escape), ..} => {
+                    self.state = State::Idle;
+                },
+				Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} => {
+					let (x, y) = MapMod::convertScreenCoordToTileCoord(self.mapRes, self.mapRect, Point::from((x, y))).into();
+					map.moveActiveScreen((x as u32, y as u32));
+					self.state = State::Idle;
+				},
+				_ => (),
+			},
 			_ => match (event, &self.state) {
 				(Event::Quit {..}, _) => self.quit = true,
 				(_, State::Idle) => self.lock = false,
@@ -327,13 +344,13 @@ impl EditorContext {
 				},
 				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, State::UserConfirmDelete) => {
 					if &"y" == &self.message[self.messageLen..].trim() {
-						map.removeActiveScreen();
+						map.popActiveScreen();
 					}
 					self.textInput.stop();
 					self.state = State::Idle;
 					*fontTexture = None;
 				},
-				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, State::NewMap) => {
+				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, State::NewScreen) => {
 					if let Ok(dimension) = u16::from_str(&self.message[self.messageLen..].trim()) {
 						if let Some(width) = self.newMapDimensions.0  {
 							map.addScreen(width, dimension, self.newMapCoords);
@@ -371,7 +388,7 @@ impl EditorContext {
 		}
 
 		match self.state {
-			State::ViewMap | State::NewMap => map.drawAll(&mut self.canvas, self.mapRes, self.mapRect),
+			State::ViewMap | State::NewScreen | State::MoveScreen => map.drawAll(&mut self.canvas, self.mapRes, self.mapRect),
 			_ => {
 				map.draw(&mut self.canvas, self.screenPos.top_left());
 				map.renderTile(self.previewRect, &self.previewTile, &mut self.canvas);
@@ -442,7 +459,8 @@ enum State {
 	GetUserUsize,
 	UserConfirmDelete,
 	ViewMap,
-	NewMap,
+	NewScreen,
+	MoveScreen,
 	AttemptBuild,
 	Idle,
 }

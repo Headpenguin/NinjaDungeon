@@ -53,11 +53,13 @@ impl<'a> Map<'a> {
 		self.screens.push(Screen::new(width, height, location));
 		self.activeScreen = self.screens.len() - 1;
 	}
-	pub fn removeActiveScreen(&mut self) {
+	pub fn popActiveScreen(&mut self) -> Option<Screen> {
 		if self.screens.len() > 1 {
-			self.screens.remove(self.activeScreen);
+			let screen = self.screens.remove(self.activeScreen);
 			self.activeScreen = self.activeScreen.clamp(0, self.screens.len() - 1);
+			Some(screen)
 		}
+		else {None}
 	}
 	pub fn getScreen(&self, screen: usize) -> &Screen {
 		&self.screens[screen]
@@ -90,6 +92,9 @@ impl<'a> Map<'a> {
 			Ok(())
 		}
 		else {Err("Attempted to switch to out-of-bounds screen")}
+	}
+	pub fn moveActiveScreen(&mut self, newPos: (u32, u32)) {
+		self.screens[self.activeScreen].moveToPosition(newPos);
 	}
     pub fn transitionScreen(&mut self, hitbox: Rect) -> Option<Rect> {
         let activeScreen = &self.screens[self.activeScreen];
