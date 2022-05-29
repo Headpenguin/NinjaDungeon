@@ -4,6 +4,7 @@ mod ScreenMod;
 use sdl2::render::{TextureCreator, Canvas};
 use sdl2::video::{Window, WindowContext};
 use sdl2::rect::{Rect, Point};
+use sdl2::pixels::Color;
 
 use BinaryFileIO::BFStream::{ProvideReferencesDynamic, DynamicBinaryTranslator, ProvidePointersMutDynamic, DynamicTypedTranslator, SelfOwned};
 use BinaryFileIO::BinaryDataContainer;
@@ -48,6 +49,8 @@ impl<'a> Map<'a> {
 		for screen in self.screens.iter() {
 			screen.iconDraw(&mut self.renderer, canvas, screen.generateIconRect(scale.0, scale.1, cameraRect.top_left()));
 		}
+		canvas.set_draw_color(Color::RED);
+		canvas.draw_rect(self.screens[self.activeScreen].generateIconRect(scale.0, scale.1, cameraRect.top_left()));
 	}
 	pub fn addScreen(&mut self, width: u16, height: u16, location: (u32, u32)) {
 		self.screens.push(Screen::new(width, height, location));
@@ -92,6 +95,9 @@ impl<'a> Map<'a> {
 			Ok(())
 		}
 		else {Err("Attempted to switch to out-of-bounds screen")}
+	}
+	pub fn getActiveScreenId(&self) -> usize {
+		self.activeScreen
 	}
 	pub fn moveActiveScreen(&mut self, newPos: (u32, u32)) {
 		self.screens[self.activeScreen].moveToPosition(newPos);

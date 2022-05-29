@@ -46,9 +46,11 @@ fn main() {
 
 	let mut fontTexture = None;
 
+	let mut idTexture = Some(NinjaDungeon::createText(&map.getActiveScreenId().to_string(), &textureCreator, &font));
+
 	let mut entities = Vec::<Entity>::new();
 	
-	while !editor.mainLoop(&file, &mut map, &font, &mut fontTexture, &textureCreator) {
+	while !editor.mainLoop(&file, &mut map, &font, &mut fontTexture, &mut idTexture, &textureCreator) {
 	}
 }
 

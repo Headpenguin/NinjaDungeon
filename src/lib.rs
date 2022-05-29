@@ -125,6 +125,7 @@ pub struct EditorContext {
 	canvas: Canvas<Window>,
 	events: EventPump,
 	textInput: TextInputUtil,
+	color: Color,
 	quit: bool,
     mapRes: (u32, u32),
     mapRect: Rect,
@@ -173,14 +174,13 @@ impl EditorContext {
 		
 		let ttfContext = ttf::init().unwrap();
 
-		canvas.set_draw_color(color);
-
 		(textureCreator, ttfContext, EditorContext {
 			canvas,
 			events: sdlContext.event_pump().unwrap(),
 			textInput,
 			sdlContext,
 			videoSubsystem,
+			color,
 			quit: false,
 			currentTileId: 0,
 			currentTilePosition: (0, 0),
@@ -201,7 +201,9 @@ impl EditorContext {
 		})
 	}
 
-	pub fn mainLoop<'a>(&mut self, filename: &str, map: &mut Map, font: &Font, fontTexture: &mut Option<Texture<'a>>, textureCreator: &'a TextureCreator<WindowContext>) -> bool {
+	pub fn mainLoop<'a>(&mut self, filename: &str, map: &mut Map, font: &Font, fontTexture: &mut Option<Texture<'a>>, idTexture: &mut Option<Texture<'a>>, textureCreator: &'a TextureCreator<WindowContext>) -> bool {
+		self.canvas.set_draw_color(self.color);
+
 		self.canvas.clear();
 	
 		for event in self.events.poll_iter() {match &self.state {
@@ -239,15 +241,19 @@ impl EditorContext {
 				},	
 				Event::KeyDown{scancode: Some(Scancode::A), ..} => {
 					map.decrementCurrentScreen();
+					*idTexture = Some(createText(&map.getActiveScreenId().to_string(), textureCreator, font));
 				},
 				Event::KeyDown{scancode: Some(Scancode::D), ..} => {
 					map.incrementCurrentScreen();
+					*idTexture = Some(createText(&map.getActiveScreenId().to_string(), textureCreator, font));
 				},
 				Event::KeyDown{scancode: Some(Scancode::Escape), ..} => {
 					self.state = State::ViewMap;
+					*idTexture = None;
 				},
 				Event::KeyDown{scancode: Some(Scancode::M), ..} => {
 					self.state = State::MoveScreen;
+					*idTexture = None;
 				},
 				Event::KeyDown{scancode: Some(Scancode::X), ..} => {
 					self.state = State::UserConfirmDelete;
@@ -275,6 +281,7 @@ impl EditorContext {
 				Event::Quit {..} => self.quit = true,
                 Event::KeyDown {scancode: Some(Scancode::Escape), ..} => {
                     self.state = State::Idle;
+					*idTexture = Some(createText(&map.getActiveScreenId().to_string(), textureCreator, font));
                 }
 				Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} => {
 					if let Some(screen) = map.getScreenAtPosition(Point::new(x, y), self.mapRect, self.mapRes) {
@@ -290,6 +297,7 @@ impl EditorContext {
 						*fontTexture = Some(createText(&self.message, textureCreator, font));
 						self.state = State::NewScreen;
 					}
+					*idTexture = Some(createText(&map.getActiveScreenId().to_string(), textureCreator, font));
                 },
 				Event::MouseWheel {y: 1, ..} => {
 					if self.mapRes.0 > 1 && self.mapRes.1 > 1 {
@@ -313,11 +321,13 @@ impl EditorContext {
 				Event::Quit {..} => self.quit = true,
                 Event::KeyDown {scancode: Some(Scancode::Escape), ..} => {
                     self.state = State::Idle;
+					*idTexture = Some(createText(&map.getActiveScreenId().to_string(), textureCreator, font));
                 },
 				Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} => {
 					let (x, y) = MapMod::convertScreenCoordToTileCoord(self.mapRes, self.mapRect, Point::from((x, y))).into();
 					map.moveActiveScreen((x as u32, y as u32));
 					self.state = State::Idle;
+					*idTexture = Some(createText(&map.getActiveScreenId().to_string(), textureCreator, font));
 				},
 				_ => (),
 			},
@@ -328,6 +338,7 @@ impl EditorContext {
 					self.lock = false;
 					self.state = State::Idle;
 					*fontTexture = None;
+					*idTexture = Some(createText(&map.getActiveScreenId().to_string(), textureCreator, font));
 				}
 				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, State::GetUserUsize) => {
 					if let Ok(id) = usize::from_str(&self.message[self.messageLen..].trim()) {
@@ -349,6 +360,7 @@ impl EditorContext {
 					self.textInput.stop();
 					self.state = State::Idle;
 					*fontTexture = None;
+					*idTexture = Some(createText(&map.getActiveScreenId().to_string(), textureCreator, font));
 				},
 				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, State::NewScreen) => {
 					if let Ok(dimension) = u16::from_str(&self.message[self.messageLen..].trim()) {
@@ -357,6 +369,7 @@ impl EditorContext {
 							self.state = State::Idle;
 							self.textInput.stop();
 							*fontTexture = None;
+							*idTexture = Some(createText(&map.getActiveScreenId().to_string(), textureCreator, font));
 						}
 						else {
 							self.newMapDimensions.0 = Some(dimension);
@@ -388,7 +401,9 @@ impl EditorContext {
 		}
 
 		match self.state {
-			State::ViewMap | State::NewScreen | State::MoveScreen => map.drawAll(&mut self.canvas, self.mapRes, self.mapRect),
+			State::ViewMap | State::NewScreen | State::MoveScreen => {
+				map.drawAll(&mut self.canvas, self.mapRes, self.mapRect);
+			},
 			_ => {
 				map.draw(&mut self.canvas, self.screenPos.top_left());
 				map.renderTile(self.previewRect, &self.previewTile, &mut self.canvas);
@@ -397,6 +412,10 @@ impl EditorContext {
 		if let Some(ref texture) = fontTexture {
 			let q = texture.query();
 			self.canvas.copy(texture, None, Some(Rect::from_center(self.screenRect.center(), q.width, q.height)));
+		}
+		if let Some(ref texture) = idTexture {
+			let q = texture.query();
+			self.canvas.copy(texture, None, Some(Rect::from_center((self.screenRect.right() - 25, self.screenRect.bottom() - 25), q.width, q.height)));
 		}
 		
 		self.canvas.present();
