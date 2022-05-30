@@ -131,7 +131,7 @@ pub struct EditorContext {
     mapRes: (u32, u32),
     mapRect: Rect,
 	newMapCoords: (u32, u32),
-	newMapDimensions: (Option<u16>, Option<u16>),
+	newMapWidth: Option<u16>,
 	currentTileId: u16,
 	currentTilePosition: (u16, u16),
 	currentTile: Tile,
@@ -192,7 +192,7 @@ impl EditorContext {
             mapRes: (136, 104),
 			mapRect: Rect::new(0, 0, width, height),
 			newMapCoords: (0, 0),
-			newMapDimensions: (None, None),
+			newMapWidth: None,
 			previewRect: Rect::new(0, height as i32 - 50, 50, 50),
 			tileBuilder: TileBuilder::new(0),
 			state: State::Idle,
@@ -365,15 +365,16 @@ impl EditorContext {
 				},
 				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, State::NewScreen) => {
 					if let Ok(dimension) = u16::from_str(&self.message[self.messageLen..].trim()) {
-						if let Some(width) = self.newMapDimensions.0  {
+						if let Some(width) = self.newMapWidth  {
 							map.addScreen(width, dimension, self.newMapCoords);
+							self.newMapWidth = None;
 							self.state = State::Idle;
 							self.textInput.stop();
 							*fontTexture = None;
 							*idTexture = Some(createText(&map.getActiveScreenId().to_string(), textureCreator, font));
 						}
 						else {
-							self.newMapDimensions.0 = Some(dimension);
+							self.newMapWidth = Some(dimension);
 							self.message = String::from("Please enter the map height: ");
 							self.messageLen = self.message.len();
 							*fontTexture = Some(createText(&self.message, textureCreator, font));

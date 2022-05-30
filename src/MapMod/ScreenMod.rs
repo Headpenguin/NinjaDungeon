@@ -161,10 +161,24 @@ impl Screen {
 			else if center.x() >= self.width as i32 * 50 {Direction::Right}
 			else if center.y() < 0 {Direction::Up}
 			else {Direction::Down};
-			Some((screen, map.getScreen(screen).getPosition(self.position, center, direction)))
+			if let Some(result) = map.getScreen(screen) {
+				Some((screen, result.getPosition(self.position, center, direction)))
+			}
+			else {None}
 		}
 		else {None}
     }
+}
+
+impl Default for Screen {
+	fn default() -> Self {
+		Screen {
+			width: 0,
+			height: 0,
+			tiles: Vec2d::new(Vec::new(), 0),
+			position: (0, 0),
+		}
+	}
 }
 
 impl<'a> ProvideReferencesDynamic<'a> for Screen {
