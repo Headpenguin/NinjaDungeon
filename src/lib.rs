@@ -11,7 +11,7 @@ use sdl2::pixels::Color;
 use sdl2::rect::{Rect, Point};
 use sdl2::ttf::{Sdl2TtfContext, Font, self};
 use sdl2::keyboard::{TextInputUtil, Scancode};
-use sdl2::mouse::{MouseButton, MouseWheelDirection};
+use sdl2::mouse::MouseButton;
 
 use BinaryFileIO::{load, dump};
 
@@ -24,6 +24,7 @@ mod SpriteLoader;
 mod MapMod;
 mod Vec2dMod;
 mod VectorMod;
+mod IntHasher;
 pub mod Entities;
 
 pub use VectorMod::Vector;

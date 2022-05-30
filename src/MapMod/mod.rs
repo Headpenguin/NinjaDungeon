@@ -11,15 +11,19 @@ use BinaryFileIO::BinaryDataContainer;
 
 use std::io;
 use std::ptr::addr_of_mut;
+use std::collections::HashMap;
 
 pub use TileMod::*;
 pub use ScreenMod::*;
 
 use crate::SpriteLoader::Animations;
+use crate::IntHasher::IntHasher;
 
 pub struct Map<'a> {
-	screens: Vec<Screen>,
+	screens: HashMap<usize, Screen, IntHasher>,
+	lastActiveScreen: usize,
 	activeScreen: usize,
+	nextId: usize,
 	renderer: TileRenderer<'a>,
 }
 
@@ -33,8 +37,10 @@ impl<'a> Map<'a> {
 	}*/
 	pub fn new(id: usize, tileset: &str, textureCreator: &'a TextureCreator<WindowContext>) -> io::Result<Map<'a>> {
 		Ok(Map {
-			screens: vec![],
+			screens: HashMap::with_hasher(IntHasher::new()),
+			lastActiveScreen: 0,
 			activeScreen: 0,
+			nextId: 0,
 			renderer: TileRenderer::new(id, tileset, textureCreator)?,
 		})
 	}
@@ -42,68 +48,89 @@ impl<'a> Map<'a> {
 		self.renderer.update();
 	}
 	pub fn draw(&mut self, canvas: &mut Canvas<Window>, topLeft: Point) {
-		self.screens[self.activeScreen].draw(&mut self.renderer, canvas, topLeft);
+		self.screens[&self.activeScreen].draw(&mut self.renderer, canvas, topLeft);
 	}
 	pub fn drawAll(&mut self, canvas: &mut Canvas<Window>, scale: (u32, u32), cameraRect: Rect) {
 		let scale = (cameraRect.width() as f32 / scale.0 as f32, cameraRect.height() as f32 / scale.1 as f32);
-		for screen in self.screens.iter() {
+		for screen in self.screens.values() {
 			screen.iconDraw(&mut self.renderer, canvas, screen.generateIconRect(scale.0, scale.1, cameraRect.top_left()));
 		}
 		canvas.set_draw_color(Color::RED);
-		canvas.draw_rect(self.screens[self.activeScreen].generateIconRect(scale.0, scale.1, cameraRect.top_left()));
+		canvas.draw_rect(self.screens[&self.activeScreen].generateIconRect(scale.0, scale.1, cameraRect.top_left()));
 	}
 	pub fn addScreen(&mut self, width: u16, height: u16, location: (u32, u32)) {
-		self.screens.push(Screen::new(width, height, location));
-		self.activeScreen = self.screens.len() - 1;
+		self.screens.insert(self.nextId, Screen::new(width, height, location));
+		self.lastActiveScreen = self.activeScreen;
+		self.activeScreen = self.nextId;
+		self.nextId+=1;
 	}
 	pub fn popActiveScreen(&mut self) -> Option<Screen> {
 		if self.screens.len() > 1 {
-			let screen = self.screens.remove(self.activeScreen);
-			self.activeScreen = self.activeScreen.clamp(0, self.screens.len() - 1);
+			let screen = self.screens.remove(&self.activeScreen).unwrap();
+			if self.lastActiveScreen == self.activeScreen {
+				self.activeScreen = self.screens.keys().next();
+				self.lastActiveScreen = self.activeScreen;
+			}
+			else {
+				self.activeScreen = self.lastActiveScreen;
+			}
 			Some(screen)
 		}
 		else {None}
 	}
-	pub fn getScreen(&self, screen: usize) -> &Screen {
-		&self.screens[screen]
+	pub fn getScreen(&self, screen: usize) -> Option<&Screen> {
+		self.screens.get(&screen)
 	}
 	pub fn getScreenAtPosition(&self, mut pos: Point, screenPos: Rect, res: (u32, u32)) -> Option<usize> {
 		pos = convertScreenCoordToTileCoord(res, screenPos, pos);
-		for (idx, screen) in self.screens.iter().enumerate() {
+		for (idx, screen) in self.screens.iter() {
 		   if screen.containsPoint(pos) {
-				return Some(idx);
+				return Some(*idx);
 		   }
 	   }
 	   None
 	}
-	pub fn getMaxScreenCoords(&self) -> (u32, u32) {self.screens[self.activeScreen].getMaxScreenCoords()}
+	pub fn getMaxScreenCoords(&self) -> (u32, u32) {self.screens[&self.activeScreen].getMaxScreenCoords()}
 	pub fn changeTile(&mut self, position: (u16, u16), replacement: Tile) {
-		self.screens[self.activeScreen].replaceTile(position, replacement);
+		self.screens[&self.activeScreen].replaceTile(position, replacement);
 	}
 	pub fn renderTile(&mut self, position: Rect, tile: &Tile, canvas: &mut Canvas<Window>) {
 		self.renderer.draw(tile, canvas, position);
 	}
 	pub fn incrementCurrentScreen(&mut self) {
-		if self.activeScreen + 1 < self.screens.len() {self.activeScreen+=1;}
+		for screen in (self.activeScreen + 1)..self.nextId {
+			if self.screens.contains_key(&screen) {
+				self.lastActiveScreen = self.activeScreen;
+				self.activeScreen+=1;
+				break;
+			}
+		}
 	}
 	pub fn decrementCurrentScreen(&mut self) {
-		if self.activeScreen > 0 {self.activeScreen-=1;}
+		for screen in (0..self.activeScreen).rev() {
+			if self.screens.contains_key(&screen) {
+				self.lastActiveScreen = self.activeScreen;
+				self.activeScreen = screen;
+				break;
+			}
+		}
 	}
 	pub fn setCurrentScreen(&mut self, screen: usize) -> Result<(), &'static str> {
-		if screen < self.screens.len() {
+		if self.screens.contains_key(&screen) {
+			self.lastActiveScreen = self.activeScreen;
 			self.activeScreen = screen;
 			Ok(())
 		}
-		else {Err("Attempted to switch to out-of-bounds screen")}
+		else {Err("Attempted to switch to invalid screen")}
 	}
 	pub fn getActiveScreenId(&self) -> usize {
 		self.activeScreen
 	}
 	pub fn moveActiveScreen(&mut self, newPos: (u32, u32)) {
-		self.screens[self.activeScreen].moveToPosition(newPos);
+		self.screens[&self.activeScreen].moveToPosition(newPos);
 	}
     pub fn transitionScreen(&mut self, hitbox: Rect) -> Option<Rect> {
-        let activeScreen = &self.screens[self.activeScreen];
+        let activeScreen = &self.screens[&self.activeScreen];
 		let (w, h) = activeScreen.getDimensions();
 		let screenRect = Rect::new(0, 0, w as u32 * 50, h as u32 * 50);
 		let center = hitbox.center();
@@ -112,6 +139,7 @@ impl<'a> Map<'a> {
 				Some(data) => data,
 				None => (self.activeScreen, center),
 			};
+			self.lastActiveScreen = self.activeScreen;
 			self.activeScreen = screen;
 			Some(Rect::from_center(center, hitbox.width(), hitbox.height()))
 		}
@@ -119,10 +147,10 @@ impl<'a> Map<'a> {
     }
 	#[inline(always)]
 	pub fn calculateCollisionBounds(&self, hitbox: Rect) -> CollisionBounds {
-		self.screens[self.activeScreen].calculateCollisionBounds(hitbox)
+		self.screens[&self.activeScreen].calculateCollisionBounds(hitbox)
 	}
 	pub fn collide(&'a self, bounds: &mut CollisionBounds) -> Option<((u16, u16), &'a Tile)> {
-		self.screens[self.activeScreen].collide(bounds)
+		self.screens[&self.activeScreen].collide(bounds)
 	}
 	pub unsafe fn createRenderer(&mut self, tileset: &str, textureCreator: &'a TextureCreator<WindowContext>) {
 		addr_of_mut!(self.renderer).write(TileRenderer::new(0, tileset, textureCreator).unwrap());
@@ -138,7 +166,11 @@ unsafe impl<'a> SelfOwned for Map<'a> {}
 impl<'a> ProvideReferencesDynamic<'a> for Map<'a> {
 	type Type = Map<'static>;
 	fn provideReferencesDyn<T: DynamicBinaryTranslator<'a>>(&'a self, translator: &mut T) {
-		unsafe{translator.translateSlice(self.screens.as_slice())};
+		translator.translateContained(&self.screens.len());
+		for (id, screen) in self.screens.iter() {
+			translator.translateContained(id);
+			translator.translateDyn(screen)
+		}
 	}
 }
 
