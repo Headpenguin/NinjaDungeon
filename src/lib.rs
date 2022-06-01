@@ -29,6 +29,7 @@ mod MapMod;
 mod Vec2dMod;
 mod VectorMod;
 mod IntHasher;
+mod ScriptingUtils;
 pub mod Entities;
 
 pub use VectorMod::Vector;
