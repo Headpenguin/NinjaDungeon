@@ -193,7 +193,6 @@ impl<'a> ProvidePointersMutDynamic<'a> for Map<'a> {
 			1 => {
 				let len = (*uninitialized).ioData;
 				addr_of_mut!((*uninitialized).screens).write(HashMap::with_capacity_and_hasher(len, IntHasher::new()));
-//				(*uninitialized).lastActiveScreen = (*uninitialized).activeScreen;
 				let layout = Layout::array::<(usize, Screen)>(len + 1).unwrap();
 				let memory = alloc::alloc(layout);
 				assert_ne!(memory, ptr::null_mut());
@@ -229,19 +228,6 @@ impl<'a> ProvidePointersMutDynamic<'a> for Map<'a> {
 				flag
 			},
 		}
-/*		if depth == 0 {
-			let size = translator.getSliceSize().unwrap();
-			let mut v = Vec::with_capacity(size);
-			let ptr = v.as_mut_ptr();
-			let translatedPtr: *mut [Screen] = BinaryDataContainer::reinterpretAllocatedToSlice(ptr as *mut u8, size);
-			translator.translateRawSlice(translatedPtr);
-			v.set_len(size);
-			addr_of_mut!((*uninitialized).screens).write(v);
-			false
-		}
-		else {
-			translator.translateSlice(depth - 1, (*uninitialized).screens.as_mut_slice())
-		}*/
 	}
 }
 

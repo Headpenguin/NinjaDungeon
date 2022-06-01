@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 extern crate sdl2;
 extern crate BinaryFileIO;
+extern crate rlua;
 
 use sdl2::{Sdl, VideoSubsystem, EventPump};
 use sdl2::render::{Canvas, TextureCreator, Texture};
@@ -13,9 +14,12 @@ use sdl2::ttf::{Sdl2TtfContext, Font, self};
 use sdl2::keyboard::{TextInputUtil, Scancode};
 use sdl2::mouse::MouseButton;
 
+use rlua::{Lua, FromLuaMulti, UserData, UserDataMethods};
+
 use BinaryFileIO::{load, dump};
 
 use std::io;
+use std::fs;
 use std::i32;
 use std::str::FromStr;
 
@@ -33,7 +37,7 @@ pub use PlayerMod::Player;
 
 pub use MapMod::{Map, Location, Tile, MAX_TILE_IDX, CollisionType, CollisionBounds, TileBuilder, TileBuilderSignals};
 
-use PlayerMod::SignalsBuilder;
+use PlayerMod::{SignalsBuilder, Signals};
 
 use Entities::Codes;
 
@@ -42,7 +46,8 @@ pub struct GameContext {
 	videoSubsystem: VideoSubsystem,
 	canvas: Canvas<Window>,
 	events: EventPump,
-	scriptPlayerInputs: bool,
+	luaContext: Lua,
+	scriptPlayerInputs: Option<Vec<Signals>>,
 	screenPos: Point,
 	quit: bool,
 }
@@ -76,11 +81,21 @@ impl GameContext {
 		
 		canvas.set_draw_color(color);
 
-		let (scriptPlayerInputs, quit) = (false, false);
+		let luaContext = Lua::new();
 
-		let screenPos = Point::new(0, 0);
+		let script = fs::read("Resources/Scripts/luac.out").unwrap();
 
-		(GameContext {sdlContext, videoSubsystem, canvas, events, scriptPlayerInputs, screenPos, quit,}, textureCreator) 
+		let screenPos = luaContext.context(|context| {
+			let chunk = context.load(&script);
+			let coord = unsafe{chunk.into_function_allow_binary()}.unwrap().call(()).unwrap();
+			<(i32, i32)>::from_lua_multi(coord, context).unwrap()
+		});
+
+		let (scriptPlayerInputs, quit) = (None, false);
+
+		let screenPos = Point::from(screenPos);
+
+		(GameContext {sdlContext, videoSubsystem, canvas, events, luaContext, scriptPlayerInputs, screenPos, quit,}, textureCreator) 
 	}
 	
 	#[inline(always)]
@@ -92,12 +107,12 @@ impl GameContext {
 
 		for event in self.events.poll_iter() {
 			self.quit = Self::windowEvents(&event);
-			if !self.scriptPlayerInputs {
+			if self.scriptPlayerInputs.is_none() {
 				signals.addEvent(&event);
 			}
 		}
 
-		if !self.scriptPlayerInputs {
+		if self.scriptPlayerInputs.is_none() {
 			player.signal(signals.build(&self.events));
 		}
 

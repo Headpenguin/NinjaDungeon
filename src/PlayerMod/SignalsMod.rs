@@ -1,10 +1,13 @@
 extern crate sdl2;
 
 use std::default::Default;
+use std::os::raw::c_int;
 
 use sdl2::EventPump;
 use sdl2::event::Event;
 use sdl2::keyboard::Scancode;
+
+use rlua::{UserData, UserDataMethods, FromLuaMulti};
 
 pub struct SignalsBuilder {
 	event: bool,
@@ -58,6 +61,27 @@ impl SignalsBuilder {
 		}
 	}
 }
+
+/*
+impl UserData for Signals {
+	fn add_methods<'lua, T: UserDataMethods<'lua, Self>>(methods: &mut T) {
+		methods.add_function("new", |context, args| {
+			match <(Option<bool>, Option<bool>, Option<bool>, Option<bool>, Option<bool>)>::from_lua_multi(args, context) {
+				Ok((up, down, left, right, attack)) => Ok(Signals {
+					up,
+					down,
+					left,
+					right,
+					attack,
+				}),
+				Err(e) => Err(e),
+			}
+		});
+	}
+	fn get_uvalues_count(&self) -> c_int {
+		0
+	}
+}*/
 
 impl Default for SignalsBuilder {
 	fn default() -> Self {
