@@ -35,6 +35,7 @@ pub mod Entities;
 pub use VectorMod::Vector;
 pub use Vec2dMod::Vec2d;
 pub use PlayerMod::Player;
+pub use ScriptingUtils::*;
 
 pub use MapMod::{Map, Location, Tile, MAX_TILE_IDX, CollisionType, CollisionBounds, TileBuilder, TileBuilderSignals};
 
@@ -42,15 +43,24 @@ use PlayerMod::{SignalsBuilder, Signals};
 
 use Entities::Codes;
 
+const SCRIPTS_MISSING_MESSAGE: &str = "Lua scripts are missing, please refer to the website for further guidance (Error code 0001)\nThe following is diagnostic info";
+const SYNTAX_ERROR: &str = "Lua scripts contain an error";
+const MISSING_GLOBAL: &str = "Missing global";
+
 pub struct GameContext {
 	sdlContext: Sdl,
 	videoSubsystem: VideoSubsystem,
 	canvas: Canvas<Window>,
 	events: EventPump,
 	luaContext: Lua,
+	scripts: Scripts,
 	scriptPlayerInputs: Option<Vec<Signals>>,
 	screenPos: Point,
 	quit: bool,
+}
+
+struct Scripts {
+	initialInputs: LuaFunction,
 }
 
 impl GameContext {
@@ -84,19 +94,29 @@ impl GameContext {
 
 		let luaContext = Lua::new();
 
-		let script = fs::read("Resources/Scripts/luac.out").unwrap();
-
-		let screenPos = luaContext.context(|context| {
-			let chunk = context.load(&script);
-			let coord = unsafe{chunk.into_function_allow_binary()}.unwrap().call(()).unwrap();
-			<(i32, i32)>::from_lua_multi(coord, context).unwrap()
+		luaContext.context(|context| {
+			context.globals().set("ninjaDungeonPushInputs", 
 		});
+
+		let mut scripts = LuaFunction::fromFunctionNames(&luaContext, fs::read_dir("Resources/Scripts/")
+			.expect(SCRIPTS_MISSING_MESSAGE)
+			.filter_map(|e| {
+				let p = e.ok()?.path();
+				if p.extension()? == "lua" {Some(p)}
+				else {None}
+			}),
+			SCRIPT_FUNCTION_NAMES.iter().map(|s| *s)
+		).expect(SYNTAX_ERROR);
+
+		let scripts = Scripts {
+			initialInputs: scripts.pop().expect(SCRIPTS_MISSING_MESSAGE).expect(MISSING_GLOBAL),
+		};
 
 		let (scriptPlayerInputs, quit) = (None, false);
 
-		let screenPos = Point::from(screenPos);
+		let screenPos = Point::new(0, 0);
 
-		(GameContext {sdlContext, videoSubsystem, canvas, events, luaContext, scriptPlayerInputs, screenPos, quit,}, textureCreator) 
+		(GameContext {sdlContext, videoSubsystem, canvas, events, luaContext, scripts, scriptPlayerInputs, screenPos, quit,}, textureCreator) 
 	}
 	
 	#[inline(always)]
@@ -501,4 +521,8 @@ enum State {
 	AttemptBuild,
 	Idle,
 }
+
+const SCRIPT_FUNCTION_NAMES: &[&str] = &[
+	"sendInputs",
+];
 
