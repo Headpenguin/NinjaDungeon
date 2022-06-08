@@ -38,6 +38,11 @@ impl LuaFunction {
 	R: FromLuaMulti<'lua>, {
 		unsafe{context.load(&self.0).into_function_allow_binary()?}.call(args)
 	}
+    pub fn call<'lua, A, R>(&self, state: &'a Lua, args: A) -> rlua::Result<R> where
+    A: ToLuaMulti<'lua>,
+    R: FromLuaMulti<'lua> {
+        state.context(|c| self.callFromContext(c, args))
+    }
 	fn convertError(error: io::Error) -> rlua::Error {
 		rlua::Error::external(error)
 	}

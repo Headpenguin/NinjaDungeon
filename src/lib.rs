@@ -22,6 +22,7 @@ use std::io;
 use std::fs;
 use std::i32;
 use std::str::FromStr;
+use std::collections::BinaryHeap;
 
 mod PlayerMod;
 mod SpriteLoader;
@@ -54,8 +55,9 @@ pub struct GameContext {
 	events: EventPump,
 	luaContext: Lua,
 	scripts: Scripts,
-	scriptPlayerInputs: Option<Vec<Signals>>,
+	scriptPlayerInputs: Option<Signals>>,
 	screenPos: Point,
+    frameCounter: u64,
 	quit: bool,
 }
 
@@ -112,11 +114,11 @@ impl GameContext {
 			initialInputs: scripts.pop().expect(SCRIPTS_MISSING_MESSAGE).expect(MISSING_GLOBAL),
 		};
 
-		let (scriptPlayerInputs, quit) = (None, false);
+		let (scriptPlayerInputs, quit, frameCounter) = (None, false, 0);
 
 		let screenPos = Point::new(0, 0);
 
-		(GameContext {sdlContext, videoSubsystem, canvas, events, luaContext, scripts, scriptPlayerInputs, screenPos, quit,}, textureCreator) 
+		(GameContext {sdlContext, videoSubsystem, canvas, events, luaContext, scripts, scriptPlayerInputs, frameCounter, screenPos, quit,}, textureCreator) 
 	}
 	
 	#[inline(always)]
@@ -154,6 +156,16 @@ impl GameContext {
 			_ => false,
 		}
 	}
+    fn addInputs(&mut self, 
+}
+
+impl UserData for GameContext {
+    fn add_methods<'lua, T>(methods: &mut T) where
+    T: UserDataMethods<'lua, Self> {
+        methods.add_method_mut("pushInputs", |context, this, args| {
+            
+        });
+    }
 }
 
 pub struct EditorContext {
