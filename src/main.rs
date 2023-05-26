@@ -20,7 +20,7 @@ fn main()
 	
 	let mut player = Player::new(&creator, 0f32, 0f32).unwrap();
 
-	let mut map = loadMap("Resources/Levels/urMom.mp", "Resources/Images/Map1.anim", &creator).unwrap();
+	let mut map = loadMap("Resources/test2.mp", "Resources/Images/Map1.anim", &creator).unwrap();
 
 	while context.mainLoop(&mut player, &mut map) {}
 

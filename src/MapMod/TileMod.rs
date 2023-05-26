@@ -1,7 +1,9 @@
-use BinaryFileIO::BinaryDataContainer::SelfContained;
-use BinaryFileIO::BFStream::Extend;
+//use BinaryFileIO::BinaryDataContainer::SelfContained;
+//use BinaryFileIO::BFStream::Extend;
 
-#[derive(Clone)]
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Tile (u16, CollisionType);
 
 pub struct TileBuilder {
@@ -85,7 +87,7 @@ impl TileBuilder {
  and check collision like that. For a sign, check some amount in front of the player (probably
  the same amount as the walking velocity). Also, just add an index to a vector to have additional data.
 */
-#[derive(Clone, Copy)]
+#[derive(Serialize, Deserialize, Clone, Copy)]
 pub enum CollisionType {
 	None, //Do nothing
 	Block, //Block the player
@@ -98,7 +100,7 @@ pub enum CollisionType {
 
 pub const MAX_TILE_IDX: u16 = 4;
 
-unsafe impl SelfContained for Tile {}
+//unsafe impl SelfContained for Tile {}
 
-impl Extend for Tile {}
+//impl Extend for Tile {}
 

@@ -1,5 +1,6 @@
 use std::hash::{Hasher, BuildHasher};
 
+#[derive(Default)]
 pub struct IntHasher (u64);
 
 impl IntHasher {

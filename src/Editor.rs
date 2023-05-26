@@ -1,5 +1,4 @@
 #![allow(non_snake_case)]
-extern crate BinaryFileIO;
 extern crate sdl2;
 
 use NinjaDungeon::{Map, Entity, EditorContext, self};

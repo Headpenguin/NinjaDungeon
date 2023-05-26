@@ -1,40 +1,44 @@
-use Traits::Entity;
+pub mod Traits;
+
+use Traits::{Entity, EntityDyn, EntityTraits, EntityTraitsWrappable};
 use std::collections::HashMap;
-use std::Option;
 use std::cell::UnsafeCell;
-use crate::{IntHasher, ID};
+use crate::ID;
+use crate::IntHasher::IntHasher;
 
 pub enum Codes {
 	Skeleton,
 }
 
-struct Holder {
+pub struct Holder {
 	entities: HashMap<ID, UnsafeCell<Box<dyn EntityDyn>>, IntHasher>,
 	currentId: ID,
 }
 
 impl Holder {
-	unsafe fn get(&self, id: ID) -> Option<&dyn EntityTraits> {
-		self.entries.get(id).get().map(|x| unsafe{
-			(x.get() as &Box<dyn EntityDyn>).getInner() as &dyn EntityTraits
+	pub unsafe fn get(&self, id: ID) -> Option<&dyn EntityTraits> {
+		self.entities.get(&id).map(|x| unsafe{
+			(&*x.get()).getInner() as &dyn EntityTraits
 		})
 	}
-	unsafe fn getMut(&self, id: ID) -> *mut dyn EntityTraits {
-		self.entries.get(id).map(|x| unsafe {
-			(x.get() as &mut Box<dyn EntityDyn> as &mut dyn EntityDyn).getInnerMut() as *mut dyn EntityTraits
+	pub unsafe fn getMut(&self, id: ID) -> Option<*mut dyn EntityTraits> {
+		self.entities.get(&id).map(|x| unsafe {
+			(&mut *x.get()).as_mut().getInnerMut() as *mut dyn EntityTraits
 		})
 	}
-	unsafe fn getEntityDyn(&self, id: ID) -> *mut dyn EntityDyn {
-		x.get() as &mut Box<dyn EntityDyn> as &mut dyn EntityDyn as *mut dyn EntityDyn
+	pub unsafe fn getEntityDyn(&self, id: ID) -> Option<*mut dyn EntityDyn> {
+		self.entities.get(&id).map(|x| unsafe {
+			(&mut *x.get()).as_mut() as *mut dyn EntityDyn
+		})
 	}
-	unsafe fn add(&mut self, entity: Box<dyn EntityDyn>) -> bool {
-		self.entities.add(UnsafeCell::new(entity), currentId);
-		currentId.increment();
+	pub unsafe fn add(&mut self, entity: Box<dyn EntityDyn>) {
+		self.entities.insert(self.currentId, UnsafeCell::new(entity));
+		self.currentId += 1;
 	}
-	unsafe fn remove(&mut self, id: ID) -> Option<Box<dyn EntityDyn>> {
-		self.entities.remove(id)
+	pub unsafe fn remove(&mut self, id: ID) -> Option<Box<dyn EntityDyn>> {
+		self.entities.remove(&id).map(|x| x.into_inner())
 	}
-	fn new() -> Holder {
+	pub fn new() -> Holder {
 		Holder {
 			entities: HashMap::default(),
 			currentId: 0,

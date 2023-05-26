@@ -1,10 +1,12 @@
-use BinaryFileIO::BFStream::{ProvideReferencesDynamic, DynamicBinaryTranslator, ProvidePointersMutDynamic, DynamicTypedTranslator};
-use BinaryFileIO::BinaryDataContainer;
+//use BinaryFileIO::BFStream::{ProvideReferencesDynamic, DynamicBinaryTranslator, ProvidePointersMutDynamic, DynamicTypedTranslator};
+//use BinaryFileIO::BinaryDataContainer;
+
+use serde::{Serialize, Deserialize};
 
 use std::ops::{Deref, DerefMut};
-use std::ptr::addr_of_mut;
+//use std::ptr::addr_of_mut;
 
-#[derive(Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Vec2d<T> (pub Vec<T>, usize);
 
 impl<T> Vec2d<T> {
@@ -31,7 +33,7 @@ impl<T> DerefMut for Vec2d<T> {
 		&mut self.0
 	}
 }
-
+/*
 impl<'a, Ty> ProvideReferencesDynamic<'a> for Vec2d<Ty> where Ty: ProvideReferencesDynamic<'a> {
 	type Type = ();
 	fn provideReferencesDyn<T: DynamicBinaryTranslator<'a>>(&'a self, translator: &mut T) {
@@ -57,4 +59,4 @@ impl<'a, Ty> ProvidePointersMutDynamic<'a> for Vec2d<Ty> where Ty: ProvidePointe
 		}
 	}
 }
-
+*/

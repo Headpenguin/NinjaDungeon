@@ -1,13 +1,13 @@
 extern crate sdl2;
 
 use std::default::Default;
-use std::os::raw::c_int;
+//use std::os::raw::c_int;
 
 use sdl2::EventPump;
 use sdl2::event::Event;
 use sdl2::keyboard::Scancode;
 
-use rlua::{UserData, UserDataMethods, FromLuaMulti};
+//use rlua::{UserData, UserDataMethods, FromLuaMulti};
 
 pub struct SignalsBuilder {
 	event: bool,

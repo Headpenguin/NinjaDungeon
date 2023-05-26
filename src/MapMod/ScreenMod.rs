@@ -1,18 +1,20 @@
-use std::ptr::addr_of_mut;
+//use std::ptr::addr_of_mut;
 
 use sdl2::render::Canvas;
 use sdl2::video::Window;
 use sdl2::rect::{Rect, Point};
 
-use BinaryFileIO::BinaryDataContainer::SelfContained;
-use BinaryFileIO::BFStream::{ProvideReferencesDynamic, DynamicBinaryTranslator, ProvidePointersMutDynamic, DynamicTypedTranslator};
+//use BinaryFileIO::BinaryDataContainer::SelfContained;
+//use BinaryFileIO::BFStream::{ProvideReferencesDynamic, DynamicBinaryTranslator, ProvidePointersMutDynamic, DynamicTypedTranslator};
 
-use super::{Tile, TileRenderer, Map, CollisionType};
+use serde::{Serialize, Deserialize};
+
+use super::{Tile, TileRenderer, InnerMap, CollisionType};
 use crate::{Vec2d, Direction, Vector};
 
 const TILE_DIVISOR: f32 = 1f32/50f32;
 
-#[derive(Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Screen {
 	width: u16,
 	height: u16,
@@ -20,7 +22,7 @@ pub struct Screen {
 	position: (u32, u32),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Serialize, Deserialize, Clone, Copy)]
 pub struct Location {
 	up: usize,
 	down: usize,
@@ -42,7 +44,7 @@ impl Location {
 	}
 }
 
-unsafe impl SelfContained for Location {}
+//unsafe impl SelfContained for Location {}
 
 impl Iterator for CollisionBounds {
 	type Item = (u16, u16);
@@ -56,6 +58,7 @@ impl Iterator for CollisionBounds {
 			self.y += 1;
 		}
 		else{self.x += 1;}
+		//println!("{}", self.y);
 		result
 	}
 }
@@ -154,7 +157,7 @@ impl Screen {
 			Direction::Right => {Point::new(0, center.y() + v.1 as i32)},
 		}
 	}
-    pub fn getScreen(&self, center: Point, map: &Map) -> Option<(usize, Point)> {
+    pub fn getScreen(&self, center: Point, map: &InnerMap) -> Option<(usize, Point)> {
 		let tile = self.getTile(self.pointToIndex(center));
 		if let CollisionType::Transition(screen) = tile.getCollisionType() {
 			let direction = if center.x() < 0 {Direction::Left}
@@ -181,7 +184,7 @@ impl Default for Screen {
 	}
 }
 
-impl<'a> ProvideReferencesDynamic<'a> for Screen {
+/*impl<'a> ProvideReferencesDynamic<'a> for Screen {
 	type Type = Self;
 	fn provideReferencesDyn<T: DynamicBinaryTranslator<'a>>(&'a self, translator: &mut T) {
 		self.tiles.provideReferencesDyn(translator);
@@ -193,6 +196,6 @@ impl<'a> ProvidePointersMutDynamic<'a> for Screen {
 	unsafe fn providePointersMutDyn<T: DynamicTypedTranslator<'a>>(uninitialized: *mut Self, depth: usize, translator: &mut T) -> bool {
 		Vec2d::providePointersMutDyn(addr_of_mut!((*uninitialized).tiles), depth, translator)
 	}
-}
+}*/
 
 

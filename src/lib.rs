@@ -1,7 +1,9 @@
 #![allow(non_snake_case)]
 extern crate sdl2;
-extern crate BinaryFileIO;
-extern crate rlua;
+extern crate serde;
+extern crate serde_json;
+//extern crate BinaryFileIO;
+//extern crate rlua;
 
 use sdl2::{Sdl, VideoSubsystem, EventPump};
 use sdl2::render::{Canvas, TextureCreator, Texture};
@@ -14,15 +16,19 @@ use sdl2::ttf::{Sdl2TtfContext, Font, self};
 use sdl2::keyboard::{TextInputUtil, Scancode};
 use sdl2::mouse::MouseButton;
 
-use rlua::{Lua, FromLuaMulti, UserData, UserDataMethods};
+//use rlua::{Lua, FromLuaMulti, UserData, UserDataMethods};
 
-use BinaryFileIO::{load, dump};
+//use BinaryFileIO::{load, dump};
 
-use std::io;
-use std::fs;
+use serde::{Serialize, Deserialize};
+
+use serde_json::{Deserializer, Serializer};
+
+use std::io::{self, Write};
+use std::fs::File;
 use std::i32;
 use std::str::FromStr;
-use std::collections::BinaryHeap;
+//use std::collections::BinaryHeap;
 
 mod PlayerMod;
 mod SpriteLoader;
@@ -30,40 +36,44 @@ mod MapMod;
 mod Vec2dMod;
 mod VectorMod;
 mod IntHasher;
-mod ScriptingUtils;
+//mod ScriptingUtils;
+mod EventProcessor;
+mod Scheduling;
 pub mod Entities;
 
 pub use VectorMod::Vector;
 pub use Vec2dMod::Vec2d;
 pub use PlayerMod::Player;
-pub use ScriptingUtils::*;
+//pub use ScriptingUtils::*;
 
-pub use MapMod::{Map, Location, Tile, MAX_TILE_IDX, CollisionType, CollisionBounds, TileBuilder, TileBuilderSignals};
+pub use MapMod::{Map, InnerMap, Location, Tile, MAX_TILE_IDX, CollisionType, CollisionBounds, TileBuilder, TileBuilderSignals};
 
-use PlayerMod::{SignalsBuilder, Signals};
+use PlayerMod::SignalsBuilder;
 
 use Entities::Codes;
 
-const SCRIPTS_MISSING_MESSAGE: &str = "Lua scripts are missing, please refer to the website for further guidance (Error code 0001)\nThe following is diagnostic info";
+/*const SCRIPTS_MISSING_MESSAGE: &str = "Lua scripts are missing, please refer to the website for further guidance (Error code 0001)\nThe following is diagnostic info";
 const SYNTAX_ERROR: &str = "Lua scripts contain an error";
-const MISSING_GLOBAL: &str = "Missing global";
+const MISSING_GLOBAL: &str = "Missing global";*/
+
+type ID = usize;
 
 pub struct GameContext {
 	sdlContext: Sdl,
 	videoSubsystem: VideoSubsystem,
 	canvas: Canvas<Window>,
 	events: EventPump,
-	luaContext: Lua,
-	scripts: Scripts,
-	scriptPlayerInputs: Option<Signals>>,
+	//luaContext: Lua,
+	//scripts: Scripts,
+//	scriptPlayerInputs: Option<Signals>,
 	screenPos: Point,
-    frameCounter: u64,
+    //frameCounter: u64,
 	quit: bool,
 }
 
-struct Scripts {
+/*struct Scripts {
 	initialInputs: LuaFunction,
-}
+}*/
 
 impl GameContext {
 	
@@ -94,13 +104,13 @@ impl GameContext {
 		
 		canvas.set_draw_color(color);
 
-		let luaContext = Lua::new();
+		//let luaContext = Lua::new();
 
-		luaContext.context(|context| {
+	/*	luaContext.context(|context| {
 			context.globals().set("ninjaDungeonPushInputs", 
-		});
+		});*/
 
-		let mut scripts = LuaFunction::fromFunctionNames(&luaContext, fs::read_dir("Resources/Scripts/")
+		/*let mut scripts = LuaFunction::fromFunctionNames(&luaContext, fs::read_dir("Resources/Scripts/")
 			.expect(SCRIPTS_MISSING_MESSAGE)
 			.filter_map(|e| {
 				let p = e.ok()?.path();
@@ -114,11 +124,11 @@ impl GameContext {
 			initialInputs: scripts.pop().expect(SCRIPTS_MISSING_MESSAGE).expect(MISSING_GLOBAL),
 		};
 
-		let (scriptPlayerInputs, quit, frameCounter) = (None, false, 0);
-
+		let (scriptPlayerInputs, quit, frameCounter) = (None, false, 0);*/
+		let quit = false;
 		let screenPos = Point::new(0, 0);
 
-		(GameContext {sdlContext, videoSubsystem, canvas, events, luaContext, scripts, scriptPlayerInputs, frameCounter, screenPos, quit,}, textureCreator) 
+		(GameContext {sdlContext, videoSubsystem, canvas, events, /*luaContext, scripts, scriptPlayerInputs, frameCounter,*/ screenPos, quit,}, textureCreator) 
 	}
 	
 	#[inline(always)]
@@ -130,14 +140,10 @@ impl GameContext {
 
 		for event in self.events.poll_iter() {
 			self.quit = Self::windowEvents(&event);
-			if self.scriptPlayerInputs.is_none() {
-				signals.addEvent(&event);
-			}
+			signals.addEvent(&event);
 		}
 
-		if self.scriptPlayerInputs.is_none() {
-			player.signal(signals.build(&self.events));
-		}
+		player.signal(signals.build(&self.events));
 
 		map.update();
 		player.update(map);
@@ -156,17 +162,17 @@ impl GameContext {
 			_ => false,
 		}
 	}
-    fn addInputs(&mut self, 
+    //fn addInputs(&mut self, 
 }
 
-impl UserData for GameContext {
+/*impl UserData for GameContext {
     fn add_methods<'lua, T>(methods: &mut T) where
     T: UserDataMethods<'lua, Self> {
         methods.add_method_mut("pushInputs", |context, this, args| {
             
         });
     }
-}
+}*/
 
 pub struct EditorContext {
 	sdlContext: Sdl,
@@ -214,7 +220,7 @@ impl EditorContext {
 			.build()
 			.unwrap();
 		
-		let mut canvas = window.into_canvas()
+		let canvas = window.into_canvas()
 			.present_vsync()
 			.build()
 			.unwrap();
@@ -286,7 +292,10 @@ impl EditorContext {
 					}
 				},
 				Event::KeyDown{scancode: Some(Scancode::S), ..} => {
-					dump!(filename, *map).unwrap();
+					let mut ser = Serializer::new(File::create(filename).unwrap());
+					map.serialize(&mut ser).unwrap();
+					let mut f = ser.into_inner();
+					f.flush().unwrap();
 				},	
 				Event::KeyDown{scancode: Some(Scancode::A), ..} => {
 					map.decrementCurrentScreen();
@@ -498,12 +507,10 @@ pub fn createText<'a>(message: &str, textureCreator: &'a TextureCreator<WindowCo
 }
 
 pub fn loadMap<'a>(filename: &str, tileSprites: &str, creator: &'a TextureCreator<WindowContext>) -> io::Result<Map<'a>> {
-	let map: io::Result<(Map,)> = unsafe{load!(filename, map)};
+	let mut deserializer = Deserializer::from_reader(File::open(filename)?);
+	let map = InnerMap::deserialize(&mut deserializer)?;
 
-	match map {
-		Ok((mut map,)) => Ok(unsafe {map.createRenderer(tileSprites, &creator); map}),
-		Err(e) => Err(e),
-	}
+	Ok(Map::restore(map, 0, tileSprites, &creator)?)
 }
 
 #[repr(u8)]
