@@ -11,7 +11,10 @@ mod SignalsMod;
 pub use SignalsMod::{SignalsBuilder, Signals, Mapping};
 
 use crate::SpriteLoader::Animations;
-use crate::{Direction, Map, CollisionType, Vector};
+use crate::{Direction, Map, CollisionType, Vector, GameContext};
+use crate::Entities::Traits::{Collision, EntityTraitsWrappable};
+use crate::Entities::RefCode;
+use crate::EventProcessor::{CollisionMsg, Envelope};
 
 const NAMES: &'static[&'static str] = &[
 	"Ninja float",
@@ -44,6 +47,10 @@ pub struct Player<'a> {
     position: Vector,
 	hitbox: Rect,
 	renderPosition: Rect,
+}
+
+pub struct PlayerData {
+
 }
 
 impl<'a> Player<'a> {
@@ -168,5 +175,19 @@ impl<'a> Player<'a> {
             _ => (),
         }
     }
+}
+
+impl<'a> Collision for Player<'a> {
+	fn collide(&mut self, msg: Envelope<CollisionMsg>) {}
+}
+
+impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
+	type Data = PlayerData;
+	fn mapCode(code: RefCode<'a>) -> Option<&'a mut Self> {
+		if let RefCode::Player(p) = code {Some(p as &mut Self)}
+		else {None}
+	}
+	fn getData(&self, data: &mut Self::Data, ctx: &GameContext) {}
+	fn update(&mut self, data: &Self::Data) {}
 }
 

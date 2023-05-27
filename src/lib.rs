@@ -50,7 +50,7 @@ pub use MapMod::{Map, InnerMap, Location, Tile, MAX_TILE_IDX, CollisionType, Col
 
 use PlayerMod::SignalsBuilder;
 
-use Entities::Codes;
+use Entities::{TypedID, Holder};
 
 /*const SCRIPTS_MISSING_MESSAGE: &str = "Lua scripts are missing, please refer to the website for further guidance (Error code 0001)\nThe following is diagnostic info";
 const SYNTAX_ERROR: &str = "Lua scripts contain an error";
@@ -132,7 +132,7 @@ impl GameContext {
 	}
 	
 	#[inline(always)]
-	pub fn mainLoop(&mut self, player: &mut Player, map: &mut Map) -> bool {
+	pub fn mainLoop<'a>(&mut self, player: TypedID<'a, Player<'a>>, entities: &mut Holder<'a>, map: &mut Map) -> bool {
 			
 		self.canvas.clear();
 		
@@ -143,6 +143,7 @@ impl GameContext {
 			signals.addEvent(&event);
 		}
 
+		let player = entities.getMutTyped(player).unwrap();
 		player.signal(signals.build(&self.events));
 
 		map.update();
@@ -525,11 +526,11 @@ pub trait PlayerCollision {
     fn collidePlayer(&self, player: &mut Player);
 }
 
-pub struct Entity {
+/*pub struct Entity {
 	code: Codes,
 	position: (i32, i32),
 	direction: Direction,
-}
+}*/
 
 enum State {
 	GetUserUsize,

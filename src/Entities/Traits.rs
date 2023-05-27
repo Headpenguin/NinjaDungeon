@@ -1,17 +1,39 @@
 use crate::EventProcessor::{Envelope, CollisionMsg,};
+use super::RefCode;
 use crate::GameContext;
+
+use std::ops::{Deref, DerefMut};
 
 pub trait Collision {
 	fn collide(&mut self, _msg: Envelope<CollisionMsg>) {}
 }
+
 pub trait EntityTraits : Collision {}
-pub trait EntityTraitsWrappable<D> : EntityTraits {
-	fn getData(&self, data: &mut D, ctx: &GameContext);
-	fn update(&mut self, data: &D);
+impl<T> EntityTraits for T where
+	T: Collision, {}
+
+pub trait EntityTraitsWrappable<'a> : EntityTraits {
+	type Data;
+	fn mapCode(code: RefCode<'a>) -> Option<&'a mut Self>;
+	fn getData(&self, data: &mut Self::Data, ctx: &GameContext);
+	fn update(&mut self, data: &Self::Data);
 }
-pub struct Entity<D, T: EntityTraitsWrappable<D>> {
+pub struct Entity<'a, T: EntityTraitsWrappable<'a>> {
 	entity: T,
-	data: D,
+	data: T::Data,
+}
+
+impl<'a, T: EntityTraitsWrappable<'a>> Deref for Entity<'a, T> {
+	type Target = T;
+	fn deref(&self) -> &Self::Target {
+		&self.entity
+	}
+}
+
+impl<'a, T: EntityTraitsWrappable<'a>> DerefMut for Entity<'a, T> {
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		&mut self.entity
+	}
 }
 
 pub trait EntityDyn {
@@ -21,7 +43,7 @@ pub trait EntityDyn {
 	fn getInnerMut(&mut self) -> &mut dyn EntityTraits;
 }
 
-impl<D, T: EntityTraitsWrappable<D>> EntityDyn for Entity<D, T> {
+impl<'a, T: EntityTraitsWrappable<'a>> EntityDyn for Entity<'a, T> {
 	fn getData(&mut self, ctx: &GameContext) {
 		self.entity.getData(&mut self.data, ctx);
 	}
