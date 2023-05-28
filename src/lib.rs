@@ -83,6 +83,9 @@ impl<'a> GameContext<'a> {
 	fn getMap(&self) -> &Map {
 		&self.map
 	}
+	fn getMapMut<'b>(&'b mut self) -> &'b mut Map<'a> {
+		&mut self.map
+	}
 	fn getPlayerMut<'b>(&'b mut self) -> &'b mut Player<'a> {
 		self.holder.getMutTyped(self.player).unwrap()
 	}
@@ -191,8 +194,10 @@ impl GameManager {
 			signals.addEvent(&event);
 		}
 
-		let player = ctx.getPlayerMut();
+		let player = ctx.holder.getMutTyped(ctx.getPlayerID()).unwrap();
 		player.signal(signals.build(&self.events));
+		player.transition(&mut ctx.map);
+		
 
 		unsafe {self.po.update(&self.scheduler, ctx);}
 		ctx.map.update();
@@ -563,6 +568,7 @@ pub fn loadMap<'a>(filename: &str, tileSprites: &str, creator: &'a TextureCreato
 }
 
 #[repr(u8)]
+#[derive(Debug)]
 pub enum Direction {
 	Up,
 	Down,

@@ -14,7 +14,7 @@ use crate::SpriteLoader::Animations;
 use crate::{Direction, Map, CollisionType, Vector, GameContext};
 use crate::Entities::Traits::{Collision, EntityTraitsWrappable, Entity};
 use crate::Entities::{BoxCode, RefCode};
-use crate::EventProcessor::{CollisionMsg, Envelope};
+use crate::EventProcessor::{CollisionMsg, Envelope, PO};
 
 const NAMES: &'static[&'static str] = &[
 	"Ninja float",
@@ -50,7 +50,46 @@ pub struct Player<'a> {
 }
 
 pub struct PlayerData {
+	//transition: Option<Rect>,
+	nextPos: Vector,
+}
 
+impl PlayerData {
+	fn doCollision(&mut self, player: &Player, map: &Map) {
+		let mut tmp = player.hitbox;
+		tmp.reposition(self.nextPos + Vector(2f32, 2f32));
+		let mut iter = map.calculateCollisionBounds(tmp);
+
+		while let Some((location, tile)) = map.collide(&mut iter) {
+			match tile.getCollisionType() {
+				CollisionType::Block => {
+					let ejectionDirection = Vector::fromPoints((location.0 as f32 * 50f32, location.1 as f32 * 50f32), self.nextPos);
+					let (mut x, mut y) = (0f32, 0f32);
+					if ejectionDirection.0.abs() > ejectionDirection.1.abs() {
+						x = (50f32 - ejectionDirection.0.abs()) * ejectionDirection.0.signum();
+					}
+					if ejectionDirection.0.abs() < ejectionDirection.1.abs() {
+						y = (50f32 - ejectionDirection.1.abs()) * ejectionDirection.1.signum();
+					}
+					let ejectionVector = Vector(x, y);
+					self.nextPos += ejectionVector;
+				},
+                CollisionType::SharpBlock => {
+					let ejectionDirection = Vector::fromPoints((location.0 as f32 * 50f32, location.1 as f32 * 50f32), self.nextPos);
+					let (mut x, mut y) = (0f32, 0f32);
+					if ejectionDirection.0.abs() >= ejectionDirection.1.abs() {
+						x = (50f32 - ejectionDirection.0.abs()) * ejectionDirection.0.signum();
+					}
+					if ejectionDirection.0.abs() <= ejectionDirection.1.abs() {
+						y = (50f32 - ejectionDirection.1.abs()) * ejectionDirection.1.signum();
+					}
+					let ejectionVector = Vector(x, y);
+					self.nextPos += ejectionVector;
+                },
+				_ => (),
+			}
+		}
+	}
 }
 
 impl<'a> Player<'a> {
@@ -71,7 +110,9 @@ impl<'a> Player<'a> {
 				Box::new(
 					Entity::new(
 						Player {animations, direction, velocity, position, timer, idle, hitbox, renderPosition,},
-						PlayerData {},
+						PlayerData {
+							nextPos: position,
+						},
 					)
 				)
 			)
@@ -82,68 +123,16 @@ impl<'a> Player<'a> {
 		self.renderPosition.reposition(self.position);
 		self.hitbox.reposition(self.position + Vector(2f32, 2f32));
 	}
-	fn doCollision(&mut self, map: &mut Map) {
-		let mut iter = map.calculateCollisionBounds(self.hitbox);
 
-		while let Some((location, tile)) = map.collide(&mut iter) {
-			match tile.getCollisionType() {
-				CollisionType::Block => {
-					let ejectionDirection = Vector::fromPoints((location.0 as f32 * 50f32, location.1 as f32 * 50f32), self.position);
-					let (mut x, mut y) = (0f32, 0f32);
-					if ejectionDirection.0.abs() > ejectionDirection.1.abs() {
-						x = (50f32 - ejectionDirection.0.abs()) * ejectionDirection.0.signum();
-					}
-					if ejectionDirection.0.abs() < ejectionDirection.1.abs() {
-						y = (50f32 - ejectionDirection.1.abs()) * ejectionDirection.1.signum();
-					}
-					let ejectionVector = Vector(x, y);
-					self.position += ejectionVector;	
-					self.updatePositions();
-				},
-                CollisionType::SharpBlock => {
-					let ejectionDirection = Vector::fromPoints((location.0 as f32 * 50f32, location.1 as f32 * 50f32), self.position);
-					let (mut x, mut y) = (0f32, 0f32);
-					if ejectionDirection.0.abs() >= ejectionDirection.1.abs() {
-						x = (50f32 - ejectionDirection.0.abs()) * ejectionDirection.0.signum();
-					}
-					if ejectionDirection.0.abs() <= ejectionDirection.1.abs() {
-						y = (50f32 - ejectionDirection.1.abs()) * ejectionDirection.1.signum();
-					}
-					let ejectionVector = Vector(x, y);
-					self.position += ejectionVector;	
-					self.updatePositions();
-                },
-				_ => (),
-			}
-		}
-	}
-
-    pub fn update(&mut self, map: &mut Map) {
-		self.position += self.velocity;
-		self.updatePositions();
-
+	pub fn transition(&mut self, map: &mut Map) {
 		if let Some(hitbox) = map.transitionScreen(self.hitbox) {
 			let point: (i32, i32) = hitbox.top_left().into();
 			self.position = Vector::from(point);
 			self.updatePositions();
 		}
 
-		if self.idle{match self.direction {
-			Direction::Up => {self.animations.changeAnimation(ANIMATION_IDX::UpFloat as usize);},
-			Direction::Down => {self.animations.changeAnimation(ANIMATION_IDX::DownFloat as usize);},
-			Direction::Left => {self.animations.changeAnimation(ANIMATION_IDX::LeftFloat as usize);},
-			Direction::Right => {self.animations.changeAnimation(ANIMATION_IDX::RightFloat as usize);},
-		}}
+	}
 
-		self.doCollision(map);
-
-		self.timer += 1;
-		if self.timer > 20 {
-			self.timer = 0;
-			self.animations.update();
-		}
-    }
-    
     pub fn signal(&mut self, signal: Signals) {
         match signal {
             Signals {up: Some(true), ..} => {
@@ -192,8 +181,29 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 		if let RefCode::Player(p) = code {Some(p as &mut Self)}
 		else {None}
 	}
-	fn getData(&self, data: &mut Self::Data, ctx: &GameContext) {}
-	fn update(&mut self, data: &Self::Data) {}
+	fn getData(&self, data: &mut Self::Data, ctx: &GameContext) {
+		//data.transition = ctx.getMap().transitionScreen(self.hitbox);
+		data.nextPos = self.position + self.velocity;
+		data.doCollision(self, ctx.getMap());
+	}
+	fn update(&mut self, data: &Self::Data, _po: &PO) {
+		self.position = data.nextPos;
+		self.updatePositions();
+
+
+		if self.idle{match self.direction {
+			Direction::Up => {self.animations.changeAnimation(ANIMATION_IDX::UpFloat as usize);},
+			Direction::Down => {self.animations.changeAnimation(ANIMATION_IDX::DownFloat as usize);},
+			Direction::Left => {self.animations.changeAnimation(ANIMATION_IDX::LeftFloat as usize);},
+			Direction::Right => {self.animations.changeAnimation(ANIMATION_IDX::RightFloat as usize);},
+		}}
+
+		self.timer += 1;
+		if self.timer > 20 {
+			self.timer = 0;
+			self.animations.update();
+		}
+	}
 	fn needsExecution(&self) -> bool {true}
 	fn tick(&mut self) {}
 	fn draw(&self, canvas: &mut Canvas<Window>) {

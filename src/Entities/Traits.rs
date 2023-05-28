@@ -1,7 +1,7 @@
 use sdl2::video::Window;
 use sdl2::render::Canvas;
 
-use crate::EventProcessor::{Envelope, CollisionMsg,};
+use crate::EventProcessor::{Envelope, CollisionMsg, PO};
 use super::RefCode;
 use crate::GameContext;
 
@@ -19,7 +19,7 @@ pub trait EntityTraitsWrappable<'a> : EntityTraits {
 	type Data;
 	fn mapCode(code: RefCode<'a>) -> Option<&'a mut Self>;
 	fn getData(&self, data: &mut Self::Data, ctx: &GameContext);
-	fn update(&mut self, data: &Self::Data);
+	fn update(&mut self, data: &Self::Data, po: &PO);
 	fn needsExecution(&self) -> bool;
 	fn tick(&mut self);
 	fn draw(&self, canvas: &mut Canvas<Window>);
@@ -53,7 +53,7 @@ impl<'a, T: EntityTraitsWrappable<'a>> Entity<'a, T> {
 
 pub trait EntityDyn {
 	fn getData(&mut self, ctx: &GameContext);
-	fn update(&mut self);
+	fn update(&mut self, po: &PO);
 	fn getInner(&self) -> &dyn EntityTraits;
 	fn getInnerMut(&mut self) -> &mut dyn EntityTraits;
 	fn needsExecution(&self) -> bool;
@@ -65,8 +65,8 @@ impl<'a, T: EntityTraitsWrappable<'a>> EntityDyn for Entity<'a, T> {
 	fn getData(&mut self, ctx: &GameContext) {
 		self.entity.getData(&mut self.data, ctx);
 	}
-	fn update(&mut self) {
-		self.entity.update(&self.data);
+	fn update(&mut self, po: &PO) {
+		self.entity.update(&self.data, po);
 	}
 	fn getInnerMut(&mut self) -> &mut dyn EntityTraits {
 		&mut self.entity
