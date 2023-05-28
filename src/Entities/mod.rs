@@ -8,8 +8,18 @@ use crate::IntHasher::IntHasher;
 use crate::Player;
 use std::ops::{Deref, DerefMut};
 use std::marker::PhantomData;
+use std::marker::Copy;
+use std::clone::Clone;
 
 pub struct TypedID<'a, T: EntityTraitsWrappable<'a>>(ID, PhantomData<&'a T>);
+
+impl<'a, T: EntityTraitsWrappable<'a>> Clone for TypedID<'a, T> {
+	fn clone(&self) -> Self {
+		TypedID(self.0, PhantomData)
+	}
+}
+
+impl<'a, T: EntityTraitsWrappable<'a>> Copy for TypedID<'a, T> {}
 
 impl<'a, T: EntityTraitsWrappable<'a>> TypedID<'a, T> {
 	pub fn new(id: ID) -> TypedID<'a, T> {
@@ -79,6 +89,15 @@ impl<'a> Holder<'a> {
 	}
 	pub unsafe fn remove(&'a mut self, id: ID) -> Option<BoxCode<'a>> {
 		self.entities.remove(&id).map(|x| x.into_inner())
+	}
+	pub unsafe fn iter<'b>(&'b self) -> impl Iterator<Item=(ID, &'b (dyn EntityDyn + 'a))> {
+		self.entities.iter().map(|kv| (*kv.0, (& *kv.1.get()).deref()))
+	}
+	pub unsafe fn iterMut<'b>(&'b mut self) -> impl Iterator<Item=(ID, &'b mut (dyn EntityDyn + 'a))> {
+		self.entities.iter_mut().map(|kv| (*kv.0, (&mut *kv.1.get()).deref_mut()))
+	}
+	pub fn getCurrentID(&self) -> ID {
+		self.currentId - 1
 	}
 	pub fn new() -> Holder<'a> {
 		Holder {

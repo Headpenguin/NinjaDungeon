@@ -12,8 +12,8 @@ pub use SignalsMod::{SignalsBuilder, Signals, Mapping};
 
 use crate::SpriteLoader::Animations;
 use crate::{Direction, Map, CollisionType, Vector, GameContext};
-use crate::Entities::Traits::{Collision, EntityTraitsWrappable};
-use crate::Entities::RefCode;
+use crate::Entities::Traits::{Collision, EntityTraitsWrappable, Entity};
+use crate::Entities::{BoxCode, RefCode};
 use crate::EventProcessor::{CollisionMsg, Envelope};
 
 const NAMES: &'static[&'static str] = &[
@@ -54,7 +54,7 @@ pub struct PlayerData {
 }
 
 impl<'a> Player<'a> {
-    pub fn new(creator: &'a TextureCreator<WindowContext>, positionX: f32, positionY: f32) -> io::Result<Player<'a>> {
+    pub fn new(creator: &'a TextureCreator<WindowContext>, positionX: f32, positionY: f32) -> io::Result<BoxCode<'a>> {
         let (direction, velocity, position, timer, idle) = (
             Direction::Down, 
             Vector(0f32, 0f32), 
@@ -66,12 +66,17 @@ impl<'a> Player<'a> {
 		let renderPosition = Rect::new(positionX.round() as i32, positionY.round() as i32, 50, 50);
 		let hitbox = Rect::new(positionX.round() as i32 + 2, positionY as i32 + 2, 46, 46);
 
-        Ok(Player {animations, direction, velocity, position, timer, idle, hitbox, renderPosition,})
+        Ok(
+			BoxCode::Player(
+				Box::new(
+					Entity::new(
+						Player {animations, direction, velocity, position, timer, idle, hitbox, renderPosition,},
+						PlayerData {},
+					)
+				)
+			)
+		)
     }
-
-	pub fn draw(&self, canvas: &mut Canvas<Window>) {
-		self.animations.drawNextFrame(canvas, self.renderPosition);
-	}
 
 	fn updatePositions(&mut self) {		
 		self.renderPosition.reposition(self.position);
@@ -189,5 +194,11 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 	}
 	fn getData(&self, data: &mut Self::Data, ctx: &GameContext) {}
 	fn update(&mut self, data: &Self::Data) {}
+	fn needsExecution(&self) -> bool {true}
+	fn tick(&mut self) {}
+	fn draw(&self, canvas: &mut Canvas<Window>) {
+		self.animations.drawNextFrame(canvas, self.renderPosition);
+	}
+
 }
 

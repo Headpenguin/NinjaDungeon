@@ -4,7 +4,7 @@ use crate::Entities::Holder;
 use crate::GameContext;
 use crate::Scheduling::Scheduler;
 
-struct PO {}
+pub struct PO {}
 
 struct Subscriber;
 
@@ -28,11 +28,13 @@ impl Envelope<CollisionMsg> {
 }
 
 impl PO {
-	fn update(&mut self, holder: &mut Holder, scheduler: &Scheduler, ctx: &GameContext) {
-		scheduler.needsExecution().for_each(|id| unsafe { (&mut *holder.getEntityDyn(id).unwrap()).getData(ctx) });
-		scheduler.needsExecution().for_each(|id| unsafe { (&mut *holder.getEntityDyn(id).unwrap()).update() });
+	pub fn new() -> PO {PO{}}
+	pub unsafe fn update<'a, 'b>(&mut self, scheduler: &Scheduler, ctx: &'b mut GameContext<'a>) {
+		Scheduler::tick(ctx);
+		scheduler.execute(ctx, |id| (&mut *ctx.getHolder().getEntityDyn(id).unwrap()).getData(ctx));
+		scheduler.execute(ctx, |id| (&mut *ctx.getHolder().getEntityDyn(id).unwrap()).update() );
 	}
-	fn sendCollisionMsg(&self, holder: &mut Holder, msg: Envelope<CollisionMsg>) -> bool {
+	pub fn sendCollisionMsg(&self, holder: &mut Holder, msg: Envelope<CollisionMsg>) -> bool {
 		unsafe {
 			if let Some(recv) = holder.getMut(msg.recv) {
 				msg.send(&mut *recv);

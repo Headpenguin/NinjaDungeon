@@ -51,6 +51,11 @@ pub use MapMod::{Map, InnerMap, Location, Tile, MAX_TILE_IDX, CollisionType, Col
 use PlayerMod::SignalsBuilder;
 
 use Entities::{TypedID, Holder};
+use Entities::Traits::EntityDyn;
+
+use EventProcessor::PO;
+
+use Scheduling::Scheduler;
 
 /*const SCRIPTS_MISSING_MESSAGE: &str = "Lua scripts are missing, please refer to the website for further guidance (Error code 0001)\nThe following is diagnostic info";
 const SYNTAX_ERROR: &str = "Lua scripts contain an error";
@@ -58,7 +63,47 @@ const MISSING_GLOBAL: &str = "Missing global";*/
 
 type ID = usize;
 
-pub struct GameContext {
+pub struct GameContext<'a> {
+	holder: Holder<'a>,
+	map: Map<'a>,
+	player: TypedID<'a, Player<'a>>,
+}
+
+impl<'a> GameContext<'a> {
+	pub fn new(map: Map<'a>, creator: &'a TextureCreator<WindowContext>) -> GameContext<'a> {
+		let mut holder = Holder::new();
+		unsafe {holder.add(Player::new(creator, 0f32, 0f32).unwrap())};
+		let player = TypedID::new(holder.getCurrentID()); 
+		GameContext {
+			holder,
+			map,
+			player, 
+		}
+	}
+	fn getMap(&self) -> &Map {
+		&self.map
+	}
+	fn getPlayerMut<'b>(&'b mut self) -> &'b mut Player<'a> {
+		self.holder.getMutTyped(self.player).unwrap()
+	}
+	fn getPlayerID<'b>(&'b self) -> TypedID<'a, Player<'a>> {
+		self.player
+	}
+	fn getHolderMut<'b>(&'b mut self) -> &'b mut Holder<'a> {
+		&mut self.holder
+	}
+	fn getHolder<'b>(&'b self) -> &'b Holder<'a> {
+		&self.holder
+	}
+	unsafe fn entityIter<'b>(&'b self) -> impl Iterator<Item = (ID, &'b (dyn EntityDyn + 'a))> {
+		self.holder.iter()
+	}
+	unsafe fn entityIterMut<'b>(&'b mut self) -> impl Iterator<Item = (ID, &'b mut (dyn EntityDyn + 'a))> {
+		self.holder.iterMut()
+	}
+}
+
+pub struct GameManager {
 	sdlContext: Sdl,
 	videoSubsystem: VideoSubsystem,
 	canvas: Canvas<Window>,
@@ -67,17 +112,20 @@ pub struct GameContext {
 	//scripts: Scripts,
 //	scriptPlayerInputs: Option<Signals>,
 	screenPos: Point,
+	po: PO,
+	scheduler: Scheduler,
     //frameCounter: u64,
 	quit: bool,
 }
+
 
 /*struct Scripts {
 	initialInputs: LuaFunction,
 }*/
 
-impl GameContext {
+impl GameManager {
 	
-	pub fn initialize(name: &'static str, width: u32, height: u32, color: Color) -> (GameContext, TextureCreator<WindowContext>) {
+	pub fn initialize(name: &'static str, width: u32, height: u32, color: Color) -> (GameManager, TextureCreator<WindowContext>) {
 		
 		let sdlContext = sdl2::init().unwrap();
 		let videoSubsystem = sdlContext.video().unwrap();
@@ -128,12 +176,12 @@ impl GameContext {
 		let quit = false;
 		let screenPos = Point::new(0, 0);
 
-		(GameContext {sdlContext, videoSubsystem, canvas, events, /*luaContext, scripts, scriptPlayerInputs, frameCounter,*/ screenPos, quit,}, textureCreator) 
+		(GameManager {sdlContext, videoSubsystem, canvas, events, /*luaContext, scripts, scriptPlayerInputs, frameCounter,*/ screenPos, quit, po: PO::new(), scheduler: Scheduler::new()}, textureCreator) 
 	}
 	
 	#[inline(always)]
-	pub fn mainLoop<'a>(&mut self, player: TypedID<'a, Player<'a>>, entities: &mut Holder<'a>, map: &mut Map) -> bool {
-			
+	pub fn mainLoop<'a, 'b>(&mut self, ctx: &'b mut GameContext<'a>) -> bool {
+		
 		self.canvas.clear();
 		
 		let mut signals = SignalsBuilder::default();
@@ -143,14 +191,14 @@ impl GameContext {
 			signals.addEvent(&event);
 		}
 
-		let player = entities.getMutTyped(player).unwrap();
+		let player = ctx.getPlayerMut();
 		player.signal(signals.build(&self.events));
 
-		map.update();
-		player.update(map);
+		unsafe {self.po.update(&self.scheduler, ctx);}
+		ctx.map.update();
 
-		map.draw(&mut self.canvas, self.screenPos);
-		player.draw(&mut self.canvas);
+		ctx.map.draw(&mut self.canvas, self.screenPos);
+		unsafe { self.scheduler.draw(ctx, &mut self.canvas);}
 		
 		self.canvas.present();
 		
