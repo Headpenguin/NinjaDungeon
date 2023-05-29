@@ -105,7 +105,7 @@ pub enum CollisionType {
 }
 
 fn determineCollidedSide(side1: i32, side2: i32) -> i32 {
-	if side1 > 0 && (side2 < 0 || side1 < side2) {side1}
+	if side1 >= 0 && (side2 < 0 || side1 < side2) {side1}
 	else if side2 >= 0 {side2}
 	else {i32::MAX}
 }
@@ -144,8 +144,7 @@ pub fn blockCollide(location: (u16, u16), hitbox: Rect, map: &Map) -> Vector {
 		tile.right() - hitbox.left(),
 		hitbox.right() - tile.left(),
 	);
-	if top > 0 && top < bottom{
-		if top < determineCollidedSide(left, right) {
+	if top >= 0 && (top < bottom || bottom < 0) && top < determineCollidedSide(left, right) {
 			if let CollisionType::Block | CollisionType::SharpBlock =
 				map.getScreen(map.getActiveScreenId()).unwrap().getTile((location.0, location.1 + 1)).getCollisionType() {
 				Vector(0f32, 0f32)
@@ -153,8 +152,9 @@ pub fn blockCollide(location: (u16, u16), hitbox: Rect, map: &Map) -> Vector {
 			else {
 				Vector(0f32, top as f32)
 			}
-		}
-		else if left > 0 && left < right {
+	}
+	else if left >= 0 && (left < right || right < 0) && (left < determineCollidedSide(top, bottom) || bottom < 0) {
+			println!("{:?}", right);
 			if let CollisionType::Block | CollisionType::SharpBlock =
 				map.getScreen(map.getActiveScreenId()).unwrap().getTile((location.0 + 1, location.1)).getCollisionType() {
 				Vector(0f32, 0f32)
@@ -162,8 +162,8 @@ pub fn blockCollide(location: (u16, u16), hitbox: Rect, map: &Map) -> Vector {
 			else {
 				Vector(left as f32, 0f32)
 			}
-		}
-		else {
+	}
+	else if right >= 0 && (right < bottom || bottom < 0) {
 			if let CollisionType::Block | CollisionType::SharpBlock =
 				map.getScreen(map.getActiveScreenId()).unwrap().getTile((location.0 - 1, location.1)).getCollisionType() {
 				Vector(0f32, 0f32)
@@ -172,9 +172,8 @@ pub fn blockCollide(location: (u16, u16), hitbox: Rect, map: &Map) -> Vector {
 				Vector(-right as f32, 0f32)
 			}
 		}
-	}
-	else {
-		if bottom < determineCollidedSide(left, right) {
+	
+	else if bottom >= 0 {
 			if let CollisionType::Block | CollisionType::SharpBlock =
 				map.getScreen(map.getActiveScreenId()).unwrap().getTile((location.0, location.1 - 1)).getCollisionType() {
 				Vector(0f32, 0f32)
@@ -183,25 +182,7 @@ pub fn blockCollide(location: (u16, u16), hitbox: Rect, map: &Map) -> Vector {
 				Vector(0f32, -bottom as f32)
 			}
 		}
-		else if left > 0 && left < right {
-			if let CollisionType::Block | CollisionType::SharpBlock =
-				map.getScreen(map.getActiveScreenId()).unwrap().getTile((location.0 + 1, location.1)).getCollisionType() {
-				Vector(0f32, 0f32)
-			}
-			else {
-				Vector(left as f32, 0f32)
-			}
-		}
-		else {
-			if let CollisionType::Block | CollisionType::SharpBlock =
-				map.getScreen(map.getActiveScreenId()).unwrap().getTile((location.0 - 1, location.1)).getCollisionType() {
-				Vector(0f32, 0f32)
-			}
-			else {
-				Vector(-right as f32, 0f32)
-			}
-		}
-	}
+	else {Vector(0f32, 0f32)}
 }
 
 pub fn sharpBlockCollide(location: (u16, u16), position: Vector) -> Vector {

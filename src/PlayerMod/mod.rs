@@ -82,6 +82,7 @@ impl PlayerData {
 			match tile.getCollisionType() {
 				CollisionType::Block => {
 					self.nextPos += blockCollide(location, tmp, map);
+					tmp.reposition(self.nextPos);
 				},
      /*           CollisionType::SharpBlock => {
 					self.nextPos += sharpBlockCollide(location, tmp);

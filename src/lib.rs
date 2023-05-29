@@ -74,7 +74,7 @@ impl<'a> GameContext<'a> {
 		let mut holder = Holder::new();
 		unsafe {holder.add(Player::new(creator, 50f32, 50f32).unwrap())};
 		let player = TypedID::new(holder.getCurrentID());
-		unsafe { holder.add(Skeleton::new(creator, (50f32, 50f32)).unwrap())};
+	//	unsafe { holder.add(Skeleton::new(creator, (50f32, 50f32)).unwrap())};
 		GameContext {
 			holder,
 			map,
