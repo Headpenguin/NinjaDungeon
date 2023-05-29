@@ -15,6 +15,7 @@ use crate::{Direction, Map, CollisionType, Vector, GameContext};
 use crate::Entities::Traits::{Collision, EntityTraitsWrappable, Entity};
 use crate::Entities::{BoxCode, RefCode, RefCodeMut};
 use crate::EventProcessor::{CollisionMsg, Envelope, PO};
+use crate::MapMod::{blockCollide, sharpBlockCollide};
 
 const NAMES: &'static[&'static str] = &[
 	"Ninja float",
@@ -80,29 +81,11 @@ impl PlayerData {
 		while let Some((location, tile)) = map.collide(&mut iter) {
 			match tile.getCollisionType() {
 				CollisionType::Block => {
-					let ejectionDirection = Vector::fromPoints((location.0 as f32 * 50f32, location.1 as f32 * 50f32), self.nextPos);
-					let (mut x, mut y) = (0f32, 0f32);
-					if ejectionDirection.0.abs() > ejectionDirection.1.abs() {
-						x = (50f32 - ejectionDirection.0.abs()) * ejectionDirection.0.signum();
-					}
-					if ejectionDirection.0.abs() < ejectionDirection.1.abs() {
-						y = (50f32 - ejectionDirection.1.abs()) * ejectionDirection.1.signum();
-					}
-					let ejectionVector = Vector(x, y);
-					self.nextPos += ejectionVector;
+					self.nextPos += blockCollide(location, tmp, map);
 				},
-                CollisionType::SharpBlock => {
-					let ejectionDirection = Vector::fromPoints((location.0 as f32 * 50f32, location.1 as f32 * 50f32), self.nextPos);
-					let (mut x, mut y) = (0f32, 0f32);
-					if ejectionDirection.0.abs() >= ejectionDirection.1.abs() {
-						x = (50f32 - ejectionDirection.0.abs()) * ejectionDirection.0.signum();
-					}
-					if ejectionDirection.0.abs() <= ejectionDirection.1.abs() {
-						y = (50f32 - ejectionDirection.1.abs()) * ejectionDirection.1.signum();
-					}
-					let ejectionVector = Vector(x, y);
-					self.nextPos += ejectionVector;
-                },
+     /*           CollisionType::SharpBlock => {
+					self.nextPos += sharpBlockCollide(location, tmp);
+                },*/
 				_ => (),
 			}
 		}

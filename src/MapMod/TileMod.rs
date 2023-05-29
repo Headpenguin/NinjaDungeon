@@ -3,6 +3,12 @@
 
 use serde::{Serialize, Deserialize};
 
+use sdl2::rect::{Rect, Point};
+
+use crate::Vector;
+
+use super::Map;
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Tile (u16, CollisionType);
 
@@ -96,6 +102,118 @@ pub enum CollisionType {
 	Switch(usize), //Collision type for switches
 	Hit, //Hurt the player
 	Burn, //Burn the player
+}
+
+fn determineCollidedSide(side1: i32, side2: i32) -> i32 {
+	if side1 > 0 && (side2 < 0 || side1 < side2) {side1}
+	else if side2 >= 0 {side2}
+	else {i32::MAX}
+}
+
+pub fn blockCollide(location: (u16, u16), hitbox: Rect, map: &Map) -> Vector {
+	/*let ejectionDirection = Vector::fromPoints((location.0 as i32 * 50 + 25, location.1 as i32 * 50 + 25), <Point as Into<(i32, i32)>>::into(hitbox.center()));
+	let (maxWidth, maxHeight) = (std::cmp::max(hitbox.width(), 50), std::cmp::max(hitbox.height(), 50));
+	if ejectionDirection.0 > maxWidth as f32 || ejectionDirection.1 > maxHeight as f32 {
+		return Vector(0f32, 0f32);
+	}
+	println!("{:?}", ejectionDirection);
+	let (mut x, mut y) = (0f32, 0f32);
+	if ejectionDirection.0.abs() > ejectionDirection.1.abs() {
+		if ejectionDirection.0 > 0f32 {
+			x = (location.0 + 1) as f32 * 50f32 - hitbox.left() as f32 ;
+		}
+		else {
+			x = location.0 as f32 * 50f32 - hitbox.right() as f32;
+		}
+	}
+	if ejectionDirection.0.abs() < ejectionDirection.1.abs() {
+		if ejectionDirection.1 < 0f32 {
+			y = location.1 as f32 * 50f32 - hitbox.bottom() as f32;
+		}
+		else {
+			y = (location.1 + 1) as f32 * 50f32 - hitbox.top() as f32 ;
+		}
+	}
+//	println!("{:?}, {:?}", x, y);
+	Vector(x, y)*/
+	//Vector::fromPoints((location.0 as i32 * 50 + 25, location.1 as i32 * 50 + 25), <Point as Into<(i32, i32)>>::into(hitbox.center()))
+	let tile = Rect::new(location.0 as i32 * 50, location.1 as i32 * 50, 50, 50);
+	let (top, bottom, left, right) = (
+		tile.bottom() - hitbox.top(),
+		hitbox.bottom() - tile.top(),
+		tile.right() - hitbox.left(),
+		hitbox.right() - tile.left(),
+	);
+	if top > 0 && top < bottom{
+		if top < determineCollidedSide(left, right) {
+			if let CollisionType::Block | CollisionType::SharpBlock =
+				map.getScreen(map.getActiveScreenId()).unwrap().getTile((location.0, location.1 + 1)).getCollisionType() {
+				Vector(0f32, 0f32)
+			}
+			else {
+				Vector(0f32, top as f32)
+			}
+		}
+		else if left > 0 && left < right {
+			if let CollisionType::Block | CollisionType::SharpBlock =
+				map.getScreen(map.getActiveScreenId()).unwrap().getTile((location.0 + 1, location.1)).getCollisionType() {
+				Vector(0f32, 0f32)
+			}
+			else {
+				Vector(left as f32, 0f32)
+			}
+		}
+		else {
+			if let CollisionType::Block | CollisionType::SharpBlock =
+				map.getScreen(map.getActiveScreenId()).unwrap().getTile((location.0 - 1, location.1)).getCollisionType() {
+				Vector(0f32, 0f32)
+			}
+			else {
+				Vector(-right as f32, 0f32)
+			}
+		}
+	}
+	else {
+		if bottom < determineCollidedSide(left, right) {
+			if let CollisionType::Block | CollisionType::SharpBlock =
+				map.getScreen(map.getActiveScreenId()).unwrap().getTile((location.0, location.1 - 1)).getCollisionType() {
+				Vector(0f32, 0f32)
+			}
+			else {
+				Vector(0f32, -bottom as f32)
+			}
+		}
+		else if left > 0 && left < right {
+			if let CollisionType::Block | CollisionType::SharpBlock =
+				map.getScreen(map.getActiveScreenId()).unwrap().getTile((location.0 + 1, location.1)).getCollisionType() {
+				Vector(0f32, 0f32)
+			}
+			else {
+				Vector(left as f32, 0f32)
+			}
+		}
+		else {
+			if let CollisionType::Block | CollisionType::SharpBlock =
+				map.getScreen(map.getActiveScreenId()).unwrap().getTile((location.0 - 1, location.1)).getCollisionType() {
+				Vector(0f32, 0f32)
+			}
+			else {
+				Vector(-right as f32, 0f32)
+			}
+		}
+	}
+}
+
+pub fn sharpBlockCollide(location: (u16, u16), position: Vector) -> Vector {
+	let ejectionDirection = Vector::fromPoints((location.0 as f32 * 50f32, location.1 as f32 * 50f32), position);
+	let (mut x, mut y) = (0f32, 0f32);
+	if ejectionDirection.0.abs() >= ejectionDirection.1.abs() {
+		x = (50f32 - ejectionDirection.0.abs()) * ejectionDirection.0.signum();
+	}
+	if ejectionDirection.0.abs() <= ejectionDirection.1.abs() {
+		y = (50f32 - ejectionDirection.1.abs()) * ejectionDirection.1.signum();
+	}
+	Vector(x, y)
 }
 
 pub const MAX_TILE_IDX: u16 = 4;

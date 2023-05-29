@@ -9,6 +9,8 @@ use super::{BoxCode, RefCode, RefCodeMut};
 use crate::SpriteLoader::Animations;
 use crate::{GameContext, Vector};
 use crate::EventProcessor::{CollisionMsg, Envelope, PO};
+use crate::CollisionType;
+use crate::MapMod::{blockCollide, sharpBlockCollide};
 
 
 const NAMES_TOP: &'static[&'static str] = &[
@@ -39,6 +41,7 @@ pub struct Skeleton<'a> {
 	renderPositionBottom: Rect,
 	position: Vector,
 	idle: bool,
+	hitbox: Rect,
 //	iframeCounter: u32,
 //	health
 }
@@ -47,22 +50,45 @@ pub struct SkeletonData {
 	nextPos: Vector,
 }
 
+impl SkeletonData {
+	fn doCollision(&mut self, skeleton: &Skeleton, ctx: &GameContext) {
+		let mut hitbox = skeleton.hitbox;
+		hitbox.reposition(self.nextPos);
+		let mut ejection = Vector(0f32, 0f32);
+		let map = ctx.getMap();
+		let mut iter = map.calculateCollisionBounds(hitbox);
+		while let Some((location, tile)) = map.collide(&mut iter) {
+			match tile.getCollisionType() {
+				CollisionType::Block => {
+					self.nextPos += blockCollide(location, hitbox, map);
+					hitbox.reposition(self.nextPos);
+				},
+				CollisionType::SharpBlock => {
+					self.nextPos += sharpBlockCollide(location, self.nextPos + Vector(25f32, 50f32));
+				},
+				_ => (),
+			}
+		}
+	}
+}
+
 impl<'a> Skeleton<'a> {
 	pub fn new(creator: &'a TextureCreator<WindowContext>, position: (f32, f32)) -> io::Result<BoxCode<'a>> {
 		let (timer, position, idle) = (
 			0u32,
 			Vector(position.0, position.1),
-			true,
+			false,
 		);
 
 		let animationsTop = Animations::new("Resources/Images/Skeleton_top.anim", NAMES_TOP, creator)?;
 		let animationsBottom = Animations::new("Resources/Images/Skeleton_bottom.anim", NAMES_BOTTOM, creator)?;
 		let renderPositionTop = Rect::new(position.0.round() as i32, position.1.round() as i32, 50, 50);
 		let renderPositionBottom = Rect::new(position.0.round() as i32, position.1.round() as i32 + 50, 50, 50);
+		let hitbox = Rect::new(position.0.round() as i32, position.1.round() as i32, 50, 100);
 		Ok(BoxCode::Skeleton(
 			Box::new(
 				Entity::new(
-					Skeleton {animationsTop, animationsBottom, timer, renderPositionTop, renderPositionBottom, position, idle},
+					Skeleton {animationsTop, animationsBottom, timer, renderPositionTop, renderPositionBottom, position, idle, hitbox},
 					SkeletonData{
 						nextPos: Vector(0f32, 0f32),
 					},
@@ -72,7 +98,7 @@ impl<'a> Skeleton<'a> {
 	}
 	fn updatePositions(&mut self) {
 		self.renderPositionTop.reposition(self.position);
-		self.renderPositionBottom.reposition(self.position);
+		self.renderPositionBottom.reposition(self.position + Vector(0f32, 50f32));
 		// hitbox
 	}
 }
@@ -92,9 +118,16 @@ impl<'a> EntityTraitsWrappable<'a> for Skeleton<'a> {
 		else {None}
 	}
 	fn getData(&self, data: &mut Self::Data, ctx: &GameContext) {
-		let player = ctx.getHolder().getTyped(ctx.getPlayerID()).unwrap();
-		let playerDirection = Vector::fromPoints(player.getPosition(), self.position);
-		data.nextPos = self.position + playerDirection.normalize() * 3f32;
+		if !self.idle {
+			let player = ctx.getHolder().getTyped(ctx.getPlayerID()).unwrap();
+			let playerDirection = Vector::fromPoints(self.position, player.getPosition());
+			data.nextPos = self.position + playerDirection.normalizeOrZero() * 3f32;
+			data.doCollision(self, ctx);
+		}
+		else {
+			data.nextPos = self.position;
+		}
+
 	}
 	fn update(&mut self, data: &Self::Data, _po: &PO) {
 		self.position = data.nextPos;
@@ -102,11 +135,11 @@ impl<'a> EntityTraitsWrappable<'a> for Skeleton<'a> {
 
 		if !self.idle {
 			self.timer += 1;
-			if self.timer == 30 {
+			if self.timer == 10 {
 				self.animationsBottom.changeAnimation(ANIMATION_IDX_BOTTOM::Walk1 as usize);
 			}
-			if self.timer > 60 {
-				self.timer = 1;
+			if self.timer > 20 {
+				self.timer = 0;
 				self.animationsBottom.changeAnimation(ANIMATION_IDX_BOTTOM::Walk0 as usize);
 			}
 		}

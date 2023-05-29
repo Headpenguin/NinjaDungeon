@@ -72,7 +72,7 @@ pub struct GameContext<'a> {
 impl<'a> GameContext<'a> {
 	pub fn new(map: Map<'a>, creator: &'a TextureCreator<WindowContext>) -> GameContext<'a> {
 		let mut holder = Holder::new();
-		unsafe {holder.add(Player::new(creator, 0f32, 0f32).unwrap())};
+		unsafe {holder.add(Player::new(creator, 50f32, 50f32).unwrap())};
 		let player = TypedID::new(holder.getCurrentID());
 		unsafe { holder.add(Skeleton::new(creator, (50f32, 50f32)).unwrap())};
 		GameContext {

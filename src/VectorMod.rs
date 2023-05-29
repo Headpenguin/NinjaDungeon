@@ -12,8 +12,9 @@ impl Vector {
 	pub fn mag(&self) -> f32 {
 		(self.0*self.0 + self.1*self.1).sqrt()
 	}
-	pub fn normalize(&self) -> Vector {
-		*self / self.mag()
+	pub fn normalizeOrZero(&self) -> Vector {
+		if self.0 == 0f32 && self.1 == 0f32 {Vector(0f32, 0f32)}
+		else {*self / self.mag()}
 	}
 }
 
