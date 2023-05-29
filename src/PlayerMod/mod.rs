@@ -13,7 +13,7 @@ pub use SignalsMod::{SignalsBuilder, Signals, Mapping};
 use crate::SpriteLoader::{Animations, Sprites};
 use crate::{Direction, Map, CollisionType, Vector, GameContext};
 use crate::Entities::Traits::{Collision, EntityTraitsWrappable, Entity};
-use crate::Entities::{BoxCode, RefCode};
+use crate::Entities::{BoxCode, RefCode, RefCodeMut};
 use crate::EventProcessor::{CollisionMsg, Envelope, PO};
 
 const NAMES: &'static[&'static str] = &[
@@ -30,6 +30,16 @@ const NAMES: &'static[&'static str] = &[
 const SWORD_FRAMES: &'static[&'static str] = &[
 	"Resources/Images/Sword__half.png",
 ];
+
+const SWORD_DOWN: (i32, i32, u32, u32) = (10, 43, 30, 30);
+const SWORD_RIGHT: (i32, i32, u32, u32) = (30, 5, 30, 30);
+const SWORD_LEFT: (i32, i32, u32, u32) = (-10, 5, 30, 30);
+const SWORD_UP: (i32, i32, u32, u32) = (0, -10, 50, 50);
+
+const SWORD_DOWN_COLLISION: (i32, i32, u32, u32) = (23, 43, 4, 16);
+const SWORD_RIGHT_COLLISION: (i32, i32, u32, u32) = (43, 5, 4, 16);
+const SWORD_LEFT_COLLISION: (i32, i32, u32, u32) = (3, 5, 4, 16);
+const SWORD_UP_COLLISION: (i32, i32, u32, u32) = (27, -10, 6, 27);
 
 enum ANIMATION_IDX {
 	DownFloat = 0,
@@ -150,47 +160,48 @@ impl<'a> Player<'a> {
 				self.attacking = true;
 				self.idle = false;
 			},
-			(Some(true), true) | (None, _) => {},
 			(Some(false), true) => {
 				self.attacking = false;
 			},
-			(Some(false), false) => {
-				match signal {
-					Signals {up: Some(true), ..} => {
-						self.direction = Direction::Up;
-						self.velocity.1 = -3f32;
-					},
-					Signals {down: Some(true), ..} => {
-						self.direction = Direction::Down;
-						self.velocity.1 = 3f32;
-					},
-					Signals {up: Some(false), ..} => {
-						self.velocity.1 = 0f32;
-					},
-					Signals {down: Some(false), ..} => {
-						self.velocity.1 = 0f32;
-					},
-					_ => (),
-				}
-				match signal {
-					Signals {left: Some(true), ..} => {
-						self.direction = Direction::Left;
-						self.velocity.0 = -3f32;
-					},
-					Signals {right: Some(true), ..} => {
-						self.direction = Direction::Right;
-						self.velocity.0 = 3f32;
-					},
-					Signals {left: Some(false), ..} => {
-						self.velocity.0 = 0f32;
-					},
-					Signals {right: Some(false), ..} => {
-						self.velocity.0 = 0f32;
-					},
-					_ => (),
-				}
-			}
+			(Some(true), true) | (None, _) | (Some(false), false) => {},
 		}
+		match signal {
+			Signals {up: Some(true), ..} => {
+				self.direction = Direction::Up;
+				self.velocity.1 = -3f32;
+			},
+			Signals {down: Some(true), ..} => {
+				self.direction = Direction::Down;
+				self.velocity.1 = 3f32;
+			},
+			Signals {up: Some(false), ..} => {
+				self.velocity.1 = 0f32;
+			},
+			Signals {down: Some(false), ..} => {
+				self.velocity.1 = 0f32;
+			},
+			_ => (),
+		}
+		match signal {
+			Signals {left: Some(true), ..} => {
+				self.direction = Direction::Left;
+				self.velocity.0 = -3f32;
+			},
+			Signals {right: Some(true), ..} => {
+				self.direction = Direction::Right;
+				self.velocity.0 = 3f32;
+			},
+			Signals {left: Some(false), ..} => {
+				self.velocity.0 = 0f32;
+			},
+			Signals {right: Some(false), ..} => {
+				self.velocity.0 = 0f32;
+			},
+			_ => (),
+		}
+	}
+	pub fn getPosition(&self) -> Vector {
+		self.position
 	}
 }
 
@@ -200,8 +211,12 @@ impl<'a> Collision for Player<'a> {
 
 impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 	type Data = PlayerData;
-	fn mapCode(code: RefCode<'a>) -> Option<&'a mut Self> {
-		if let RefCode::Player(p) = code {Some(p as &mut Self)}
+	fn mapCodeMut(code: RefCodeMut<'a>) -> Option<&'a mut Self> {
+		if let RefCodeMut::Player(p) = code {Some(p as &mut Self)}
+		else {None}
+	}
+	fn mapCode(code: RefCode<'a>) -> Option<&'a Self> {
+		if let RefCode::Player(p) = code {Some(p as &Self)}
 		else {None}
 	}
 	fn getData(&self, data: &mut Self::Data, ctx: &GameContext) {
@@ -230,6 +245,8 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 		}
 		if self.attackTimer > 0 {
 			self.attackTimer -= 1;
+		}	
+		if self.attackTimer > 0 || self.attacking {
 			match self.direction {
 				Direction::Up => {self.animations.changeAnimation(ANIMATION_IDX::UpAttack as usize);},
 				Direction::Down => {self.animations.changeAnimation(ANIMATION_IDX::DownAttack as usize);},
@@ -238,14 +255,53 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 			};
 			// Add attack code here
 		}
-		else if !self.attacking {
-			self.idle = true;
-		}
+		self.idle = !self.attacking && self.attackTimer == 0;
 	}
 	fn needsExecution(&self) -> bool {true}
 	fn tick(&mut self) {}
 	fn draw(&self, canvas: &mut Canvas<Window>) {
-		self.animations.drawNextFrame(canvas, self.renderPosition);
+		if self.attacking || self.attackTimer > 0 {match self.direction {
+			Direction::Up => {
+				self.sword.getSprite(0).draw(canvas, Rect::new (
+					SWORD_UP.0 + self.renderPosition.x(),
+					SWORD_UP.1 + self.renderPosition.y(),
+					SWORD_UP.2,
+					SWORD_UP.3
+				), false, false);
+				self.animations.drawNextFrame(canvas, self.renderPosition);
+			},
+			Direction::Down => {
+				self.animations.drawNextFrame(canvas, self.renderPosition);
+				self.sword.getSprite(0).draw(canvas, Rect::new(
+					SWORD_DOWN.0 + self.renderPosition.x(),
+					SWORD_DOWN.1 + self.renderPosition.y(),
+					SWORD_DOWN.2,
+					SWORD_DOWN.3
+				), false, true);
+			},
+			Direction::Left => {
+				self.sword.getSprite(0).draw(canvas, Rect::new (
+					SWORD_LEFT.0 + self.renderPosition.x(),
+					SWORD_LEFT.1 + self.renderPosition.y(),
+					SWORD_LEFT.2,
+					SWORD_LEFT.3
+				), false, false);
+				self.animations.drawNextFrame(canvas, self.renderPosition);
+			},
+			Direction::Right => {
+				self.sword.getSprite(0).draw(canvas, Rect::new (
+					SWORD_RIGHT.0 + self.renderPosition.x(),
+					SWORD_RIGHT.1 + self.renderPosition.y(),
+					SWORD_RIGHT.2,
+					SWORD_RIGHT.3
+				), false, false);
+				self.animations.drawNextFrame(canvas, self.renderPosition);
+					
+			}
+		}}
+		else {
+			self.animations.drawNextFrame(canvas, self.renderPosition);
+		}
 	}
 
 }

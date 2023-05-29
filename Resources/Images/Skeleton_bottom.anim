@@ -1,0 +1,11 @@
+Skeleton idle:
+	"Resources/Images/Skeleton_bottom__half.png"
+;
+
+Skeleton walk 0:
+	"Resources/Images/Skeleton_bottom_walk.png"
+;
+
+Skeleton walk 1:
+	&Skeleton walk 0
+;

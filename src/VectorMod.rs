@@ -9,6 +9,12 @@ impl Vector {
 	I2: Into<Vector> {
 		point2.into() - point1.into()
 	}
+	pub fn mag(&self) -> f32 {
+		(self.0*self.0 + self.1*self.1).sqrt()
+	}
+	pub fn normalize(&self) -> Vector {
+		*self / self.mag()
+	}
 }
 
 impl Add for Vector {

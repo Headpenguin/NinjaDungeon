@@ -218,10 +218,10 @@ impl<'a> Sprite<'a> {
 	pub fn draw(&self, canvas: &mut Canvas<Window>, quad: Rect, flipHorizontal: bool, flipVertical: bool) {
         if self.1 {
             let mut quad = quad;
-            quad.w = (0.5 * quad.w as f32) as i32;
-            canvas.copy_ex(&self.0, None, quad, 0f64, None, true, false); //Render the left half
+            quad.w = quad.w / 2;
+            canvas.copy_ex(&self.0, None, quad, 0f64, None, true, flipVertical); //Render the left half
             quad.x += quad.w;
-            canvas.copy(&self.0, None, quad); //Render the right half
+            canvas.copy_ex(&self.0, None, quad, 0f64, None, false, flipVertical); //Render the right half
         }
         else {
             canvas.copy_ex(&self.0, None, quad, 0f64, None, flipHorizontal, flipVertical);

@@ -1,4 +1,7 @@
 pub mod Traits;
+pub mod SkeletonMod;
+
+pub use SkeletonMod::Skeleton;
 
 use Traits::{Entity, EntityDyn, EntityTraits, EntityTraitsWrappable};
 use std::collections::HashMap;
@@ -29,16 +32,30 @@ impl<'a, T: EntityTraitsWrappable<'a>> TypedID<'a, T> {
 
 pub enum BoxCode<'a> {
 	Player(Box<Entity<'a, Player<'a>>>),
+	Skeleton(Box<Entity<'a, Skeleton<'a>>>),
+}
+
+pub enum RefCodeMut<'a> {
+	Player(&'a mut Entity<'a, Player<'a>>),
+	Skeleton(&'a mut Entity<'a, Skeleton<'a>>),
 }
 
 pub enum RefCode<'a> {
-	Player(&'a mut Entity<'a, Player<'a>>),
+	Player(&'a Entity<'a, Player<'a>>),
+	Skeleton(&'a Entity<'a, Skeleton<'a>>),
 }
 
 impl<'a> BoxCode<'a> {
-	pub fn refMut(&'a mut self) -> RefCode<'a> {
+	pub fn refcodeMut(&'a mut self) -> RefCodeMut<'a> {
 		match self {
-			BoxCode::Player(ref mut p) => RefCode::Player(p),
+			BoxCode::Player(ref mut e) => RefCodeMut::Player(e),
+			BoxCode::Skeleton(ref mut e) => RefCodeMut::Skeleton(e),
+		}
+	}
+	pub fn refcode(&'a self) -> RefCode<'a> {
+		match self {
+			BoxCode::Player(ref e) => RefCode::Player(e),
+			BoxCode::Skeleton(ref e) => RefCode::Skeleton(e),
 		}
 	}
 }
@@ -47,14 +64,16 @@ impl<'a> Deref for BoxCode<'a> {
 	type Target = dyn EntityDyn + 'a;
 	fn deref(&self) -> &Self::Target {
 		match self {
-			Self::Player(p) => p as &Entity<Player> as &(dyn EntityDyn + 'a),
+			Self::Player(e) => e as &Entity<Player> as &(dyn EntityDyn + 'a),
+			Self::Skeleton(e) => e as &Entity<Skeleton> as &(dyn EntityDyn + 'a),
 		}
 	}
 }
 impl<'a> DerefMut for BoxCode<'a> {
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		match self {
-			Self::Player(p) => p as &mut Entity<Player> as &mut (dyn EntityDyn + 'a),
+			Self::Player(e) => e as &mut Entity<Player> as &mut (dyn EntityDyn + 'a),
+			Self::Skeleton(e) => e as &mut Entity<Skeleton> as &mut (dyn EntityDyn + 'a),
 		}
 	}
 }
@@ -66,7 +85,10 @@ pub struct Holder<'a> {
 
 impl<'a> Holder<'a> {
 	pub fn getMutTyped<T: EntityTraitsWrappable<'a>>(&mut self, id: TypedID<'a, T>) -> Option<&mut T> {
-		unsafe {self.entities.get_mut(&id.0).map(|x| <T>::mapCode((&mut *x.get()).refMut())).flatten()}
+		unsafe {self.entities.get_mut(&id.0).map(|x| <T>::mapCodeMut((&mut *x.get()).refcodeMut())).flatten()}
+	}
+	pub fn getTyped<T: EntityTraitsWrappable<'a>>(&self, id: TypedID<'a, T>) -> Option<&T> {
+		unsafe {self.entities.get(&id.0).map(|x| <T>::mapCode((&mut *x.get()).refcode())).flatten()}
 	}
 	pub unsafe fn get(&self, id: ID) -> Option<&dyn EntityTraits> {
 		self.entities.get(&id).map(|x| unsafe{

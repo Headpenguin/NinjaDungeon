@@ -50,7 +50,7 @@ pub use MapMod::{Map, InnerMap, Location, Tile, MAX_TILE_IDX, CollisionType, Col
 
 use PlayerMod::SignalsBuilder;
 
-use Entities::{TypedID, Holder};
+use Entities::{TypedID, Holder, Skeleton};
 use Entities::Traits::EntityDyn;
 
 use EventProcessor::PO;
@@ -73,7 +73,8 @@ impl<'a> GameContext<'a> {
 	pub fn new(map: Map<'a>, creator: &'a TextureCreator<WindowContext>) -> GameContext<'a> {
 		let mut holder = Holder::new();
 		unsafe {holder.add(Player::new(creator, 0f32, 0f32).unwrap())};
-		let player = TypedID::new(holder.getCurrentID()); 
+		let player = TypedID::new(holder.getCurrentID());
+		unsafe { holder.add(Skeleton::new(creator, (50f32, 50f32)).unwrap())};
 		GameContext {
 			holder,
 			map,

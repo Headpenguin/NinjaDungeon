@@ -2,7 +2,7 @@ use sdl2::video::Window;
 use sdl2::render::Canvas;
 
 use crate::EventProcessor::{Envelope, CollisionMsg, PO};
-use super::RefCode;
+use super::{RefCode, RefCodeMut};
 use crate::GameContext;
 
 use std::ops::{Deref, DerefMut};
@@ -17,7 +17,8 @@ impl<T> EntityTraits for T where
 
 pub trait EntityTraitsWrappable<'a> : EntityTraits {
 	type Data;
-	fn mapCode(code: RefCode<'a>) -> Option<&'a mut Self>;
+	fn mapCodeMut(code: RefCodeMut<'a>) -> Option<&'a mut Self>;
+	fn mapCode(code: RefCode<'a>) -> Option<&'a Self>;
 	fn getData(&self, data: &mut Self::Data, ctx: &GameContext);
 	fn update(&mut self, data: &Self::Data, po: &PO);
 	fn needsExecution(&self) -> bool;
