@@ -18,8 +18,6 @@ fn main()
 
 	let (mut manager, creator) = GameManager::initialize(NAME, WIDTH, HEIGHT, COLOR);
 	
-	let mut player = Player::new(&creator, 0f32, 0f32).unwrap();
-
 	let mut map = loadMap("Resources/test2.mp", "Resources/Images/Map1.anim", &creator).unwrap();
 
 	let mut ctx = GameContext::new(map, &creator);

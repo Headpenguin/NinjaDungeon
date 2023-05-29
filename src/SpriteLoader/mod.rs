@@ -28,10 +28,13 @@ pub struct Sprites<'a> {
 }
 
 impl<'a> Sprites<'a> {
-    pub fn new<'b> (creator: &'a TextureCreator<WindowContext>, filenames: &'b [&'b str]) -> Result<Sprites<'a>, String> {
-        Ok(Sprites {
-            sprites: loadSprites(creator, filenames)?,
-        })
+    pub fn new<'b> (creator: &'a TextureCreator<WindowContext>, filenames: &'b [&'b str]) -> io::Result<Sprites<'a>> {
+        match loadSprites(creator, filenames) {
+			Ok(sprites) => Ok(Sprites {
+		        sprites,
+			}),
+			Err(e) => Err(Error::new(ErrorKind::Other, e)),
+		}
     }
     
 	pub fn getSprite(&self, idx: usize) -> &Sprite {
@@ -163,7 +166,7 @@ impl<'a> StandardAnimation<'a> {
         
         Ok(Animation{sprites, frames,})
     }*/
-    pub fn fromFiles<'b> (creator: &'a TextureCreator<WindowContext>, filenames: &'b [&'b str], positions: &'b [usize]) -> Result<StandardAnimation<'a>, String> {
+    pub fn fromFiles<'b> (creator: &'a TextureCreator<WindowContext>, filenames: &'b [&'b str], positions: &'b [usize]) -> io::Result<StandardAnimation<'a>> {
         let length = filenames.len();
         
         let mut frames = vec![];
@@ -173,7 +176,7 @@ impl<'a> StandardAnimation<'a> {
                 frames.push(*position);
             }
             else {
-                return Err("Frame out of sprite bounds".to_string());
+                return Err(Error::new(ErrorKind::Other, "Frame out of sprite bounds".to_string()));
             }
         }
         Ok(StandardAnimation{sprites: Sprites::new(creator, filenames)?, frames,})

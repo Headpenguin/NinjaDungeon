@@ -10,7 +10,7 @@ mod SignalsMod;
 
 pub use SignalsMod::{SignalsBuilder, Signals, Mapping};
 
-use crate::SpriteLoader::Animations;
+use crate::SpriteLoader::{Animations, Sprites};
 use crate::{Direction, Map, CollisionType, Vector, GameContext};
 use crate::Entities::Traits::{Collision, EntityTraitsWrappable, Entity};
 use crate::Entities::{BoxCode, RefCode};
@@ -25,6 +25,10 @@ const NAMES: &'static[&'static str] = &[
 	"Ninja right attack",
 	"Ninja left attack",
 	"Ninja up attack",
+];
+
+const SWORD_FRAMES: &'static[&'static str] = &[
+	"Resources/Images/Sword__half.png",
 ];
 
 enum ANIMATION_IDX {
@@ -47,6 +51,9 @@ pub struct Player<'a> {
     position: Vector,
 	hitbox: Rect,
 	renderPosition: Rect,
+	attackTimer: u32,
+	attacking: bool,
+	sword: Sprites<'a>,
 }
 
 pub struct PlayerData {
@@ -94,14 +101,17 @@ impl PlayerData {
 
 impl<'a> Player<'a> {
     pub fn new(creator: &'a TextureCreator<WindowContext>, positionX: f32, positionY: f32) -> io::Result<BoxCode<'a>> {
-        let (direction, velocity, position, timer, idle) = (
+        let (direction, velocity, position, timer, idle, attackTimer, attacking) = (
             Direction::Down, 
             Vector(0f32, 0f32), 
             Vector(positionX, positionY),
 			0u32,
 			true,
+			0u32,
+			false,
         );
 		let animations = Animations::new("Resources/Images/Ninja.anim", NAMES, creator)?;
+		let sword = Sprites::new(creator, SWORD_FRAMES)?;
 		let renderPosition = Rect::new(positionX.round() as i32, positionY.round() as i32, 50, 50);
 		let hitbox = Rect::new(positionX.round() as i32 + 2, positionY as i32 + 2, 46, 46);
 
@@ -109,7 +119,7 @@ impl<'a> Player<'a> {
 			BoxCode::Player(
 				Box::new(
 					Entity::new(
-						Player {animations, direction, velocity, position, timer, idle, hitbox, renderPosition,},
+						Player {animations, direction, velocity, position, timer, idle, hitbox, renderPosition, attackTimer, sword, attacking},
 						PlayerData {
 							nextPos: position,
 						},
@@ -134,41 +144,54 @@ impl<'a> Player<'a> {
 	}
 
     pub fn signal(&mut self, signal: Signals) {
-        match signal {
-            Signals {up: Some(true), ..} => {
-                self.direction = Direction::Up;
-                self.velocity.1 = -3f32;
-            },
-            Signals {down: Some(true), ..} => {
-                self.direction = Direction::Down;
-                self.velocity.1 = 3f32;
-            },
-            Signals {up: Some(false), ..} => {
-                self.velocity.1 = 0f32;
-            },
-            Signals {down: Some(false), ..} => {
-                self.velocity.1 = 0f32;
-            },
-            _ => (),
-        }
-        match signal {
-            Signals {left: Some(true), ..} => {
-                self.direction = Direction::Left;
-                self.velocity.0 = -3f32;
-            },
-            Signals {right: Some(true), ..} => {
-                self.direction = Direction::Right;
-                self.velocity.0 = 3f32;
-            },
-            Signals {left: Some(false), ..} => {
-                self.velocity.0 = 0f32;
-            },
-            Signals {right: Some(false), ..} => {
-                self.velocity.0 = 0f32;
-            },
-            _ => (),
-        }
-    }
+		match (signal.attack, self.attacking) {
+			(Some(true), false) => {
+				self.attackTimer = 21;
+				self.attacking = true;
+				self.idle = false;
+			},
+			(Some(true), true) | (None, _) => {},
+			(Some(false), true) => {
+				self.attacking = false;
+			},
+			(Some(false), false) => {
+				match signal {
+					Signals {up: Some(true), ..} => {
+						self.direction = Direction::Up;
+						self.velocity.1 = -3f32;
+					},
+					Signals {down: Some(true), ..} => {
+						self.direction = Direction::Down;
+						self.velocity.1 = 3f32;
+					},
+					Signals {up: Some(false), ..} => {
+						self.velocity.1 = 0f32;
+					},
+					Signals {down: Some(false), ..} => {
+						self.velocity.1 = 0f32;
+					},
+					_ => (),
+				}
+				match signal {
+					Signals {left: Some(true), ..} => {
+						self.direction = Direction::Left;
+						self.velocity.0 = -3f32;
+					},
+					Signals {right: Some(true), ..} => {
+						self.direction = Direction::Right;
+						self.velocity.0 = 3f32;
+					},
+					Signals {left: Some(false), ..} => {
+						self.velocity.0 = 0f32;
+					},
+					Signals {right: Some(false), ..} => {
+						self.velocity.0 = 0f32;
+					},
+					_ => (),
+				}
+			}
+		}
+	}
 }
 
 impl<'a> Collision for Player<'a> {
@@ -183,7 +206,9 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 	}
 	fn getData(&self, data: &mut Self::Data, ctx: &GameContext) {
 		//data.transition = ctx.getMap().transitionScreen(self.hitbox);
-		data.nextPos = self.position + self.velocity;
+		data.nextPos = if self.idle {
+			self.position + self.velocity
+		} else {self.position};
 		data.doCollision(self, ctx.getMap());
 	}
 	fn update(&mut self, data: &Self::Data, _po: &PO) {
@@ -202,6 +227,19 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 		if self.timer > 20 {
 			self.timer = 0;
 			self.animations.update();
+		}
+		if self.attackTimer > 0 {
+			self.attackTimer -= 1;
+			match self.direction {
+				Direction::Up => {self.animations.changeAnimation(ANIMATION_IDX::UpAttack as usize);},
+				Direction::Down => {self.animations.changeAnimation(ANIMATION_IDX::DownAttack as usize);},
+				Direction::Left => {self.animations.changeAnimation(ANIMATION_IDX::LeftAttack as usize);},
+				Direction::Right => {self.animations.changeAnimation(ANIMATION_IDX::RightAttack as usize);},
+			};
+			// Add attack code here
+		}
+		else if !self.attacking {
+			self.idle = true;
 		}
 	}
 	fn needsExecution(&self) -> bool {true}
