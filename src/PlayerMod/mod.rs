@@ -81,8 +81,11 @@ impl PlayerData {
 		while let Some((location, tile)) = map.collide(&mut iter) {
 			match tile.getCollisionType() {
 				CollisionType::Block => {
-					self.nextPos += blockCollide(location, tmp, map);
-					tmp.reposition(self.nextPos);
+					let eject = blockCollide(location, tmp, map);
+//					if self.nextPos.1.round() as u32 == 505 || self.nextPos.1.round() as u32 == 507 {println!("a{:?}", eject)}
+					self.nextPos += eject;
+//		if self.nextPos.1.round() as u32 % 50 == 4 {println!("b{:?}", self.nextPos);}
+					tmp.reposition(self.nextPos + Vector(2f32, 2f32));
 				},
      /*           CollisionType::SharpBlock => {
 					self.nextPos += sharpBlockCollide(location, tmp);
