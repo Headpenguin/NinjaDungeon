@@ -30,7 +30,6 @@ impl Tile {
 			1 => Ok(Tile(1, CollisionType::Block)),
 			2 => Ok(Tile(2, CollisionType::Block)),
 			3 => Ok(Tile(0, CollisionType::Transition(object))),
-			4 => Ok(Tile(1, CollisionType::SharpBlock)),
 			_ => Err("Recieved invalid tile id"),
 		}
 	}
@@ -97,45 +96,38 @@ impl TileBuilder {
 pub enum CollisionType {
 	None, //Do nothing
 	Block, //Block the player
-    SharpBlock, //Block the player and push diagonally at corners
 	Transition(usize),
 	Switch(usize), //Collision type for switches
 	Hit, //Hurt the player
 	Burn, //Burn the player
 }
 
-fn determineCollidedSide(side1: i32, side2: i32) -> i32 {
-	if side1 < side2 {side1}
-	else{side2}
+fn determineCollidedSide(sides: (i32, i32, i32, i32)) -> Side {
+	//Determine the index of the minimum value
+	let arr = [sides.0, sides.1, sides.2, sides.3];
+	Side::new(arr.iter().enumerate().min_by(|x, y| x.1.cmp(y.1)).unwrap().0 as u8)
+}
+
+enum Side {
+	Top,
+	Bottom,
+	Left,
+	Right,
+}
+
+impl Side {
+	fn new(code: u8) -> Side {
+		match code {
+			0 => Side::Top,
+			1 => Side::Bottom,
+			2 => Side::Left,
+			3 => Side::Right,
+			_ => unreachable!(),
+		}
+	}
 }
 
 pub fn blockCollide(location: (u16, u16), hitbox: Rect, map: &Map) -> Vector {
-	/*let ejectionDirection = Vector::fromPoints((location.0 as i32 * 50 + 25, location.1 as i32 * 50 + 25), <Point as Into<(i32, i32)>>::into(hitbox.center()));
-	let (maxWidth, maxHeight) = (std::cmp::max(hitbox.width(), 50), std::cmp::max(hitbox.height(), 50));
-	if ejectionDirection.0 > maxWidth as f32 || ejectionDirection.1 > maxHeight as f32 {
-		return Vector(0f32, 0f32);
-	}
-	println!("{:?}", ejectionDirection);
-	let (mut x, mut y) = (0f32, 0f32);
-	if ejectionDirection.0.abs() > ejectionDirection.1.abs() {
-		if ejectionDirection.0 > 0f32 {
-			x = (location.0 + 1) as f32 * 50f32 - hitbox.left() as f32 ;
-		}
-		else {
-			x = location.0 as f32 * 50f32 - hitbox.right() as f32;
-		}
-	}
-	if ejectionDirection.0.abs() < ejectionDirection.1.abs() {
-		if ejectionDirection.1 < 0f32 {
-			y = location.1 as f32 * 50f32 - hitbox.bottom() as f32;
-		}
-		else {
-			y = (location.1 + 1) as f32 * 50f32 - hitbox.top() as f32 ;
-		}
-	}
-//	println!("{:?}, {:?}", x, y);
-	Vector(x, y)*/
-	//Vector::fromPoints((location.0 as i32 * 50 + 25, location.1 as i32 * 50 + 25), <Point as Into<(i32, i32)>>::into(hitbox.center()))
 	let tile = Rect::new(location.0 as i32 * 50, location.1 as i32 * 50, 50, 50);
 	let (top, bottom, left, right) = (
 		tile.bottom() - hitbox.top(),
@@ -144,70 +136,23 @@ pub fn blockCollide(location: (u16, u16), hitbox: Rect, map: &Map) -> Vector {
 		hitbox.right() - tile.left(),
 	);
 	if top <= 0 || bottom <= 0 || left <= 0 || right <= 0 {
-	//	println!("idfhjgfidhu");
 		return Vector(0f32, 0f32);
 	}
-	if top < bottom && top < determineCollidedSide(left, right) {
-		if top < determineCollidedSide(left, right) {
-			if let CollisionType::Block | CollisionType::SharpBlock =
-				map.getScreen(map.getActiveScreenId()).unwrap().getTile((location.0, location.1 + 1)).getCollisionType() {
-				Vector(0f32, 0f32)
-			}
-			else {
-				Vector(0f32, top as f32)
-			}
-		}
-		else if left < right {
-			if let CollisionType::Block | CollisionType::SharpBlock =
-				map.getScreen(map.getActiveScreenId()).unwrap().getTile((location.0 + 1, location.1)).getCollisionType() {
-				Vector(0f32, 0f32)
-			}
-			else {
-				Vector(left as f32, 0f32)
-			}
-		}
-		else {
-			if let CollisionType::Block | CollisionType::SharpBlock =
-				map.getScreen(map.getActiveScreenId()).unwrap().getTile((location.0 - 1, location.1)).getCollisionType() {
-				Vector(0f32, 0f32)
-			}
-			else {
-				Vector(-right as f32, 0f32)
-			}
-		}
+	let (location, eject) = match determineCollidedSide((top, bottom, left, right)) {
+		Side::Top => ((location.0, location.1 + 1), Vector(0f32, top as f32)),
+		Side::Bottom => ((location.0, location.1 - 1), Vector(0f32, -bottom as f32)),
+		Side::Left => ((location.0 + 1, location.1), Vector(left as f32, 0f32)),
+		Side::Right => ((location.0 - 1, location.1), Vector(-right as f32, 0f32))
+	};
+	if let CollisionType::Block =
+		map.getScreen(map.getActiveScreenId()).unwrap().getTile(location).getCollisionType() {
+		Vector(0f32, 0f32)
 	}
 	else {
-		if bottom < determineCollidedSide(left, right) {
-			if let CollisionType::Block | CollisionType::SharpBlock =
-				map.getScreen(map.getActiveScreenId()).unwrap().getTile((location.0, location.1 - 1)).getCollisionType() {
-				Vector(0f32, 0f32)
-			}
-			else {
-	//			println!("{:?} {:?}", tile, hitbox);
-				Vector(0f32, -bottom as f32)
-			}
-		}
-		else if left < right {
-			if let CollisionType::Block | CollisionType::SharpBlock =
-				map.getScreen(map.getActiveScreenId()).unwrap().getTile((location.0 + 1, location.1)).getCollisionType() {
-				Vector(0f32, 0f32)
-			}
-			else {
-				Vector(left as f32, 0f32)
-			}
-		}
-		else {
-			if let CollisionType::Block | CollisionType::SharpBlock =
-				map.getScreen(map.getActiveScreenId()).unwrap().getTile((location.0 - 1, location.1)).getCollisionType() {
-				Vector(0f32, 0f32)
-			}
-			else {
-				Vector(-right as f32, 0f32)
-			}
-		}
+		eject
 	}
 }
-
+/*
 pub fn sharpBlockCollide(location: (u16, u16), position: Vector) -> Vector {
 	let ejectionDirection = Vector::fromPoints((location.0 as f32 * 50f32, location.1 as f32 * 50f32), position);
 	let (mut x, mut y) = (0f32, 0f32);
@@ -218,9 +163,9 @@ pub fn sharpBlockCollide(location: (u16, u16), position: Vector) -> Vector {
 		y = (50f32 - ejectionDirection.1.abs()) * ejectionDirection.1.signum();
 	}
 	Vector(x, y)
-}
+}*/
 
-pub const MAX_TILE_IDX: u16 = 4;
+pub const MAX_TILE_IDX: u16 = 3;
 
 //unsafe impl SelfContained for Tile {}
 

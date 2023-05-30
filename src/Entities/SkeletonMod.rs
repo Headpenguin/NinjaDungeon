@@ -10,7 +10,7 @@ use crate::SpriteLoader::Animations;
 use crate::{GameContext, Vector};
 use crate::EventProcessor::{CollisionMsg, Envelope, PO};
 use crate::CollisionType;
-use crate::MapMod::{blockCollide, sharpBlockCollide};
+use crate::MapMod;
 
 
 const NAMES_TOP: &'static[&'static str] = &[
@@ -54,17 +54,13 @@ impl SkeletonData {
 	fn doCollision(&mut self, skeleton: &Skeleton, ctx: &GameContext) {
 		let mut hitbox = skeleton.hitbox;
 		hitbox.reposition(self.nextPos);
-		let mut ejection = Vector(0f32, 0f32);
 		let map = ctx.getMap();
 		let mut iter = map.calculateCollisionBounds(hitbox);
 		while let Some((location, tile)) = map.collide(&mut iter) {
 			match tile.getCollisionType() {
 				CollisionType::Block => {
-					self.nextPos += blockCollide(location, hitbox, map);
+					self.nextPos += MapMod::blockCollide(location, hitbox, map);
 					hitbox.reposition(self.nextPos);
-				},
-				CollisionType::SharpBlock => {
-					self.nextPos += sharpBlockCollide(location, self.nextPos + Vector(25f32, 50f32));
 				},
 				_ => (),
 			}

@@ -15,7 +15,7 @@ use crate::{Direction, Map, CollisionType, Vector, GameContext};
 use crate::Entities::Traits::{Collision, EntityTraitsWrappable, Entity};
 use crate::Entities::{BoxCode, RefCode, RefCodeMut};
 use crate::EventProcessor::{CollisionMsg, Envelope, PO};
-use crate::MapMod::{blockCollide, sharpBlockCollide};
+use crate::MapMod;
 
 const NAMES: &'static[&'static str] = &[
 	"Ninja float",
@@ -81,7 +81,7 @@ impl PlayerData {
 		while let Some((location, tile)) = map.collide(&mut iter) {
 			match tile.getCollisionType() {
 				CollisionType::Block => {
-					let eject = blockCollide(location, tmp, map);
+					let eject = MapMod::blockCollide(location, tmp, map);
 //					if self.nextPos.1.round() as u32 == 505 || self.nextPos.1.round() as u32 == 507 {println!("a{:?}", eject)}
 					self.nextPos += eject;
 //		if self.nextPos.1.round() as u32 % 50 == 4 {println!("b{:?}", self.nextPos);}
