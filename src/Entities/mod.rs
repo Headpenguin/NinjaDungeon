@@ -7,7 +7,7 @@ use Traits::{Entity, EntityDyn, EntityTraits, EntityTraitsWrappable};
 use std::collections::HashMap;
 use std::cell::UnsafeCell;
 use crate::ID;
-use crate::IntHasher::IntHasher;
+use crate::IntHasher::UInt64Hasher;
 use crate::Player;
 use std::ops::{Deref, DerefMut};
 use std::marker::PhantomData;
@@ -28,6 +28,9 @@ impl<'a, T: EntityTraitsWrappable<'a>> TypedID<'a, T> {
 	pub fn new(id: ID) -> TypedID<'a, T> {
 		TypedID(id, PhantomData)
 	}
+	pub fn getID(&self) -> ID {
+		self.0
+	}
 }
 
 pub enum BoxCode<'a> {
@@ -35,24 +38,24 @@ pub enum BoxCode<'a> {
 	Skeleton(Box<Entity<'a, Skeleton<'a>>>),
 }
 
-pub enum RefCodeMut<'a> {
-	Player(&'a mut Entity<'a, Player<'a>>),
-	Skeleton(&'a mut Entity<'a, Skeleton<'a>>),
+pub enum RefCodeMut<'a, 'b> {
+	Player(&'b mut Entity<'a, Player<'a>>),
+	Skeleton(&'b mut Entity<'a, Skeleton<'a>>),
 }
 
-pub enum RefCode<'a> {
-	Player(&'a Entity<'a, Player<'a>>),
-	Skeleton(&'a Entity<'a, Skeleton<'a>>),
+pub enum RefCode<'a, 'b> {
+	Player(&'b Entity<'a, Player<'a>>),
+	Skeleton(&'b Entity<'a, Skeleton<'a>>),
 }
 
 impl<'a> BoxCode<'a> {
-	pub fn refcodeMut(&'a mut self) -> RefCodeMut<'a> {
+	pub fn refcodeMut<'b>(&'b mut self) -> RefCodeMut<'a, 'b> {
 		match self {
 			BoxCode::Player(ref mut e) => RefCodeMut::Player(e),
 			BoxCode::Skeleton(ref mut e) => RefCodeMut::Skeleton(e),
 		}
 	}
-	pub fn refcode(&'a self) -> RefCode<'a> {
+	pub fn refcode<'b>(&'b self) -> RefCode<'a, 'b> {
 		match self {
 			BoxCode::Player(ref e) => RefCode::Player(e),
 			BoxCode::Skeleton(ref e) => RefCode::Skeleton(e),
@@ -79,8 +82,8 @@ impl<'a> DerefMut for BoxCode<'a> {
 }
 
 pub struct Holder<'a> {
-	entities: HashMap<ID, UnsafeCell<BoxCode<'a>>, IntHasher>,
-	currentId: ID,
+	entities: HashMap<ID, UnsafeCell<BoxCode<'a>>, UInt64Hasher>,
+	currentId: u64,
 }
 
 impl<'a> Holder<'a> {
@@ -105,9 +108,14 @@ impl<'a> Holder<'a> {
 			(&mut *x.get()).deref_mut() as *mut dyn EntityDyn
 		})
 	}
-	pub unsafe fn add(&mut self, entity: BoxCode<'a>) {
-		self.entities.insert(self.currentId, UnsafeCell::new(entity));
-		self.currentId += 1;
+	pub unsafe fn add<T>(&mut self, mut entity: BoxCode<'a>) -> bool where T: EntityTraitsWrappable<'a> + 'a {
+		if let Some(t) = T::mapCodeMut(entity.refcodeMut()) {
+			t.setID(TypedID::new(ID::new(self.currentId, 0)));
+		}
+		else {return false;}
+		self.entities.insert(ID::new(self.currentId, 0), UnsafeCell::new(entity));
+		self.currentId += 1;	
+		true
 	}
 	pub unsafe fn remove(&'a mut self, id: ID) -> Option<BoxCode<'a>> {
 		self.entities.remove(&id).map(|x| x.into_inner())
@@ -119,7 +127,7 @@ impl<'a> Holder<'a> {
 		self.entities.iter_mut().map(|kv| (*kv.0, (&mut *kv.1.get()).deref_mut()))
 	}
 	pub fn getCurrentID(&self) -> ID {
-		self.currentId - 1
+		ID::new(self.currentId - 1, 0)
 	}
 	pub fn new() -> Holder<'a> {
 		Holder {

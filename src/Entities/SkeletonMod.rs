@@ -5,9 +5,9 @@ use sdl2::video::{Window, WindowContext};
 use std::io;
 
 use super::Traits::{Collision, EntityTraitsWrappable, Entity};
-use super::{BoxCode, RefCode, RefCodeMut};
+use super::{BoxCode, RefCode, RefCodeMut, TypedID};
 use crate::SpriteLoader::Animations;
-use crate::{GameContext, Vector};
+use crate::{GameContext, Vector, ID};
 use crate::EventProcessor::{CollisionMsg, Envelope, PO};
 use crate::CollisionType;
 use crate::MapMod;
@@ -34,6 +34,7 @@ enum ANIMATION_IDX_BOTTOM {
 }
 
 pub struct Skeleton<'a> {
+	id: TypedID<'a, Self>,
 	animationsTop: Animations<'a>,
 	animationsBottom: Animations<'a>,
 	timer: u32,
@@ -42,8 +43,8 @@ pub struct Skeleton<'a> {
 	position: Vector,
 	idle: bool,
 	hitbox: Rect,
-//	iframeCounter: u32,
-//	health
+	iframeCounter: u32,
+	health: u32,
 }
 
 pub struct SkeletonData {
@@ -70,10 +71,12 @@ impl SkeletonData {
 
 impl<'a> Skeleton<'a> {
 	pub fn new(creator: &'a TextureCreator<WindowContext>, position: (f32, f32)) -> io::Result<BoxCode<'a>> {
-		let (timer, position, idle) = (
+		let (timer, position, idle, iframeCounter, health) = (
 			0u32,
 			Vector(position.0, position.1),
 			false,
+			0,
+			0,
 		);
 
 		let animationsTop = Animations::new("Resources/Images/Skeleton_top.anim", NAMES_TOP, creator)?;
@@ -84,7 +87,7 @@ impl<'a> Skeleton<'a> {
 		Ok(BoxCode::Skeleton(
 			Box::new(
 				Entity::new(
-					Skeleton {animationsTop, animationsBottom, timer, renderPositionTop, renderPositionBottom, position, idle, hitbox},
+					Skeleton {id: TypedID::new(ID::empty()), animationsTop, animationsBottom, timer, renderPositionTop, renderPositionBottom, position, idle, hitbox, iframeCounter, health,},
 					SkeletonData{
 						nextPos: Vector(0f32, 0f32),
 					},
@@ -92,10 +95,12 @@ impl<'a> Skeleton<'a> {
 			)
 		))
 	}
-	fn updatePositions(&mut self) {
+	fn updatePositions(&mut self, po: &PO) {
 		self.renderPositionTop.reposition(self.position);
 		self.renderPositionBottom.reposition(self.position + Vector(0f32, 50f32));
-		// hitbox
+		let prevHitbox = self.hitbox;
+		self.hitbox.reposition(self.position);
+		po.updatePosition(self.id.getID(), prevHitbox, self.hitbox);
 	}
 }
 
@@ -105,11 +110,14 @@ impl<'a> Collision for Skeleton<'a> {
 
 impl<'a> EntityTraitsWrappable<'a> for Skeleton<'a> {
 	type Data = SkeletonData;
-	fn mapCodeMut(code: RefCodeMut<'a>) -> Option<&'a mut Self> {
+	fn setID(&mut self, id: TypedID<'a, Self>) {
+		self.id = id;
+	}
+	fn mapCodeMut<'b>(code: RefCodeMut<'a, 'b>) -> Option<&'b mut Self> {
 		if let RefCodeMut::Skeleton(s) = code {Some(s as &mut Self)}
 		else {None}
 	}
-	fn mapCode(code: RefCode<'a>) -> Option<&'a Self> {
+	fn mapCode<'b>(code: RefCode<'a, 'b>) -> Option<&'b Self> {
 		if let RefCode::Skeleton(s) = code {Some(s as &Self)}
 		else {None}
 	}
@@ -117,7 +125,7 @@ impl<'a> EntityTraitsWrappable<'a> for Skeleton<'a> {
 		if !self.idle {
 			let player = ctx.getHolder().getTyped(ctx.getPlayerID()).unwrap();
 			let playerDirection = Vector::fromPoints(self.position, player.getPosition());
-			data.nextPos = self.position + playerDirection.normalizeOrZero() * 3f32;
+			data.nextPos = self.position + playerDirection.normalizeOrZero() * 3.5f32;
 			data.doCollision(self, ctx);
 		}
 		else {
@@ -125,9 +133,9 @@ impl<'a> EntityTraitsWrappable<'a> for Skeleton<'a> {
 		}
 
 	}
-	fn update(&mut self, data: &Self::Data, _po: &PO) {
+	fn update(&mut self, data: &Self::Data, po: &PO) {
 		self.position = data.nextPos;
-		self.updatePositions();
+		self.updatePositions(po);
 
 		if !self.idle {
 			self.timer += 1;

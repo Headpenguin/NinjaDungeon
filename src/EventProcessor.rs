@@ -1,10 +1,16 @@
+use std::cell::UnsafeCell;
+
 use crate::{ID, CollisionType};
 use crate::Entities::Traits::EntityTraits;
 use crate::Entities::Holder;
 use crate::GameContext;
 use crate::Scheduling::Scheduler;
 
-pub struct PO {}
+use sdl2::rect::Rect;
+
+pub struct PO<'a> {
+	ctx: UnsafeCell<GameContext<'a>>,
+}
 
 struct Subscriber;
 
@@ -27,12 +33,20 @@ impl Envelope<CollisionMsg> {
 	pub fn send(self, recv: &mut dyn EntityTraits) {recv.collide(self);}
 }
 
-impl PO {
-	pub fn new() -> PO {PO{}}
-	pub unsafe fn update<'a, 'b>(&mut self, scheduler: &Scheduler, ctx: &'b mut GameContext<'a>) {
-		Scheduler::tick(ctx);
-		scheduler.execute(ctx, |id| (&mut *ctx.getHolder().getEntityDyn(id).unwrap()).getData(ctx));
-		scheduler.execute(ctx, |id| (&mut *ctx.getHolder().getEntityDyn(id).unwrap()).update(self) );
+impl<'a> PO<'a> {
+	pub fn new(ctx: GameContext) -> PO {
+		PO{
+			ctx: UnsafeCell::new(ctx),
+		}
+	}
+	pub fn getCtx<'b>(&'b mut self) -> &'b mut GameContext<'a> {
+		self.ctx.get_mut()
+	}
+	pub unsafe fn update(&mut self, scheduler: &Scheduler) {
+		Scheduler::tick(self.ctx.get_mut());
+		scheduler.execute(&*self.ctx.get(), |id| (&mut *(&*self.ctx.get()).getHolder().getEntityDyn(id).unwrap()).getData(&*self.ctx.get()));
+		self.ctx.get_mut().resetCollisionLists();
+		scheduler.execute(&*self.ctx.get(), |id| (&mut *(&*self.ctx.get_mut()).getHolder().getEntityDyn(id).unwrap()).update(self) );
 	}
 	pub fn sendCollisionMsg(&self, holder: &mut Holder, msg: Envelope<CollisionMsg>) -> bool {
 		unsafe {
@@ -42,6 +56,13 @@ impl PO {
 			}
 			else {false}
 		}
+	}
+
+	pub fn updatePosition(&self, id: ID, hitbox: Rect, prevHitbox: Rect) {
+		unsafe {&mut *self.ctx.get()}.updatePosition(id, hitbox, prevHitbox);
+	}
+	pub fn transition(&mut self) {
+		unsafe { (&mut *self.ctx.get()).getPlayerMut().transition(self); }
 	}
 }
 

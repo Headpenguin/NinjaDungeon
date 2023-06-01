@@ -19,11 +19,11 @@ pub use TileMod::*;
 pub use ScreenMod::*;
 
 use crate::SpriteLoader::Animations;
-use crate::IntHasher::IntHasher;
+use crate::IntHasher::USizeHasher;
 
 #[derive(Serialize, Deserialize)]
 pub struct InnerMap {
-	screens: HashMap<usize, Screen, IntHasher>,
+	screens: HashMap<usize, Screen, USizeHasher>,
 	lastActiveScreen: usize,
 	activeScreen: usize,
 	ioData: usize,
@@ -89,7 +89,7 @@ impl InnerMap {
 	}*/
 	pub fn new() -> InnerMap {
 		InnerMap {
-			screens: HashMap::with_hasher(IntHasher::new()),
+			screens: HashMap::with_hasher(USizeHasher::new()),
 			lastActiveScreen: 0,
 			activeScreen: 0,
 			nextId: 0,

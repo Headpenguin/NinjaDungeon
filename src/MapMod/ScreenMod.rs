@@ -10,6 +10,7 @@ use sdl2::rect::{Rect, Point};
 use serde::{Serialize, Deserialize};
 
 use super::{Tile, TileRenderer, InnerMap, CollisionType};
+use super::TileMod;
 use crate::{Vec2d, Direction, Vector};
 
 const TILE_DIVISOR: f32 = 1f32/50f32;
@@ -120,7 +121,7 @@ impl Screen {
 		*self.tiles.indexMut(position.1 as usize, position.0 as usize) = replacement;
 	}
 	pub fn getTile(&self, position: (u16, u16)) -> &Tile {
-		self.tiles.index(position.1 as usize, position.0 as usize)
+		self.tiles.get(position.1 as usize, position.0 as usize).unwrap_or(&TileMod::OOB)
 	}
 	pub fn moveToPosition(&mut self, position: (u32, u32)) {
 		self.position = position;

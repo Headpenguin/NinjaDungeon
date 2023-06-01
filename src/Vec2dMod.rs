@@ -19,6 +19,12 @@ impl<T> Vec2d<T> {
 	pub fn indexMut(&mut self, idx1: usize, idx2: usize) -> &mut T {
 		&mut self.0[idx1 * self.1 + idx2]
 	}
+	pub fn get(&self, idx1: usize, idx2: usize) -> Option<&T> {
+		self.0.get(idx1 * self.1 + idx2)
+	}
+	pub fn getMut(&mut self, idx1: usize, idx2: usize) -> Option<&mut T> {
+		self.0.get_mut(idx1*self.1 + idx2)
+	}
 }
 
 impl<T> Deref for Vec2d<T> {

@@ -28,6 +28,7 @@ use std::io::{self, Write};
 use std::fs::File;
 use std::i32;
 use std::str::FromStr;
+use std::hash::{Hasher, Hash};
 //use std::collections::BinaryHeap;
 
 mod PlayerMod;
@@ -39,6 +40,7 @@ mod IntHasher;
 //mod ScriptingUtils;
 mod EventProcessor;
 mod Scheduling;
+mod GameContextMod;
 pub mod Entities;
 
 pub use VectorMod::Vector;
@@ -47,13 +49,14 @@ pub use PlayerMod::Player;
 //pub use ScriptingUtils::*;
 
 pub use MapMod::{Map, InnerMap, Location, Tile, MAX_TILE_IDX, CollisionType, CollisionBounds, TileBuilder, TileBuilderSignals};
+pub use GameContextMod::*;
 
 use PlayerMod::SignalsBuilder;
 
 use Entities::{TypedID, Holder, Skeleton};
 use Entities::Traits::EntityDyn;
 
-use EventProcessor::PO;
+pub use EventProcessor::PO;
 
 use Scheduling::Scheduler;
 
@@ -61,49 +64,30 @@ use Scheduling::Scheduler;
 const SYNTAX_ERROR: &str = "Lua scripts contain an error";
 const MISSING_GLOBAL: &str = "Missing global";*/
 
-type ID = usize;
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub struct ID(u64);
 
-pub struct GameContext<'a> {
-	holder: Holder<'a>,
-	map: Map<'a>,
-	player: TypedID<'a, Player<'a>>,
+impl Hash for ID {
+	fn hash<H>(&self, hasher: &mut H) where H: Hasher {
+		hasher.write_u64(self.0);
+	}
 }
 
-impl<'a> GameContext<'a> {
-	pub fn new(map: Map<'a>, creator: &'a TextureCreator<WindowContext>) -> GameContext<'a> {
-		let mut holder = Holder::new();
-		unsafe {holder.add(Player::new(creator, 50f32, 50f32).unwrap())};
-		let player = TypedID::new(holder.getCurrentID());
-		//unsafe { holder.add(Skeleton::new(creator, (50f32, 50f32)).unwrap())};
-		GameContext {
-			holder,
-			map,
-			player, 
-		}
+impl ID {
+	pub fn new(id: u64, subID: u8) -> ID {
+		ID((id << 8) + subID as u64)
 	}
-	fn getMap(&self) -> &Map {
-		&self.map
+	pub fn empty() -> ID {
+		ID(u64::MAX)
 	}
-	fn getMapMut<'b>(&'b mut self) -> &'b mut Map<'a> {
-		&mut self.map
+	pub fn getID(&self) -> u64 {
+		(self.0 & 0xffffffffffffff00) >> 8
 	}
-	fn getPlayerMut<'b>(&'b mut self) -> &'b mut Player<'a> {
-		self.holder.getMutTyped(self.player).unwrap()
+	pub fn getSubID(&self) -> u8 {
+		(self.0 & 0xff) as u8
 	}
-	fn getPlayerID<'b>(&'b self) -> TypedID<'a, Player<'a>> {
-		self.player
-	}
-	fn getHolderMut<'b>(&'b mut self) -> &'b mut Holder<'a> {
-		&mut self.holder
-	}
-	fn getHolder<'b>(&'b self) -> &'b Holder<'a> {
-		&self.holder
-	}
-	unsafe fn entityIter<'b>(&'b self) -> impl Iterator<Item = (ID, &'b (dyn EntityDyn + 'a))> {
-		self.holder.iter()
-	}
-	unsafe fn entityIterMut<'b>(&'b mut self) -> impl Iterator<Item = (ID, &'b mut (dyn EntityDyn + 'a))> {
-		self.holder.iterMut()
+	pub fn isEmpty(&self) -> bool {
+		self.0 == u64::MAX
 	}
 }
 
@@ -116,7 +100,6 @@ pub struct GameManager {
 	//scripts: Scripts,
 //	scriptPlayerInputs: Option<Signals>,
 	screenPos: Point,
-	po: PO,
 	scheduler: Scheduler,
     //frameCounter: u64,
 	quit: bool,
@@ -180,11 +163,11 @@ impl GameManager {
 		let quit = false;
 		let screenPos = Point::new(0, 0);
 
-		(GameManager {sdlContext, videoSubsystem, canvas, events, /*luaContext, scripts, scriptPlayerInputs, frameCounter,*/ screenPos, quit, po: PO::new(), scheduler: Scheduler::new()}, textureCreator) 
+		(GameManager {sdlContext, videoSubsystem, canvas, events, /*luaContext, scripts, scriptPlayerInputs, frameCounter,*/ screenPos, quit, scheduler: Scheduler::new()}, textureCreator) 
 	}
 	
 	#[inline(always)]
-	pub fn mainLoop<'a, 'b>(&mut self, ctx: &'b mut GameContext<'a>) -> bool {
+	pub fn mainLoop<'a, 'b>(&mut self, po: &'b mut PO<'a>) -> bool {
 		
 		self.canvas.clear();
 		
@@ -194,17 +177,20 @@ impl GameManager {
 			self.quit = Self::windowEvents(&event);
 			signals.addEvent(&event);
 		}
-
+		
+		let ctx = po.getCtx();
 		let player = ctx.holder.getMutTyped(ctx.getPlayerID()).unwrap();
 		player.signal(signals.build(&self.events));
-		player.transition(&mut ctx.map);
+//		player.transition(&mut po.getCtx()map);
+		po.transition();
+		
 		
 
-		unsafe {self.po.update(&self.scheduler, ctx);}
-		ctx.map.update();
+		unsafe {po.update(&self.scheduler);}
+		po.getCtx().map.update();
 
-		ctx.map.draw(&mut self.canvas, self.screenPos);
-		unsafe { self.scheduler.draw(ctx, &mut self.canvas);}
+		po.getCtx().map.draw(&mut self.canvas, self.screenPos);
+		unsafe { self.scheduler.draw(po.getCtx(), &mut self.canvas) ;}
 		
 		self.canvas.present();
 		

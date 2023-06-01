@@ -3,11 +3,13 @@
 
 use serde::{Serialize, Deserialize};
 
-use sdl2::rect::{Rect, Point};
+use sdl2::rect::Rect;
 
 use crate::Vector;
 
 use super::Map;
+
+pub const OOB: Tile = Tile::OOB();
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Tile (u16, CollisionType);
@@ -32,6 +34,9 @@ impl Tile {
 			3 => Ok(Tile(0, CollisionType::Transition(object))),
 			_ => Err("Recieved invalid tile id"),
 		}
+	}
+	pub const fn OOB() -> Tile {
+		Tile(u16::MAX, CollisionType::OOB)
 	}
 	pub fn getId(&self) -> u16 {
 		self.0
@@ -100,6 +105,8 @@ pub enum CollisionType {
 	Switch(usize), //Collision type for switches
 	Hit, //Hurt the player
 	Burn, //Burn the player
+	
+	OOB, //Represent tiles with oob coordinates
 }
 
 fn determineCollidedSide(sides: (i32, i32, i32, i32)) -> Side {
@@ -129,45 +136,35 @@ impl Side {
 
 pub fn blockCollide(location: (u16, u16), hitbox: Rect, map: &Map) -> Vector {
 	let tile = Rect::new(location.0 as i32 * 50, location.1 as i32 * 50, 50, 50);
+	
+	// Determine distance from each side of the hitbox to the closest side of the tile, with the positive direction being the center of the tile
 	let (top, bottom, left, right) = (
 		tile.bottom() - hitbox.top(),
 		hitbox.bottom() - tile.top(),
 		tile.right() - hitbox.left(),
 		hitbox.right() - tile.left(),
 	);
+	
 	if top <= 0 || bottom <= 0 || left <= 0 || right <= 0 {
 		return Vector(0f32, 0f32);
 	}
+
 	let (location, eject) = match determineCollidedSide((top, bottom, left, right)) {
 		Side::Top => ((location.0, location.1 + 1), Vector(0f32, top as f32)),
 		Side::Bottom => ((location.0, location.1 - 1), Vector(0f32, -bottom as f32)),
 		Side::Left => ((location.0 + 1, location.1), Vector(left as f32, 0f32)),
 		Side::Right => ((location.0 - 1, location.1), Vector(-right as f32, 0f32))
 	};
-	if let CollisionType::Block =
+	
+	if let CollisionType::Block | CollisionType::OOB =
 		map.getScreen(map.getActiveScreenId()).unwrap().getTile(location).getCollisionType() {
 		Vector(0f32, 0f32)
 	}
+	
 	else {
 		eject
 	}
 }
-/*
-pub fn sharpBlockCollide(location: (u16, u16), position: Vector) -> Vector {
-	let ejectionDirection = Vector::fromPoints((location.0 as f32 * 50f32, location.1 as f32 * 50f32), position);
-	let (mut x, mut y) = (0f32, 0f32);
-	if ejectionDirection.0.abs() >= ejectionDirection.1.abs() {
-		x = (50f32 - ejectionDirection.0.abs()) * ejectionDirection.0.signum();
-	}
-	if ejectionDirection.0.abs() <= ejectionDirection.1.abs() {
-		y = (50f32 - ejectionDirection.1.abs()) * ejectionDirection.1.signum();
-	}
-	Vector(x, y)
-}*/
 
 pub const MAX_TILE_IDX: u16 = 3;
-
-//unsafe impl SelfContained for Tile {}
-
-//impl Extend for Tile {}
 

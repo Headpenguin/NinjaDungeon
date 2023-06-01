@@ -2,6 +2,7 @@
 extern crate sdl2;
 
 use NinjaDungeon::{GameManager, GameContext, Player, loadMap};
+use NinjaDungeon::PO;
 
 use sdl2::pixels::Color;
 use sdl2::image::LoadTexture;
@@ -20,9 +21,9 @@ fn main()
 	
 	let mut map = loadMap("Resources/test2.mp", "Resources/Images/Map1.anim", &creator).unwrap();
 
-	let mut ctx = GameContext::new(map, &creator);
+	let mut po = PO::new(GameContext::new(map, &creator));
 
-	while manager.mainLoop(&mut ctx) {}
+	while manager.mainLoop(&mut po) {}
 
 }
 

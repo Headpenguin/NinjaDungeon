@@ -11,22 +11,11 @@ mod SignalsMod;
 pub use SignalsMod::{SignalsBuilder, Signals, Mapping};
 
 use crate::SpriteLoader::{Animations, Sprites};
-use crate::{Direction, Map, CollisionType, Vector, GameContext};
+use crate::{Direction, Map, CollisionType, Vector, GameContext, ID};
 use crate::Entities::Traits::{Collision, EntityTraitsWrappable, Entity};
-use crate::Entities::{BoxCode, RefCode, RefCodeMut};
+use crate::Entities::{BoxCode, RefCode, RefCodeMut, TypedID};
 use crate::EventProcessor::{CollisionMsg, Envelope, PO};
 use crate::MapMod;
-
-const NAMES: &'static[&'static str] = &[
-	"Ninja float",
-	"Ninja right float",
-	"Ninja left float",
-	"Ninja up float",
-	"Ninja attack",
-	"Ninja right attack",
-	"Ninja left attack",
-	"Ninja up attack",
-];
 
 const SWORD_FRAMES: &'static[&'static str] = &[
 	"Resources/Images/Sword__half.png",
@@ -42,6 +31,17 @@ const SWORD_RIGHT_COLLISION: (i32, i32, u32, u32) = (43, 5, 4, 16);
 const SWORD_LEFT_COLLISION: (i32, i32, u32, u32) = (3, 5, 4, 16);
 const SWORD_UP_COLLISION: (i32, i32, u32, u32) = (27, -10, 6, 27);
 
+const NAMES: &'static[&'static str] = &[
+	"Ninja float",
+	"Ninja right float",
+	"Ninja left float",
+	"Ninja up float",
+	"Ninja attack",
+	"Ninja right attack",
+	"Ninja left attack",
+	"Ninja up attack",
+];
+
 enum ANIMATION_IDX {
 	DownFloat = 0,
 	RightFloat,
@@ -54,6 +54,7 @@ enum ANIMATION_IDX {
 }
 
 pub struct Player<'a> {
+	id: TypedID<'a, Self>,
 	animations: Animations<'a>,
 	direction: Direction,
 	timer: u32,
@@ -116,7 +117,7 @@ impl<'a> Player<'a> {
 			BoxCode::Player(
 				Box::new(
 					Entity::new(
-						Player {animations, direction, velocity, position, timer, idle, hitbox, renderPosition, attackTimer, sword, attacking},
+						Player {id: TypedID::new(ID::empty()), animations, direction, velocity, position, timer, idle, hitbox, renderPosition, attackTimer, sword, attacking},
 						PlayerData {
 							nextPos: position,
 						},
@@ -126,16 +127,18 @@ impl<'a> Player<'a> {
 		)
     }
 
-	fn updatePositions(&mut self) {		
+	pub fn updatePositions(&mut self, po: &PO) {		
 		self.renderPosition.reposition(self.position);
+		let prevHitbox = self.hitbox;
 		self.hitbox.reposition(self.position + Vector(2f32, 2f32));
+		po.updatePosition(self.id.getID(), prevHitbox, self.hitbox);
 	}
 
-	pub fn transition(&mut self, map: &mut Map) {
-		if let Some(hitbox) = map.transitionScreen(self.hitbox) {
+	pub fn transition(&mut self, po: &mut PO) {
+		if let Some(hitbox) = po.getCtx().getMapMut().transitionScreen(self.hitbox) {
 			let point: (i32, i32) = hitbox.top_left().into();
 			self.position = Vector::from(point);
-			self.updatePositions();
+			self.updatePositions(po);
 		}
 
 	}
@@ -198,11 +201,14 @@ impl<'a> Collision for Player<'a> {
 
 impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 	type Data = PlayerData;
-	fn mapCodeMut(code: RefCodeMut<'a>) -> Option<&'a mut Self> {
+	fn setID(&mut self, id: TypedID<'a, Self>) {
+		self.id = id;
+	}
+	fn mapCodeMut<'b>(code: RefCodeMut<'a, 'b>) -> Option<&'b mut Self> {
 		if let RefCodeMut::Player(p) = code {Some(p as &mut Self)}
 		else {None}
 	}
-	fn mapCode(code: RefCode<'a>) -> Option<&'a Self> {
+	fn mapCode<'b>(code: RefCode<'a, 'b>) -> Option<&'b Self> {
 		if let RefCode::Player(p) = code {Some(p as &Self)}
 		else {None}
 	}
@@ -213,9 +219,9 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 		} else {self.position};
 		data.doCollision(self, ctx.getMap());
 	}
-	fn update(&mut self, data: &Self::Data, _po: &PO) {
+	fn update(&mut self, data: &Self::Data, po: &PO) {
 		self.position = data.nextPos;
-		self.updatePositions();
+		self.updatePositions(po);
 
 
 		if self.idle{match self.direction {
