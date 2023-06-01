@@ -29,6 +29,7 @@ use std::fs::File;
 use std::i32;
 use std::str::FromStr;
 use std::hash::{Hasher, Hash};
+use std::cell::UnsafeCell;
 //use std::collections::BinaryHeap;
 
 mod PlayerMod;
@@ -67,6 +68,8 @@ const MISSING_GLOBAL: &str = "Missing global";*/
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct ID(u64);
 
+const ID_MASK: u64 = 0xffffffffffffff00;
+
 impl Hash for ID {
 	fn hash<H>(&self, hasher: &mut H) where H: Hasher {
 		hasher.write_u64(self.0);
@@ -81,13 +84,16 @@ impl ID {
 		ID(u64::MAX)
 	}
 	pub fn getID(&self) -> u64 {
-		(self.0 & 0xffffffffffffff00) >> 8
+		(self.0 & ID_MASK) >> 8
 	}
 	pub fn getSubID(&self) -> u8 {
 		(self.0 & 0xff) as u8
 	}
 	pub fn isEmpty(&self) -> bool {
 		self.0 == u64::MAX
+	}
+	pub fn mask(&self) -> ID {
+		ID(self.0 & ID_MASK)
 	}
 }
 
@@ -167,7 +173,7 @@ impl GameManager {
 	}
 	
 	#[inline(always)]
-	pub fn mainLoop<'a, 'b>(&mut self, po: &'b mut PO<'a>) -> bool {
+	pub fn mainLoop<'a, 'b>(&mut self, po: &'b mut UnsafeCell<PO<'a>>) -> bool {
 		
 		self.canvas.clear();
 		
@@ -178,19 +184,29 @@ impl GameManager {
 			signals.addEvent(&event);
 		}
 		
-		let ctx = po.getCtx();
+		let ctx = unsafe {po.get_mut().getCtxMut()};
 		let player = ctx.holder.getMutTyped(ctx.getPlayerID()).unwrap();
 		player.signal(signals.build(&self.events));
 //		player.transition(&mut po.getCtx()map);
-		po.transition();
-		
+//		po.get_mut().transition();
+
+		unsafe {
+			(&mut *po.get()).getCtxMut().getPlayerMut().transition((&mut *po.get()).getCtxMut());
+		}
 		
 
-		unsafe {po.update(&self.scheduler);}
-		po.getCtx().map.update();
+		unsafe {
+			Scheduler::tick(po.get_mut().getCtxMut());
+			self.scheduler.execute(po, |id| (&mut *(&*po.get()).getCtx().getHolder().getEntityDyn(id).unwrap()).getData(&*po.get()));
+			po.get_mut().getCtxMut().resetCollisionLists();
+			self.scheduler.execute(po, |id| (&mut *(&*po.get()).getCtx().getHolder().getEntityDyn(id).unwrap()).update(&mut *po.get()) );
+		}
+		unsafe {
+			po.get_mut().getCtxMut().map.update();
 
-		po.getCtx().map.draw(&mut self.canvas, self.screenPos);
-		unsafe { self.scheduler.draw(po.getCtx(), &mut self.canvas) ;}
+			po.get_mut().getCtxMut().map.draw(&mut self.canvas, self.screenPos);
+		}
+		unsafe { self.scheduler.draw(po.get_mut().getCtx(), &mut self.canvas) ;}
 		
 		self.canvas.present();
 		

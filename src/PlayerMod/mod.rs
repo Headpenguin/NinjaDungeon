@@ -127,18 +127,25 @@ impl<'a> Player<'a> {
 		)
     }
 
-	pub fn updatePositions(&mut self, po: &PO) {		
+	pub fn updatePositions(&mut self, po: &mut PO) {		
 		self.renderPosition.reposition(self.position);
 		let prevHitbox = self.hitbox;
 		self.hitbox.reposition(self.position + Vector(2f32, 2f32));
 		po.updatePosition(self.id.getID(), prevHitbox, self.hitbox);
 	}
 
-	pub fn transition(&mut self, po: &mut PO) {
-		if let Some(hitbox) = po.getCtx().getMapMut().transitionScreen(self.hitbox) {
+	pub fn updatePositionsCtx(&mut self, ctx: &mut GameContext) {
+		self.renderPosition.reposition(self.position);
+		let prevHitbox = self.hitbox;
+		self.hitbox.reposition(self.position + Vector(2f32, 2f32));
+		ctx.updatePosition(self.id.getID(), prevHitbox, self.hitbox);
+	}
+
+	pub fn transition(&mut self, ctx: &mut GameContext) {
+		if let Some(hitbox) = ctx.getMapMut().transitionScreen(self.hitbox) {
 			let point: (i32, i32) = hitbox.top_left().into();
 			self.position = Vector::from(point);
-			self.updatePositions(po);
+			self.updatePositionsCtx(ctx);
 		}
 
 	}
@@ -212,14 +219,14 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 		if let RefCode::Player(p) = code {Some(p as &Self)}
 		else {None}
 	}
-	fn getData(&self, data: &mut Self::Data, ctx: &GameContext) {
+	fn getData(&self, data: &mut Self::Data, po: &PO) {
 		//data.transition = ctx.getMap().transitionScreen(self.hitbox);
 		data.nextPos = if self.idle {
 			self.position + self.velocity
 		} else {self.position};
-		data.doCollision(self, ctx.getMap());
+		data.doCollision(self, po.getCtx().getMap());
 	}
-	fn update(&mut self, data: &Self::Data, po: &PO) {
+	fn update(&mut self, data: &Self::Data, po: &mut PO) {
 		self.position = data.nextPos;
 		self.updatePositions(po);
 

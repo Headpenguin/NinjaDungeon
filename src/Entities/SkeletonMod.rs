@@ -95,7 +95,7 @@ impl<'a> Skeleton<'a> {
 			)
 		))
 	}
-	fn updatePositions(&mut self, po: &PO) {
+	fn updatePositions(&mut self, po: &mut PO) {
 		self.renderPositionTop.reposition(self.position);
 		self.renderPositionBottom.reposition(self.position + Vector(0f32, 50f32));
 		let prevHitbox = self.hitbox;
@@ -121,19 +121,19 @@ impl<'a> EntityTraitsWrappable<'a> for Skeleton<'a> {
 		if let RefCode::Skeleton(s) = code {Some(s as &Self)}
 		else {None}
 	}
-	fn getData(&self, data: &mut Self::Data, ctx: &GameContext) {
+	fn getData(&self, data: &mut Self::Data, po: &PO) {
 		if !self.idle {
-			let player = ctx.getHolder().getTyped(ctx.getPlayerID()).unwrap();
+			let player = po.getCtx().getHolder().getTyped(po.getCtx().getPlayerID()).unwrap();
 			let playerDirection = Vector::fromPoints(self.position, player.getPosition());
 			data.nextPos = self.position + playerDirection.normalizeOrZero() * 3.5f32;
-			data.doCollision(self, ctx);
+			data.doCollision(self, po.getCtx());
 		}
 		else {
 			data.nextPos = self.position;
 		}
 
 	}
-	fn update(&mut self, data: &Self::Data, po: &PO) {
+	fn update(&mut self, data: &Self::Data, po: &mut PO) {
 		self.position = data.nextPos;
 		self.updatePositions(po);
 

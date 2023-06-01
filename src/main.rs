@@ -7,6 +7,8 @@ use NinjaDungeon::PO;
 use sdl2::pixels::Color;
 use sdl2::image::LoadTexture;
 
+use std::cell::UnsafeCell;
+
 const WIDTH: u32 = 17*50;
 const HEIGHT: u32 = 12*50;
 
@@ -21,7 +23,7 @@ fn main()
 	
 	let mut map = loadMap("Resources/test2.mp", "Resources/Images/Map1.anim", &creator).unwrap();
 
-	let mut po = PO::new(GameContext::new(map, &creator));
+	let mut po = UnsafeCell::new(PO::new(GameContext::new(map, &creator)));
 
 	while manager.mainLoop(&mut po) {}
 

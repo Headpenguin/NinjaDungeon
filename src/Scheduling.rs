@@ -1,13 +1,14 @@
 use sdl2::render::Canvas;
 use sdl2::video::Window;
 use std::iter::Iterator;
-use crate::{GameContext, ID};
+use std::cell::UnsafeCell;
+use crate::{GameContext, ID, PO};
 pub struct Scheduler{}
 impl Scheduler {
 	pub fn new() -> Scheduler {Scheduler{}}
-	pub unsafe fn execute<'a, 'b: 'a, F>(&self, ctx: &'a GameContext<'b>, f: F) where
+	pub unsafe fn execute<'a, 'b: 'a, F>(&self, po: &UnsafeCell<PO<'b>>, f: F) where
 	F: FnMut(ID) {
-		ctx.entityIter().filter_map(|kv| {
+		(&mut *po.get()).getCtx().entityIter().filter_map(|kv| {
 			if kv.1.needsExecution() {
 				Some(kv.0)
 			}

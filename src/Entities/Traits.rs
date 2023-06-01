@@ -19,8 +19,8 @@ pub trait EntityTraitsWrappable<'a> : EntityTraits where Self: Sized {
 	type Data;
 	fn mapCodeMut<'b>(code: RefCodeMut<'a, 'b>) -> Option<&'b mut Self>;
 	fn mapCode<'b>(code: RefCode<'a, 'b>) -> Option<&'b Self>;
-	fn getData(&self, data: &mut Self::Data, ctx: &GameContext);
-	fn update(&mut self, data: &Self::Data, po: &PO);
+	fn getData(&self, data: &mut Self::Data, po: &PO);
+	fn update(&mut self, data: &Self::Data, po: &mut PO);
 	fn needsExecution(&self) -> bool;
 	fn tick(&mut self);
 	fn draw(&self, canvas: &mut Canvas<Window>);
@@ -54,8 +54,8 @@ impl<'a, T: EntityTraitsWrappable<'a>> Entity<'a, T> {
 }
 
 pub trait EntityDyn {
-	fn getData(&mut self, ctx: &GameContext);
-	fn update(&mut self, po: &PO);
+	fn getData(&mut self, ctx: &PO);
+	fn update(&mut self, po: &mut PO);
 	fn getInner(&self) -> &dyn EntityTraits;
 	fn getInnerMut(&mut self) -> &mut dyn EntityTraits;
 	fn needsExecution(&self) -> bool;
@@ -64,10 +64,10 @@ pub trait EntityDyn {
 }
 
 impl<'a, T: EntityTraitsWrappable<'a>> EntityDyn for Entity<'a, T> {
-	fn getData(&mut self, ctx: &GameContext) {
-		self.entity.getData(&mut self.data, ctx);
+	fn getData(&mut self, po: &PO) {
+		self.entity.getData(&mut self.data, po);
 	}
-	fn update(&mut self, po: &PO) {
+	fn update(&mut self, po: &mut PO) {
 		self.entity.update(&self.data, po);
 	}
 	fn getInnerMut(&mut self) -> &mut dyn EntityTraits {

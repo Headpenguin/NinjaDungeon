@@ -9,7 +9,7 @@ use crate::Scheduling::Scheduler;
 use sdl2::rect::Rect;
 
 pub struct PO<'a> {
-	ctx: UnsafeCell<GameContext<'a>>,
+	ctx: GameContext<'a>,
 }
 
 struct Subscriber;
@@ -36,21 +36,21 @@ impl Envelope<CollisionMsg> {
 impl<'a> PO<'a> {
 	pub fn new(ctx: GameContext) -> PO {
 		PO{
-			ctx: UnsafeCell::new(ctx),
+			ctx,
 		}
 	}
-	pub fn getCtx<'b>(&'b mut self) -> &'b mut GameContext<'a> {
-		self.ctx.get_mut()
+	pub unsafe fn getCtxMut<'b>(&'b mut self) -> &'b mut GameContext<'a> {
+		&mut self.ctx
 	}
+	pub fn getCtx<'b>(&'b self) -> &'b GameContext<'a> {
+		&self.ctx
+	}
+	//pub fn 
 	pub unsafe fn update(&mut self, scheduler: &Scheduler) {
-		Scheduler::tick(self.ctx.get_mut());
-		scheduler.execute(&*self.ctx.get(), |id| (&mut *(&*self.ctx.get()).getHolder().getEntityDyn(id).unwrap()).getData(&*self.ctx.get()));
-		self.ctx.get_mut().resetCollisionLists();
-		scheduler.execute(&*self.ctx.get(), |id| (&mut *(&*self.ctx.get_mut()).getHolder().getEntityDyn(id).unwrap()).update(self) );
 	}
 	pub fn sendCollisionMsg(&self, holder: &mut Holder, msg: Envelope<CollisionMsg>) -> bool {
 		unsafe {
-			if let Some(recv) = holder.getMut(msg.recv) {
+			if let Some(recv) = holder.getMut(msg.recv.mask()) {
 				msg.send(&mut *recv);
 				true
 			}
@@ -58,11 +58,8 @@ impl<'a> PO<'a> {
 		}
 	}
 
-	pub fn updatePosition(&self, id: ID, hitbox: Rect, prevHitbox: Rect) {
-		unsafe {&mut *self.ctx.get()}.updatePosition(id, hitbox, prevHitbox);
-	}
-	pub fn transition(&mut self) {
-		unsafe { (&mut *self.ctx.get()).getPlayerMut().transition(self); }
+	pub fn updatePosition(&mut self, id: ID, hitbox: Rect, prevHitbox: Rect) {
+		self.ctx.updatePosition(id, hitbox, prevHitbox);
 	}
 }
 
