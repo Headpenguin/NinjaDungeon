@@ -65,7 +65,7 @@ use Scheduling::Scheduler;
 const SYNTAX_ERROR: &str = "Lua scripts contain an error";
 const MISSING_GLOBAL: &str = "Missing global";*/
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct ID(u64);
 
 const ID_MASK: u64 = 0xffffffffffffff00;

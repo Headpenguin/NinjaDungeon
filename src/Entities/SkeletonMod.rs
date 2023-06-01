@@ -44,7 +44,7 @@ pub struct Skeleton<'a> {
 	idle: bool,
 	hitbox: Rect,
 	iframeCounter: u32,
-	health: u32,
+	health: i32,
 }
 
 pub struct SkeletonData {
@@ -105,7 +105,18 @@ impl<'a> Skeleton<'a> {
 }
 
 impl<'a> Collision for Skeleton<'a> {
-	fn collide(&mut self, msg: Envelope<CollisionMsg>) {}
+	fn collide(&mut self, msg: Envelope<CollisionMsg>) {
+		match msg.getMsg() {
+			CollisionMsg::Damage(damage) => {
+				if self.iframeCounter == 0 {
+					self.health -= damage;
+					self.iframeCounter = 90;
+					self.animationsBottom.changeAnimation(ANIMATION_IDX_BOTTOM::Idle as usize);
+					self.idle = true;
+				}
+			},
+		}
+	}
 }
 
 impl<'a> EntityTraitsWrappable<'a> for Skeleton<'a> {
@@ -147,13 +158,17 @@ impl<'a> EntityTraitsWrappable<'a> for Skeleton<'a> {
 				self.animationsBottom.changeAnimation(ANIMATION_IDX_BOTTOM::Walk0 as usize);
 			}
 		}
+		if self.iframeCounter > 0 {self.iframeCounter -= 1;}
+		self.idle = self.iframeCounter != 0;
 			
 	}
 	fn needsExecution(&self) -> bool {true}
 	fn tick(&mut self) {}
 	fn draw(&self, canvas: &mut Canvas<Window>) {
-		self.animationsTop.drawNextFrame(canvas, self.renderPositionTop);
-		self.animationsBottom.drawNextFrame(canvas, self.renderPositionBottom);
+		if self.iframeCounter / 10 % 2 != 1 {
+			self.animationsTop.drawNextFrame(canvas, self.renderPositionTop);
+			self.animationsBottom.drawNextFrame(canvas, self.renderPositionBottom);
+		}
 	}
 }
 

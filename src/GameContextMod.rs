@@ -57,9 +57,10 @@ impl<'a> GameContext<'a> {
 			if !tmp.isEmpty() && Self::getCollisionListInternal(&self.collisionCandidates, id).find(|e| e.1.id == tmp.id).is_none() {
 				self.collisionCandidates.push((entry, *tmp));
 				let length = Self::getCollisionListInternal(&self.collisionCandidates, tmp.id).enumerate().last().map(|e| e.0 + 1).unwrap_or(0) + self.collisionCandidates.len();
+				let prevLength = self.collisionCandidates.len();
 				self.collisionCandidates.resize(length, (EntityHitbox::empty(), EntityHitbox::empty()));
 				{
-					let (candidates, empty) = self.collisionCandidates.split_at_mut(length);
+					let (candidates, empty) = self.collisionCandidates.split_at_mut(prevLength);
 					let mut iter = Self::getCollisionListInternal(candidates, tmp.id).map(|e| (entry, e.1));
 					empty.fill_with(|| iter.next().unwrap());
 				}

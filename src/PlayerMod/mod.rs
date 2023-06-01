@@ -27,8 +27,8 @@ const SWORD_LEFT: (i32, i32, u32, u32) = (-10, 5, 30, 30);
 const SWORD_UP: (i32, i32, u32, u32) = (0, -10, 50, 50);
 
 const SWORD_DOWN_COLLISION: (i32, i32, u32, u32) = (23, 43, 4, 16);
-const SWORD_RIGHT_COLLISION: (i32, i32, u32, u32) = (43, 5, 4, 16);
-const SWORD_LEFT_COLLISION: (i32, i32, u32, u32) = (3, 5, 4, 16);
+const SWORD_RIGHT_COLLISION: (i32, i32, u32, u32) = (49, 5, 11, 16);
+const SWORD_LEFT_COLLISION: (i32, i32, u32, u32) = (-10, 5, 11, 16);
 const SWORD_UP_COLLISION: (i32, i32, u32, u32) = (27, -10, 6, 27);
 
 const NAMES: &'static[&'static str] = &[
@@ -104,6 +104,13 @@ impl PlayerData {
 			}
 		}
 	}
+	fn doEntityCollision(&mut self, player: &Player, po: &PO) {
+		//Sword
+		for id in po.getCtx().getCollisionList(player.id.getID().sub(1)) {
+			po.sendCollisionMsg(Envelope::new(CollisionMsg::Damage(5), id, player.id.getID().sub(1)));
+			println!("{:?}", id);
+		}
+	}
 }
 
 impl<'a> Player<'a> {
@@ -149,7 +156,7 @@ impl<'a> Player<'a> {
 		self.renderPosition.reposition(self.position);
 		let prevHitbox = self.hitbox;
 		self.hitbox.reposition(self.position + Vector(2f32, 2f32));
-		po.updatePosition(self.id.getID(), prevHitbox, self.hitbox);
+		//po.updatePosition(self.id.getID(), prevHitbox, self.hitbox);
 		if self.attacking || self.attackTimer > 0 {
 			let swordBox = self.getSwordCollision();
 			po.updatePosition(self.id.getID().sub(1), relTupleToRect(swordBox, prevHitbox.top_left().into()), relTupleToRect(swordBox, self.hitbox.top_left().into()));
@@ -256,6 +263,7 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 			self.position + self.velocity
 		} else {self.position};
 		data.doCollision(self, po.getCtx().getMap());
+		data.doEntityCollision(self, po);
 	}
 	fn update(&mut self, data: &Self::Data, po: &mut PO) {
 		self.position = data.nextPos;

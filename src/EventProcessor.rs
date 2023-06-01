@@ -26,6 +26,14 @@ pub struct Envelope<T> {
 }
 
 impl<T> Envelope<T> {
+	pub fn new(letter: T, recv: ID, sender: ID) -> Envelope<T> {
+		Envelope {
+			priority: 0,
+			letter,
+			recv,
+			sender,
+		}
+	}
 	pub fn getMsg(&self) -> &T {return &self.letter;}
 	pub fn getSender(&self) -> ID {return self.sender;}
 }
@@ -46,11 +54,9 @@ impl<'a> PO<'a> {
 		&self.ctx
 	}
 	//pub fn 
-	pub unsafe fn update(&mut self, scheduler: &Scheduler) {
-	}
-	pub fn sendCollisionMsg(&self, holder: &mut Holder, msg: Envelope<CollisionMsg>) -> bool {
+	pub fn sendCollisionMsg(&self, msg: Envelope<CollisionMsg>) -> bool {
 		unsafe {
-			if let Some(recv) = holder.getMut(msg.recv.mask()) {
+			if let Some(recv) = self.getCtx().getHolder().getMut(msg.recv.mask()) {
 				msg.send(&mut *recv);
 				true
 			}
