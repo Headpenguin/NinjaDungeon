@@ -61,6 +61,9 @@ impl<'a> PO<'a> {
 	pub fn updatePosition(&mut self, id: ID, hitbox: Rect, prevHitbox: Rect) {
 		self.ctx.updatePosition(id, hitbox, prevHitbox);
 	}
+	pub fn removeCollision(&mut self, id: ID, hitbox: Rect) {
+		self.ctx.removeCollision(id, hitbox);
+	}
 }
 
 pub struct SubscriberList {

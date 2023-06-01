@@ -48,11 +48,7 @@ impl<'a> GameContext<'a> {
 	}
 	
 	pub fn updatePosition<'b>(&'b mut self, id: ID, hitbox: Rect, prevHitbox: Rect) {
-		let iter = self.map.calculateCollisionBounds(prevHitbox);
-		for location in iter {
-			let tmp = self.collision.indexMut(location.1 as usize, location.0 as usize);
-			if tmp.id == id {*tmp = EntityHitbox::empty();}
-		}
+		self.removeCollision(id, prevHitbox);
 
 		let iter = self.map.calculateCollisionBounds(hitbox);
 		let entry = EntityHitbox {id, hitbox};
@@ -72,6 +68,13 @@ impl<'a> GameContext<'a> {
 				self.collisionCandidates.push((*tmp, entry));
 			}
 			*tmp = entry;
+		}
+	}
+	pub fn removeCollision(&mut self, id: ID, hitbox: Rect) {
+		let iter = self.map.calculateCollisionBounds(hitbox);
+		for location in iter {
+			let tmp = self.collision.indexMut(location.1 as usize, location.0 as usize);
+			if tmp.id == id {*tmp = EntityHitbox::empty();}
 		}
 	}
 	fn getCollisionListInternal<'b>(candidates: &'b [(EntityHitbox, EntityHitbox)], id: ID) -> impl Iterator<Item=(EntityHitbox, EntityHitbox)> + 'b {

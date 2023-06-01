@@ -42,6 +42,15 @@ const NAMES: &'static[&'static str] = &[
 	"Ninja up attack",
 ];
 
+fn relTupleToRect(tuple: (i32, i32, u32, u32), position: (i32, i32)) -> Rect {
+	Rect::new(
+		tuple.0 + position.0,
+		tuple.1 + position.1,
+		tuple.2,
+		tuple.3
+	)
+}
+
 enum ANIMATION_IDX {
 	DownFloat = 0,
 	RightFloat,
@@ -127,11 +136,24 @@ impl<'a> Player<'a> {
 		)
     }
 
-	pub fn updatePositions(&mut self, po: &mut PO) {		
+	fn getSwordCollision(&self) -> (i32, i32, u32, u32) {
+		match self.direction {
+			Direction::Up => SWORD_UP_COLLISION,
+			Direction::Down => SWORD_DOWN_COLLISION,
+			Direction::Left => SWORD_LEFT_COLLISION,
+			Direction::Right => SWORD_RIGHT_COLLISION
+		}
+	}
+
+	pub fn updatePositionsPO(&mut self, po: &mut PO) {		
 		self.renderPosition.reposition(self.position);
 		let prevHitbox = self.hitbox;
 		self.hitbox.reposition(self.position + Vector(2f32, 2f32));
 		po.updatePosition(self.id.getID(), prevHitbox, self.hitbox);
+		if self.attacking || self.attackTimer > 0 {
+			let swordBox = self.getSwordCollision();
+			po.updatePosition(self.id.getID().sub(1), relTupleToRect(swordBox, prevHitbox.top_left().into()), relTupleToRect(swordBox, self.hitbox.top_left().into()));
+		}
 	}
 
 	pub fn updatePositionsCtx(&mut self, ctx: &mut GameContext) {
@@ -139,6 +161,15 @@ impl<'a> Player<'a> {
 		let prevHitbox = self.hitbox;
 		self.hitbox.reposition(self.position + Vector(2f32, 2f32));
 		ctx.updatePosition(self.id.getID(), prevHitbox, self.hitbox);
+		if self.attacking || self.attackTimer > 0 {
+			let swordBox = match self.direction {
+				Direction::Up => SWORD_UP_COLLISION,
+				Direction::Down => SWORD_DOWN_COLLISION,
+				Direction::Left => SWORD_LEFT_COLLISION,
+				Direction::Right => SWORD_RIGHT_COLLISION
+			};
+			ctx.updatePosition(self.id.getID().sub(1), relTupleToRect(swordBox, prevHitbox.top_left().into()), relTupleToRect(swordBox, self.hitbox.top_left().into()));
+		}
 	}
 
 	pub fn transition(&mut self, ctx: &mut GameContext) {
@@ -228,7 +259,7 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 	}
 	fn update(&mut self, data: &Self::Data, po: &mut PO) {
 		self.position = data.nextPos;
-		self.updatePositions(po);
+		self.updatePositionsPO(po);
 
 
 		if self.idle{match self.direction {
@@ -255,7 +286,10 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 			};
 			// Add attack code here
 		}
-		self.idle = !self.attacking && self.attackTimer == 0;
+		if !self.idle && !self.attacking && self.attackTimer == 0 {
+			po.removeCollision(self.id.getID().sub(1), relTupleToRect(self.getSwordCollision(), self.hitbox.top_left().into()));
+			self.idle = true;
+		}
 	}
 	fn needsExecution(&self) -> bool {true}
 	fn tick(&mut self) {}

@@ -80,6 +80,9 @@ impl ID {
 	pub fn new(id: u64, subID: u8) -> ID {
 		ID((id << 8) + subID as u64)
 	}
+	pub fn sub(&self, subID: u8) -> ID {
+		ID((self.0 & ID_MASK) + subID as u64)
+	}
 	pub fn empty() -> ID {
 		ID(u64::MAX)
 	}
