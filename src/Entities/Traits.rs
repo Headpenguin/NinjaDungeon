@@ -8,7 +8,7 @@ use crate::GameContext;
 use std::ops::{Deref, DerefMut};
 
 pub trait Collision {
-	fn collide(&mut self, _msg: Envelope<CollisionMsg>) {}
+	fn collide(&mut self, _msg: Envelope<CollisionMsg>, _po: &PO) {}
 }
 
 pub trait EntityTraits : Collision {}

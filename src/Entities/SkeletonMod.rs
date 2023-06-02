@@ -76,7 +76,7 @@ impl<'a> Skeleton<'a> {
 			Vector(position.0, position.1),
 			false,
 			0,
-			0,
+			10,
 		);
 
 		let animationsTop = Animations::new("Resources/Images/Skeleton_top.anim", NAMES_TOP, creator)?;
@@ -105,7 +105,7 @@ impl<'a> Skeleton<'a> {
 }
 
 impl<'a> Collision for Skeleton<'a> {
-	fn collide(&mut self, msg: Envelope<CollisionMsg>) {
+	fn collide(&mut self, msg: Envelope<CollisionMsg>, po: &PO) {
 		match msg.getMsg() {
 			CollisionMsg::Damage(damage) => {
 				if self.iframeCounter == 0 {
@@ -145,6 +145,13 @@ impl<'a> EntityTraitsWrappable<'a> for Skeleton<'a> {
 
 	}
 	fn update(&mut self, data: &Self::Data, po: &mut PO) {
+		
+		if self.health <= 0 {
+			po.addToPurgeList(self.id.getID());
+			po.removeCollision(self.id.getID(), self.hitbox);
+			return;
+		}
+
 		self.position = data.nextPos;
 		self.updatePositions(po);
 

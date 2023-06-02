@@ -108,7 +108,6 @@ impl PlayerData {
 		//Sword
 		for id in po.getCtx().getCollisionList(player.id.getID().sub(1)) {
 			po.sendCollisionMsg(Envelope::new(CollisionMsg::Damage(5), id, player.id.getID().sub(1)));
-			println!("{:?}", id);
 		}
 	}
 }
@@ -241,7 +240,7 @@ impl<'a> Player<'a> {
 }
 
 impl<'a> Collision for Player<'a> {
-	fn collide(&mut self, msg: Envelope<CollisionMsg>) {}
+	fn collide(&mut self, msg: Envelope<CollisionMsg>, po: &PO) {}
 }
 
 impl<'a> EntityTraitsWrappable<'a> for Player<'a> {

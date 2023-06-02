@@ -210,6 +210,7 @@ impl GameManager {
 			po.get_mut().getCtxMut().map.draw(&mut self.canvas, self.screenPos);
 		}
 		unsafe { self.scheduler.draw(po.get_mut().getCtx(), &mut self.canvas) ;}
+		unsafe {po.get_mut().purge();}
 		
 		self.canvas.present();
 		

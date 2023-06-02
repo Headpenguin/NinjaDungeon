@@ -117,7 +117,7 @@ impl<'a> Holder<'a> {
 		self.currentId += 1;	
 		true
 	}
-	pub unsafe fn remove(&'a mut self, id: ID) -> Option<BoxCode<'a>> {
+	pub unsafe fn remove<'b>(&'b mut self, id: ID) -> Option<BoxCode<'a>> {
 		self.entities.remove(&id).map(|x| x.into_inner())
 	}
 	pub unsafe fn iter<'b>(&'b self) -> impl Iterator<Item=(ID, &'b (dyn EntityDyn + 'a))> {

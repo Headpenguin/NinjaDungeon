@@ -10,6 +10,7 @@ use sdl2::rect::Rect;
 
 pub struct PO<'a> {
 	ctx: GameContext<'a>,
+	purgeList: UnsafeCell<Vec<ID>>,
 }
 
 struct Subscriber;
@@ -38,13 +39,14 @@ impl<T> Envelope<T> {
 	pub fn getSender(&self) -> ID {return self.sender;}
 }
 impl Envelope<CollisionMsg> {
-	pub fn send(self, recv: &mut dyn EntityTraits) {recv.collide(self);}
+	pub fn send(self, recv: &mut dyn EntityTraits, po: &PO) {recv.collide(self, po);}
 }
 
 impl<'a> PO<'a> {
 	pub fn new(ctx: GameContext) -> PO {
 		PO{
 			ctx,
+			purgeList: UnsafeCell::new(vec![]),
 		}
 	}
 	pub unsafe fn getCtxMut<'b>(&'b mut self) -> &'b mut GameContext<'a> {
@@ -57,7 +59,7 @@ impl<'a> PO<'a> {
 	pub fn sendCollisionMsg(&self, msg: Envelope<CollisionMsg>) -> bool {
 		unsafe {
 			if let Some(recv) = self.getCtx().getHolder().getMut(msg.recv.mask()) {
-				msg.send(&mut *recv);
+				msg.send(&mut *recv, self);
 				true
 			}
 			else {false}
@@ -69,6 +71,15 @@ impl<'a> PO<'a> {
 	}
 	pub fn removeCollision(&mut self, id: ID, hitbox: Rect) {
 		self.ctx.removeCollision(id, hitbox);
+	}
+	pub fn addToPurgeList(&self, id: ID) {
+		unsafe {&mut *self.purgeList.get()}.push(id);
+	}
+	pub unsafe fn purge(&mut self) {
+		for id in self.purgeList.get_mut() {
+			self.ctx.getHolderMut().remove(*id);
+		}
+		self.purgeList.get_mut().clear();
 	}
 }
 
