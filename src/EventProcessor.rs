@@ -8,6 +8,16 @@ use crate::Scheduling::Scheduler;
 
 use sdl2::rect::Rect;
 
+pub struct Key {
+	lock: (),
+}
+
+impl Key {
+	pub unsafe fn new() -> Key {
+		Key{lock: ()}
+	}
+}
+
 pub struct PO<'a> {
 	ctx: GameContext<'a>,
 	purgeList: UnsafeCell<Vec<ID>>,
@@ -77,9 +87,12 @@ impl<'a> PO<'a> {
 	}
 	pub unsafe fn purge(&mut self) {
 		for id in self.purgeList.get_mut() {
-			self.ctx.getHolderMut().remove(*id);
+			self.ctx.removeEntity(*id).unwrap();
 		}
 		self.purgeList.get_mut().clear();
+	}
+	pub fn getEntity<'b>(&'b self, id: ID, key: Key) -> (Option<&'b (dyn EntityTraits + 'a)>, Key) {
+		unsafe { (self.ctx.getHolder().get(id), key) }
 	}
 }
 

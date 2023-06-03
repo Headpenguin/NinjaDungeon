@@ -1,4 +1,4 @@
-//use std::ptr::addr_of_mut;
+use std::collections::HashSet;
 
 use sdl2::render::Canvas;
 use sdl2::video::Window;
@@ -11,7 +11,8 @@ use serde::{Serialize, Deserialize};
 
 use super::{Tile, TileRenderer, InnerMap, CollisionType};
 use super::TileMod;
-use crate::{Vec2d, Direction, Vector};
+use crate::{Vec2d, Direction, Vector, ID};
+use crate::IntHasher::UInt64Hasher;
 
 const TILE_DIVISOR: f32 = 1f32/50f32;
 
@@ -20,6 +21,7 @@ pub struct Screen {
 	width: u16,
 	height: u16,
 	tiles: Vec2d<Tile>,
+	entities: HashSet<u64, UInt64Hasher>,
 	position: (u32, u32),
 }
 
@@ -84,6 +86,7 @@ impl Screen {
 			height,
 			tiles: Vec2d::new(v, width as usize),
 			position,
+			entities: HashSet::default(),
 		}
 	}
 	pub fn containsPoint(&self, point: Point) -> bool {
@@ -103,6 +106,15 @@ impl Screen {
 			((self.position.1 as f32 - topLeft.y as f32) * scaleY) as i32, 
 			(self.width as f32 * scaleX) as u32, 
 			(self.height as f32 * scaleY) as u32)
+	}
+	pub fn addEntity(&mut self, id: ID) -> bool {
+		self.entities.insert(id.getID())
+	}
+	pub fn removeEntity(&mut self, id: ID) -> bool {
+		self.entities.remove(&id.getID())
+	}
+	pub fn getEntitiesIter<'a>(&'a self) -> impl Iterator<Item=ID> + 'a {
+		self.entities.iter().map(|id| ID::new(*id, 0))
 	}
 	pub fn iconDraw(&self, tileRenderer: &mut TileRenderer, canvas: &mut Canvas<Window>, location: Rect) {
 		let (xIncrement, yIncrement) = (location.width() as f32 / self.width as f32, location.height() as f32 / self.height as f32);
@@ -181,6 +193,7 @@ impl Default for Screen {
 			height: 0,
 			tiles: Vec2d::new(Vec::new(), 0),
 			position: (0, 0),
+			entities: HashSet::default(),
 		}
 	}
 }

@@ -65,16 +65,10 @@ use Scheduling::Scheduler;
 const SYNTAX_ERROR: &str = "Lua scripts contain an error";
 const MISSING_GLOBAL: &str = "Missing global";*/
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ID(u64);
 
 const ID_MASK: u64 = 0xffffffffffffff00;
-
-impl Hash for ID {
-	fn hash<H>(&self, hasher: &mut H) where H: Hasher {
-		hasher.write_u64(self.0);
-	}
-}
 
 impl ID {
 	pub fn new(id: u64, subID: u8) -> ID {
@@ -194,13 +188,17 @@ impl GameManager {
 //		po.get_mut().transition();
 
 		unsafe {
-			(&mut *po.get()).getCtxMut().getPlayerMut().transition((&mut *po.get()).getCtxMut());
+			if (&mut *po.get()).getCtxMut().getPlayerMut().transition((&mut *po.get()).getCtxMut()) {
+				//println!("dgf");
+				//po.get_mut().getCtxMut().resetCollisionLists();
+				po.get_mut().getCtxMut().disableEntityCollisionFrame();
+			}
 		}
 		
 
 		unsafe {
 			Scheduler::tick(po.get_mut().getCtxMut());
-			self.scheduler.execute(po, |id| (&mut *(&*po.get()).getCtx().getHolder().getEntityDyn(id).unwrap()).getData(&*po.get()));
+			self.scheduler.execute(po, |id| {(&mut *(&*po.get()).getCtx().getHolder().getEntityDyn(id).unwrap()).getData(&*po.get(), EventProcessor::Key::new());});
 			po.get_mut().getCtxMut().resetCollisionLists();
 			self.scheduler.execute(po, |id| (&mut *(&*po.get()).getCtx().getHolder().getEntityDyn(id).unwrap()).update(&mut *po.get()) );
 		}

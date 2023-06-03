@@ -20,6 +20,7 @@ pub use ScreenMod::*;
 
 use crate::SpriteLoader::Animations;
 use crate::IntHasher::USizeHasher;
+use crate::ID;
 
 #[derive(Serialize, Deserialize)]
 pub struct InnerMap {
@@ -50,6 +51,14 @@ impl<'a> Map<'a> {
 			inner: mapData,
 			renderer: TileRenderer::new(id, tileset, textureCreator)?,
 		})
+	}
+	pub fn addEntityActiveScreen(&mut self, id: ID) {
+		let activeScreen = self.activeScreen;
+		self.screens.get_mut(&activeScreen).unwrap().addEntity(id);
+	}
+	pub fn removeEntityActiveScreen(&mut self, id: ID) -> bool {
+		let activeScreen = self.activeScreen;
+		self.screens.get_mut(&activeScreen).unwrap().removeEntity(id)
 	}
 	pub fn draw(&mut self, canvas: &mut Canvas<Window>, topLeft: Point) {
 		self.inner.screens[&self.inner.activeScreen].draw(&mut self.renderer, canvas, topLeft);

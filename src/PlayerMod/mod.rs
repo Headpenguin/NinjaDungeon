@@ -14,12 +14,24 @@ use crate::SpriteLoader::{Animations, Sprites};
 use crate::{Direction, Map, CollisionType, Vector, GameContext, ID};
 use crate::Entities::Traits::{Collision, EntityTraitsWrappable, Entity};
 use crate::Entities::{BoxCode, RefCode, RefCodeMut, TypedID};
-use crate::EventProcessor::{CollisionMsg, Envelope, PO};
+use crate::EventProcessor::{CollisionMsg, Envelope, PO, Key};
 use crate::MapMod;
 
 const SWORD_FRAMES: &'static[&'static str] = &[
 	"Resources/Images/Sword__half.png",
 ];
+
+const HEALTH_FRAMES: &'static[&'static str] = &[
+	"Resources/Images/Health_full.png",
+	"Resources/Images/Health_half.png",
+	"Resources/Images/Health_empty.png",
+];
+
+enum HEALTH_IDX {
+	Full = 0,
+	Half,
+	Empty,
+}
 
 const SWORD_DOWN: (i32, i32, u32, u32) = (10, 43, 30, 30);
 const SWORD_RIGHT: (i32, i32, u32, u32) = (30, 5, 30, 30);
@@ -62,6 +74,7 @@ enum ANIMATION_IDX {
 	UpAttack,
 }
 
+#[derive(Debug)]
 pub struct Player<'a> {
 	id: TypedID<'a, Self>,
 	animations: Animations<'a>,
@@ -74,9 +87,12 @@ pub struct Player<'a> {
 	renderPosition: Rect,
 	attackTimer: u32,
 	attacking: bool,
+	health: i32,
+	iframes: u32,
 	sword: Sprites<'a>,
+	healthSprites: Sprites<'a>,
 }
-
+#[derive(Debug)]
 pub struct PlayerData {
 	//transition: Option<Rect>,
 	nextPos: Vector,
@@ -104,17 +120,30 @@ impl PlayerData {
 			}
 		}
 	}
-	fn doEntityCollision(&mut self, player: &Player, po: &PO) {
+	fn doEntityCollision(&mut self, player: &Player, po: &PO, mut key: Key) -> Key {
 		//Sword
-		for id in po.getCtx().getCollisionList(player.id.getID().sub(1)) {
+		for id in po.getCtx().getCollisionList(player.id.getID().sub(1)).filter(|id| id.mask() != player.id.getID().mask()) {
 			po.sendCollisionMsg(Envelope::new(CollisionMsg::Damage(5), id, player.id.getID().sub(1)));
 		}
+		for id in po.getCtx().getCollisionList(player.id.getID()).filter(|id| id.mask() != player.id.getID().mask()) {
+			//po.sendCollisionMsg(Envelope::new(CollisionMsg::Damage(5), id, player.id.getID().sub(1)));
+	//		println!("Player: {:?}", player.hitbox);
+			let res = po.getEntity(id.mask(), key);
+			key = res.1;
+			let entity = if let Some(entity) = res.0 {entity} else {panic!("{:?}", id)};
+			let res = entity.collideWith(player.id.getID(), po, key);
+			key = res.1;
+			if let Some(msg) = res.0 {
+				po.sendCollisionMsg(msg);
+			}
+		}
+		key
 	}
 }
 
 impl<'a> Player<'a> {
     pub fn new(creator: &'a TextureCreator<WindowContext>, positionX: f32, positionY: f32) -> io::Result<BoxCode<'a>> {
-        let (direction, velocity, position, timer, idle, attackTimer, attacking) = (
+        let (direction, velocity, position, timer, idle, attackTimer, attacking, health, iframes) = (
             Direction::Down, 
             Vector(0f32, 0f32), 
             Vector(positionX, positionY),
@@ -122,9 +151,12 @@ impl<'a> Player<'a> {
 			true,
 			0u32,
 			false,
+			50,
+			0,
         );
 		let animations = Animations::new("Resources/Images/Ninja.anim", NAMES, creator)?;
 		let sword = Sprites::new(creator, SWORD_FRAMES)?;
+		let healthSprites = Sprites::new(creator, HEALTH_FRAMES)?;
 		let renderPosition = Rect::new(positionX.round() as i32, positionY.round() as i32, 50, 50);
 		let hitbox = Rect::new(positionX.round() as i32 + 2, positionY as i32 + 2, 46, 46);
 
@@ -132,7 +164,7 @@ impl<'a> Player<'a> {
 			BoxCode::Player(
 				Box::new(
 					Entity::new(
-						Player {id: TypedID::new(ID::empty()), animations, direction, velocity, position, timer, idle, hitbox, renderPosition, attackTimer, sword, attacking},
+						Player {id: TypedID::new(ID::empty()), animations, direction, velocity, position, timer, idle, hitbox, renderPosition, attackTimer, sword, attacking, health, iframes, healthSprites},
 						PlayerData {
 							nextPos: position,
 						},
@@ -155,10 +187,10 @@ impl<'a> Player<'a> {
 		self.renderPosition.reposition(self.position);
 		let prevHitbox = self.hitbox;
 		self.hitbox.reposition(self.position + Vector(2f32, 2f32));
-		//po.updatePosition(self.id.getID(), prevHitbox, self.hitbox);
+		po.updatePosition(self.id.getID(), self.hitbox, prevHitbox);
 		if self.attacking || self.attackTimer > 0 {
 			let swordBox = self.getSwordCollision();
-			po.updatePosition(self.id.getID().sub(1), relTupleToRect(swordBox, prevHitbox.top_left().into()), relTupleToRect(swordBox, self.hitbox.top_left().into()));
+			po.updatePosition(self.id.getID().sub(1), relTupleToRect(swordBox, self.hitbox.top_left().into()), relTupleToRect(swordBox, prevHitbox.top_left().into()));
 		}
 	}
 
@@ -166,7 +198,7 @@ impl<'a> Player<'a> {
 		self.renderPosition.reposition(self.position);
 		let prevHitbox = self.hitbox;
 		self.hitbox.reposition(self.position + Vector(2f32, 2f32));
-		ctx.updatePosition(self.id.getID(), prevHitbox, self.hitbox);
+		ctx.updatePosition(self.id.getID(), self.hitbox, prevHitbox);
 		if self.attacking || self.attackTimer > 0 {
 			let swordBox = match self.direction {
 				Direction::Up => SWORD_UP_COLLISION,
@@ -174,16 +206,18 @@ impl<'a> Player<'a> {
 				Direction::Left => SWORD_LEFT_COLLISION,
 				Direction::Right => SWORD_RIGHT_COLLISION
 			};
-			ctx.updatePosition(self.id.getID().sub(1), relTupleToRect(swordBox, prevHitbox.top_left().into()), relTupleToRect(swordBox, self.hitbox.top_left().into()));
+			ctx.updatePosition(self.id.getID().sub(1), relTupleToRect(swordBox, self.hitbox.top_left().into()), relTupleToRect(swordBox, prevHitbox.top_left().into()));
 		}
 	}
 
-	pub fn transition(&mut self, ctx: &mut GameContext) {
+	pub fn transition(&mut self, ctx: &mut GameContext) -> bool {
 		if let Some(hitbox) = ctx.getMapMut().transitionScreen(self.hitbox) {
 			let point: (i32, i32) = hitbox.top_left().into();
 			self.position = Vector::from(point);
 			self.updatePositionsCtx(ctx);
+			true
 		}
+		else {false}
 
 	}
 
@@ -240,7 +274,19 @@ impl<'a> Player<'a> {
 }
 
 impl<'a> Collision for Player<'a> {
-	fn collide(&mut self, msg: Envelope<CollisionMsg>, po: &PO) {}
+	fn collide(&mut self, msg: Envelope<CollisionMsg>, po: &PO) {
+		match msg.getMsg() {
+			CollisionMsg::Damage(dmg) => {
+				if self.iframes == 0 {
+					self.health -= dmg;
+					self.iframes = 90;
+				}
+			},
+		};
+	}
+	fn collideWith(&self, other: ID, po: &PO, key: Key) -> (Option<Envelope<CollisionMsg>>, Key) {
+		(None, key)
+	}
 }
 
 impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
@@ -256,13 +302,13 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 		if let RefCode::Player(p) = code {Some(p as &Self)}
 		else {None}
 	}
-	fn getData(&self, data: &mut Self::Data, po: &PO) {
+	fn getData(&self, data: &mut Self::Data, po: &PO, key: Key) -> Key {
 		//data.transition = ctx.getMap().transitionScreen(self.hitbox);
 		data.nextPos = if self.idle {
 			self.position + self.velocity
 		} else {self.position};
 		data.doCollision(self, po.getCtx().getMap());
-		data.doEntityCollision(self, po);
+		data.doEntityCollision(self, po, key)
 	}
 	fn update(&mut self, data: &Self::Data, po: &mut PO) {
 		self.position = data.nextPos;
@@ -297,10 +343,28 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 			po.removeCollision(self.id.getID().sub(1), relTupleToRect(self.getSwordCollision(), self.hitbox.top_left().into()));
 			self.idle = true;
 		}
+		if self.iframes > 0 {self.iframes -= 1;}
 	}
 	fn needsExecution(&self) -> bool {true}
 	fn tick(&mut self) {}
 	fn draw(&self, canvas: &mut Canvas<Window>) {
+		let mut health = self.health;
+		let mut healthRect = Rect::new(15, 15, 15, 15);
+		for i in 0..5 {
+			if health >= 10 {
+				health -= 10;
+				self.healthSprites.getSprite(HEALTH_IDX::Full as usize)
+			}
+			else if health > 0 {
+				health -= 10;
+				self.healthSprites.getSprite(HEALTH_IDX::Half as usize)
+			}
+			else {
+				self.healthSprites.getSprite(HEALTH_IDX::Empty as usize)
+			}.draw(canvas, healthRect, false, false);
+			healthRect.reposition((healthRect.x() + 15, healthRect.y()));
+		}
+		if (self.iframes / 10) % 2 == 1 {return;}
 		if self.attacking || self.attackTimer > 0 {match self.direction {
 			Direction::Up => {
 				self.sword.getSprite(0).draw(canvas, Rect::new (

@@ -1,7 +1,7 @@
 use std::hash::{Hasher, BuildHasher};
 use std::default::Default;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct UInt64Hasher (u64);
 
 impl Hasher for UInt64Hasher {

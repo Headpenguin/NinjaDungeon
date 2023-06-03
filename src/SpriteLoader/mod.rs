@@ -8,6 +8,7 @@ use sdl2::video::{WindowContext, Window};
 use std::ops::Deref;
 use std::io::{self, ErrorKind, Error};
 use std::fs;
+use std::fmt::{Debug, Formatter};
 
 const MIRROR_PATTERN: &'static str = "__half";
 
@@ -23,6 +24,7 @@ fn loadSprites<'a, 'b> (creator: &'a TextureCreator<WindowContext>, filenames: &
     Ok(sprites)
 }
 
+#[derive(Debug)]
 pub struct Sprites<'a> {
     sprites: Vec<Sprite<'a>>,
 }
@@ -42,6 +44,7 @@ impl<'a> Sprites<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct Animations<'a> {
     animations: Vec<Animation<'a>>,
     activeAnimation: usize,
@@ -126,11 +129,13 @@ impl<'a> AnimationIter<'a> {
     }
 }*/
 
+#[derive(Debug)]
 pub enum Animation<'a> {
     Flip(FlipAnimation),
     Standard(StandardAnimation<'a>),
 }
 
+#[derive(Debug)]
 pub struct FlipAnimation {
     source: usize,
 }
@@ -143,7 +148,7 @@ impl FlipAnimation {
         self.source
     }
 }
-
+#[derive(Debug)]
 pub struct StandardAnimation<'a> {
     sprites: Sprites<'a>,
     frames: Vec<usize>,
@@ -211,7 +216,14 @@ impl<'a> Deref for StandardAnimation<'a> {
 }*/
 
 pub type Mirror = bool;
+
 pub struct Sprite<'a> (Texture<'a>, Mirror);
+
+impl<'a> Debug for Sprite<'a> {
+	fn fmt(&self, formatter: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+		formatter.write_fmt(format_args!("{:?}", self.1))
+	}
+}
 
 impl<'a> Sprite<'a> {
 	#[allow(unused_must_use)]

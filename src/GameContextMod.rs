@@ -3,8 +3,11 @@ use sdl2::render::TextureCreator;
 use sdl2::rect::Rect;
 
 use crate::{ID, Map, Player, Vec2d};
-use crate::Entities::{Holder, TypedID, Skeleton};
-use crate::Entities::Traits::EntityDyn;
+use crate::Entities::{Holder, TypedID, Skeleton, BoxCode};
+use crate::Entities::Traits::{EntityDyn, EntityTraitsWrappable};
+use crate::IntHasher::UInt64Hasher;
+
+use std::collections::HashSet;
 
 pub struct GameContext<'a> {
 	pub holder: Holder<'a>,
@@ -12,9 +15,10 @@ pub struct GameContext<'a> {
 	pub player: TypedID<'a, Player<'a>>,
 	collision: Vec2d<EntityHitbox>,
 	collisionCandidates: Vec<(EntityHitbox, EntityHitbox)>,
+	globalEntities: HashSet<u64, UInt64Hasher>,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 struct EntityHitbox {
 	id: ID,
 	hitbox: Rect,
@@ -34,21 +38,62 @@ impl EntityHitbox {
 
 impl<'a> GameContext<'a> {
 	pub fn new(map: Map<'a>, creator: &'a TextureCreator<WindowContext>) -> GameContext<'a> {
-		let mut holder = Holder::new();
-		unsafe {holder.add::<Player>(Player::new(creator, 50f32, 50f32).unwrap())};
-		let player = TypedID::new(holder.getCurrentID());
-		unsafe { holder.add::<Skeleton>(Skeleton::new(creator, (50f32, 50f32)).unwrap())};
-		GameContext {
+		let holder = Holder::new();
+		//unsafe {holder.add::<Player>(Player::new(creator, 50f32, 50f32).unwrap())};
+		//unsafe { holder.add::<Skeleton>(Skeleton::new(creator, (50f32, 50f32)).unwrap())};
+
+		let mut ctx = GameContext {
 			holder,
 			map,
-			player, 
+			player: TypedID::new(ID::empty()), 
 			collision: Vec2d::new(vec![EntityHitbox::empty(); 17*12], 17),
 			collisionCandidates: vec![],
+			globalEntities: HashSet::default(),
+		};
+		ctx.addEntityGlobal::<Player>(Player::new(creator, 50f32, 50f32).unwrap());
+		ctx.player = TypedID::new(ctx.holder.getCurrentID());
+		ctx.addEntityActiveScreen::<Skeleton>(Skeleton::new(creator, (50f32, 50f32)).unwrap());
+		ctx
+	}
+	pub fn addEntityActiveScreen<T: EntityTraitsWrappable<'a> + 'a>(&mut self, entity: BoxCode<'a>) -> Option<ID> {
+		unsafe {
+			if self.holder.add::<T>(entity) {
+				let id = self.holder.getCurrentID();
+				self.map.addEntityActiveScreen(id);
+				Some(id)
+			}
+			else {
+				None
+			}
+		}
+	}
+	pub fn addEntityGlobal<T: EntityTraitsWrappable<'a> + 'a>(&mut self, entity: BoxCode<'a>) -> Option<ID> {
+		unsafe {
+			if self.holder.add::<T>(entity) {
+				let id = self.holder.getCurrentID();
+				self.globalEntities.insert(id.getID());
+				Some(id)
+			}
+			else {
+				None
+			}
+		}
+	}
+	pub unsafe fn removeEntity(&mut self, id: ID) -> Result<BoxCode<'a>, (Option<BoxCode<'a>>, &'static str)> {
+		let res = self.holder.remove(id);
+		if self.globalEntities.remove(&id.getID()) {
+			res.ok_or((None, "Entity does not exist and global entities are corrupted"))
+		}
+		else if self.map.removeEntityActiveScreen(id) {
+			res.ok_or((None, "Entity does not exist and active screen entities are corrupted"))
+		}
+		else {
+			Err((res, "Entity not found in active screen or globally"))
 		}
 	}
 	
 	pub fn updatePosition<'b>(&'b mut self, id: ID, hitbox: Rect, prevHitbox: Rect) {
-		self.removeCollision(id, prevHitbox);
+		self.removeCollisionInternal(id, prevHitbox);
 
 		let iter = self.map.calculateCollisionBounds(hitbox);
 		let entry = EntityHitbox {id, hitbox};
@@ -71,7 +116,7 @@ impl<'a> GameContext<'a> {
 			*tmp = entry;
 		}
 	}
-	pub fn removeCollision(&mut self, id: ID, hitbox: Rect) {
+	fn removeCollisionInternal(&mut self, id: ID, hitbox: Rect) {
 		let iter = self.map.calculateCollisionBounds(hitbox);
 		for location in iter {
 			let tmp = self.collision.indexMut(location.1 as usize, location.0 as usize);
@@ -83,6 +128,13 @@ impl<'a> GameContext<'a> {
 	}
 	pub fn getCollisionList<'b>(&'b self, id: ID) -> impl Iterator<Item=ID> + 'b {
 		Self::getCollisionListInternal(&self.collisionCandidates, id).filter(|e| e.0.hitbox.has_intersection(e.1.hitbox)).map(|e| e.1.id)
+	}
+	pub fn removeCollision(&mut self, id: ID, hitbox: Rect) {
+		self.removeCollisionInternal(id, hitbox);
+		self.collisionCandidates.retain(|pair| pair.0.id != id && pair.1.id != id);
+	}
+	pub fn disableEntityCollisionFrame(&mut self) {
+		self.collision.fill(EntityHitbox::empty());
 	}
 	pub fn resetCollisionLists<'b>(&'b mut self) {
 		self.collisionCandidates.clear();
@@ -111,5 +163,11 @@ impl<'a> GameContext<'a> {
 	}
 	pub unsafe fn entityIterMut<'b>(&'b mut self) -> impl Iterator<Item = (ID, &'b mut (dyn EntityDyn + 'a))> {
 		self.holder.iterMut()
+	}
+	pub unsafe fn globalEntityIter<'b>(&'b self) -> impl Iterator<Item = ID> + 'b {
+		self.globalEntities.iter().map(|id| ID::new(*id, 0))
+	}
+	pub unsafe fn activeScreenEntityIter<'b>(&'b self) -> impl Iterator<Item = ID> + 'b {
+		self.map.getScreen(self.map.getActiveScreenId()).unwrap().getEntitiesIter()
 	}
 }

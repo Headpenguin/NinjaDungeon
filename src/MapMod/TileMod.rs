@@ -151,9 +151,9 @@ pub fn blockCollide(location: (u16, u16), hitbox: Rect, map: &Map) -> Vector {
 
 	let (location, eject) = match determineCollidedSide((top, bottom, left, right)) {
 		Side::Top => ((location.0, location.1 + 1), Vector(0f32, top as f32)),
-		Side::Bottom => ((location.0, location.1 - 1), Vector(0f32, -bottom as f32)),
+		Side::Bottom => ((location.0, location.1.wrapping_sub(1)), Vector(0f32, -bottom as f32)),
 		Side::Left => ((location.0 + 1, location.1), Vector(left as f32, 0f32)),
-		Side::Right => ((location.0 - 1, location.1), Vector(-right as f32, 0f32))
+		Side::Right => ((location.0.wrapping_sub(1), location.1), Vector(-right as f32, 0f32))
 	};
 	
 	if let CollisionType::Block | CollisionType::OOB =

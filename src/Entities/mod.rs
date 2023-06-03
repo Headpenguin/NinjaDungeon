@@ -14,6 +14,7 @@ use std::marker::PhantomData;
 use std::marker::Copy;
 use std::clone::Clone;
 
+#[derive(Debug)]
 pub struct TypedID<'a, T: EntityTraitsWrappable<'a>>(ID, PhantomData<&'a T>);
 
 impl<'a, T: EntityTraitsWrappable<'a>> Clone for TypedID<'a, T> {
@@ -33,6 +34,7 @@ impl<'a, T: EntityTraitsWrappable<'a>> TypedID<'a, T> {
 	}
 }
 
+#[derive(Debug)]
 pub enum BoxCode<'a> {
 	Player(Box<Entity<'a, Player<'a>>>),
 	Skeleton(Box<Entity<'a, Skeleton<'a>>>),
@@ -82,29 +84,29 @@ impl<'a> DerefMut for BoxCode<'a> {
 }
 
 pub struct Holder<'a> {
-	entities: HashMap<ID, UnsafeCell<BoxCode<'a>>, UInt64Hasher>,
+	entities: HashMap<u64, UnsafeCell<BoxCode<'a>>, UInt64Hasher>,
 	currentId: u64,
 }
 
 impl<'a> Holder<'a> {
 	pub fn getMutTyped<T: EntityTraitsWrappable<'a>>(&mut self, id: TypedID<'a, T>) -> Option<&mut T> {
-		unsafe {self.entities.get_mut(&id.0).map(|x| <T>::mapCodeMut((&mut *x.get()).refcodeMut())).flatten()}
+		unsafe {self.entities.get_mut(&id.getID().getID()).map(|x| <T>::mapCodeMut((&mut *x.get()).refcodeMut())).flatten()}
 	}
 	pub fn getTyped<T: EntityTraitsWrappable<'a>>(&self, id: TypedID<'a, T>) -> Option<&T> {
-		unsafe {self.entities.get(&id.0).map(|x| <T>::mapCode((&mut *x.get()).refcode())).flatten()}
+		unsafe {self.entities.get(&id.getID().getID()).map(|x| <T>::mapCode((&mut *x.get()).refcode())).flatten()}
 	}
-	pub unsafe fn get(&self, id: ID) -> Option<&dyn EntityTraits> {
-		self.entities.get(&id).map(|x| unsafe{
+	pub unsafe fn get<'b>(&'b self, id: ID) -> Option<&'b (dyn EntityTraits + 'a)> {
+		self.entities.get(&id.getID()).map(|x| unsafe{
 			(&*x.get()).getInner() as &dyn EntityTraits
 		})
 	}
 	pub unsafe fn getMut(&self, id: ID) -> Option<*mut (dyn EntityTraits + 'a)> {
-		self.entities.get(&id).map(|x| unsafe {
+		self.entities.get(&id.getID()).map(|x| unsafe {
 			(&mut *x.get()).getInnerMut() as *mut dyn EntityTraits
 		})
 	}
 	pub unsafe fn getEntityDyn(&self, id: ID) -> Option<*mut (dyn EntityDyn + 'a)> {
-		self.entities.get(&id).map(|x| unsafe {
+		self.entities.get(&id.getID()).map(|x| unsafe {
 			(&mut *x.get()).deref_mut() as *mut dyn EntityDyn
 		})
 	}
@@ -113,18 +115,18 @@ impl<'a> Holder<'a> {
 			t.setID(TypedID::new(ID::new(self.currentId, 0)));
 		}
 		else {return false;}
-		self.entities.insert(ID::new(self.currentId, 0), UnsafeCell::new(entity));
+		self.entities.insert(self.currentId, UnsafeCell::new(entity));
 		self.currentId += 1;	
 		true
 	}
 	pub unsafe fn remove<'b>(&'b mut self, id: ID) -> Option<BoxCode<'a>> {
-		self.entities.remove(&id).map(|x| x.into_inner())
+		self.entities.remove(&id.getID()).map(|x| x.into_inner())
 	}
 	pub unsafe fn iter<'b>(&'b self) -> impl Iterator<Item=(ID, &'b (dyn EntityDyn + 'a))> {
-		self.entities.iter().map(|kv| (*kv.0, (& *kv.1.get()).deref()))
+		self.entities.iter().map(|kv| (ID::new(*kv.0, 0), (& *kv.1.get()).deref()))
 	}
 	pub unsafe fn iterMut<'b>(&'b mut self) -> impl Iterator<Item=(ID, &'b mut (dyn EntityDyn + 'a))> {
-		self.entities.iter_mut().map(|kv| (*kv.0, (&mut *kv.1.get()).deref_mut()))
+		self.entities.iter_mut().map(|kv| (ID::new(*kv.0, 0), (&mut *kv.1.get()).deref_mut()))
 	}
 	pub fn getCurrentID(&self) -> ID {
 		ID::new(self.currentId - 1, 0)

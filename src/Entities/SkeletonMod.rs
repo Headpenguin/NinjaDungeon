@@ -8,7 +8,7 @@ use super::Traits::{Collision, EntityTraitsWrappable, Entity};
 use super::{BoxCode, RefCode, RefCodeMut, TypedID};
 use crate::SpriteLoader::Animations;
 use crate::{GameContext, Vector, ID};
-use crate::EventProcessor::{CollisionMsg, Envelope, PO};
+use crate::EventProcessor::{CollisionMsg, Envelope, PO, Key};
 use crate::CollisionType;
 use crate::MapMod;
 
@@ -33,6 +33,7 @@ enum ANIMATION_IDX_BOTTOM {
 	Walk1,
 }
 
+#[derive(Debug)]
 pub struct Skeleton<'a> {
 	id: TypedID<'a, Self>,
 	animationsTop: Animations<'a>,
@@ -46,7 +47,7 @@ pub struct Skeleton<'a> {
 	iframeCounter: u32,
 	health: i32,
 }
-
+#[derive(Debug)]
 pub struct SkeletonData {
 	nextPos: Vector,
 }
@@ -100,7 +101,8 @@ impl<'a> Skeleton<'a> {
 		self.renderPositionBottom.reposition(self.position + Vector(0f32, 50f32));
 		let prevHitbox = self.hitbox;
 		self.hitbox.reposition(self.position);
-		po.updatePosition(self.id.getID(), prevHitbox, self.hitbox);
+		po.updatePosition(self.id.getID(), self.hitbox, prevHitbox);
+	//	println!("Skeleton: {:?}", self.hitbox);
 	}
 }
 
@@ -117,6 +119,12 @@ impl<'a> Collision for Skeleton<'a> {
 			},
 		}
 	}
+	fn collideWith(&self, other: ID, po: &PO, key: Key) -> (Option<Envelope<CollisionMsg>>, Key) {
+		if other == po.getCtx().getPlayerID().getID() {
+			(Some(Envelope::new(CollisionMsg::Damage(8), other, self.id.getID())), key)
+		}
+		else {(None, key)}
+	}
 }
 
 impl<'a> EntityTraitsWrappable<'a> for Skeleton<'a> {
@@ -132,7 +140,7 @@ impl<'a> EntityTraitsWrappable<'a> for Skeleton<'a> {
 		if let RefCode::Skeleton(s) = code {Some(s as &Self)}
 		else {None}
 	}
-	fn getData(&self, data: &mut Self::Data, po: &PO) {
+	fn getData(&self, data: &mut Self::Data, po: &PO, key: Key) -> Key {
 		if !self.idle {
 			let player = po.getCtx().getHolder().getTyped(po.getCtx().getPlayerID()).unwrap();
 			let playerDirection = Vector::fromPoints(self.position, player.getPosition());
@@ -142,6 +150,7 @@ impl<'a> EntityTraitsWrappable<'a> for Skeleton<'a> {
 		else {
 			data.nextPos = self.position;
 		}
+		key
 
 	}
 	fn update(&mut self, data: &Self::Data, po: &mut PO) {
