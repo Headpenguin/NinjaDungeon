@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 extern crate sdl2;
 
-use NinjaDungeon::{GameManager, GameContext, Player, loadMap};
+use NinjaDungeon::{GameManager, GameContext, Player, loadCtx};
 use NinjaDungeon::PO;
 
 use sdl2::pixels::Color;
@@ -21,9 +21,9 @@ fn main()
 
 	let (mut manager, creator) = GameManager::initialize(NAME, WIDTH, HEIGHT, COLOR);
 	
-	let mut map = loadMap("Resources/test2.mp", "Resources/Images/Map1.anim", &creator).unwrap();
+	let ctx = loadCtx("Resources/test2.mp", &creator).unwrap();
 
-	let mut po = UnsafeCell::new(PO::new(GameContext::new(map, &creator)));
+	let mut po = UnsafeCell::new(PO::new(ctx));
 
 	while manager.mainLoop(&mut po) {}
 

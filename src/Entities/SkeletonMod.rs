@@ -1,3 +1,5 @@
+use serde::{Serialize, Deserialize};
+
 use sdl2::rect::Rect;
 use sdl2::render::{Canvas, TextureCreator};
 use sdl2::video::{Window, WindowContext};
@@ -31,6 +33,26 @@ enum ANIMATION_IDX_BOTTOM {
 	Idle = 0,
 	Walk0,
 	Walk1,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct InnerSkeleton {
+	id: ID,
+	timer: u32,
+	renderPositionTop: (i32, i32, u32, u32),
+	renderPositionBottom: (i32, i32, u32, u32),
+	position: Vector,
+	idle: bool,
+	hitbox: (i32, i32, u32, u32),
+	iframeCounter: u32,
+	health: i32,
+}
+
+impl InnerSkeleton {
+	pub fn fromSkeleton(skeleton: &Skeleton) -> InnerSkeleton {
+		let &Skeleton {id, timer, renderPositionTop, renderPositionBottom, position, idle, hitbox, iframeCounter, health, ..} = skeleton;
+		InnerSkeleton {id:id.getID(), timer, renderPositionTop:renderPositionTop.into(), renderPositionBottom: renderPositionBottom.into(), position, idle, hitbox:hitbox.into(), iframeCounter, health}
+	}
 }
 
 #[derive(Debug)]
@@ -92,6 +114,30 @@ impl<'a> Skeleton<'a> {
 					SkeletonData{
 						nextPos: Vector(0f32, 0f32),
 					},
+				)
+			)
+		))
+	}
+	pub fn fromInner(inner: InnerSkeleton, creator: &'a TextureCreator<WindowContext>) -> io::Result<BoxCode<'a>> {
+		Ok(BoxCode::Skeleton(
+			Box::new(
+				Entity::new(
+					Skeleton {
+						id: TypedID::new(inner.id),
+						animationsTop: Animations::new("Resources/Images/Skeleton_top.anim", NAMES_TOP, creator)?,
+						animationsBottom: Animations::new("Resources/Images/Skeleton_bottom.anim", NAMES_BOTTOM, creator)?,
+						timer: inner.timer,
+						renderPositionTop: Rect::from(inner.renderPositionTop),
+						renderPositionBottom: Rect::from(inner.renderPositionBottom),
+						position: inner.position,
+						idle: inner.idle,
+						hitbox: Rect::from(inner.hitbox),
+						iframeCounter: inner.iframeCounter,
+						health: inner.health,
+					},
+					SkeletonData {
+						nextPos: Vector(0f32, 0f32),
+					}
 				)
 			)
 		))

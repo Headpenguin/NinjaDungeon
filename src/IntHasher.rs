@@ -13,7 +13,7 @@ impl Hasher for UInt64Hasher {
 	fn finish(&self) -> u64 {self.0}
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct USizeHasher (usize);
 impl USizeHasher {
 	pub fn new() -> USizeHasher {

@@ -1,14 +1,22 @@
+use sdl2::render::TextureCreator;
+use sdl2::video::WindowContext;
+
+use serde::{Serialize, Deserialize};
+
 pub mod Traits;
 pub mod SkeletonMod;
 
 pub use SkeletonMod::Skeleton;
 
+use SkeletonMod::InnerSkeleton;
+
 use Traits::{Entity, EntityDyn, EntityTraits, EntityTraitsWrappable};
 use std::collections::HashMap;
 use std::cell::UnsafeCell;
+use std::io;
 use crate::ID;
 use crate::IntHasher::UInt64Hasher;
-use crate::Player;
+use crate::PlayerMod::{Player, InnerPlayer};
 use std::ops::{Deref, DerefMut};
 use std::marker::PhantomData;
 use std::marker::Copy;
@@ -80,6 +88,56 @@ impl<'a> DerefMut for BoxCode<'a> {
 			Self::Player(e) => e as &mut Entity<Player> as &mut (dyn EntityDyn + 'a),
 			Self::Skeleton(e) => e as &mut Entity<Skeleton> as &mut (dyn EntityDyn + 'a),
 		}
+	}
+}
+
+#[derive(Serialize, Deserialize)]
+pub enum InnerCode {
+	Player(InnerPlayer),
+	Skeleton(InnerSkeleton),
+}
+
+impl InnerCode {
+	pub fn intoBoxCode<'a>(self, creator: &'a TextureCreator<WindowContext>) -> io::Result<BoxCode<'a>> {
+		match self {
+			InnerCode::Player(e) => Player::fromInner(e, creator),
+			InnerCode::Skeleton(e) => Skeleton::fromInner(e, creator),
+		}
+	}
+	pub fn fromBoxCode(code: &BoxCode) -> InnerCode {
+		match code {
+			BoxCode::Player(e) => InnerCode::Player(InnerPlayer::fromPlayer(e)),
+			BoxCode::Skeleton(e) => InnerCode::Skeleton(InnerSkeleton::fromSkeleton(e)),
+		}
+	}
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct InnerHolder {
+	innerEntities: HashMap<u64, InnerCode, UInt64Hasher>,
+	currentId: u64,
+}
+
+impl InnerHolder {
+	pub unsafe fn fromHolder(holder: &Holder) -> InnerHolder {
+		let mut innerEntities = HashMap::default();
+		for (key, entity) in holder.entities.iter() {
+			innerEntities.insert(*key, InnerCode::fromBoxCode(&*entity.get()));
+		}
+		InnerHolder {
+			innerEntities,
+			currentId: holder.currentId,
+		}
+	}
+	pub fn intoHolder<'a>(self, creator: &'a TextureCreator<WindowContext>) -> io::Result<Holder<'a>> {
+		let mut entities = HashMap::default();
+		for (key, entity) in self.innerEntities.into_iter() {
+			entities.insert(key, UnsafeCell::new(entity.intoBoxCode(creator)?));
+		}
+		Ok(Holder {
+			entities,
+			currentId: self.currentId,
+		})
 	}
 }
 

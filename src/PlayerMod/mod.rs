@@ -4,6 +4,8 @@ use sdl2::render::{TextureCreator, Canvas};
 use sdl2::video::{Window, WindowContext};
 use sdl2::rect::Rect;
 
+use serde::{Serialize, Deserialize};
+
 use std::io;
 
 mod SignalsMod;
@@ -72,6 +74,29 @@ enum ANIMATION_IDX {
 	RightAttack,
 	LeftAttack,
 	UpAttack,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct InnerPlayer {
+	id: ID,
+	direction: Direction,
+	timer: u32,
+	idle: bool,
+	velocity: Vector,
+    position: Vector,
+	hitbox: (i32, i32, u32, u32),
+	renderPosition: (i32, i32, u32, u32),
+	attackTimer: u32,
+	attacking: bool,
+	health: i32,
+	iframes: u32,
+}
+
+impl InnerPlayer {
+	pub fn fromPlayer(player: &Player) -> InnerPlayer {
+		let &Player {id, direction, timer, idle, velocity, position, hitbox, renderPosition, attackTimer, attacking, health, iframes, ..} = player;
+		InnerPlayer {id:id.getID(), direction, timer, idle, velocity, position, hitbox: hitbox.into(), renderPosition: renderPosition.into(), attackTimer, attacking, health, iframes}
+	}
 }
 
 #[derive(Debug)]
@@ -173,6 +198,34 @@ impl<'a> Player<'a> {
 			)
 		)
     }
+	pub fn fromInner(inner: InnerPlayer, creator: &'a TextureCreator<WindowContext>) -> io::Result<BoxCode<'a>> {
+		Ok(BoxCode::Player(
+			Box::new(
+				Entity::new(
+					Player {
+						id: TypedID::new(inner.id),
+						animations: Animations::new("Resources/Images/Ninja.anim", NAMES, creator)?,
+						direction: inner.direction,
+						velocity: inner.velocity,
+						position: inner.position,
+						timer: inner.timer,
+						idle: inner.idle,
+						hitbox: Rect::from(inner.hitbox),
+						attackTimer: inner.attackTimer,
+						health: inner.health,
+						renderPosition: Rect::from(inner.renderPosition),
+						iframes: inner.iframes,
+						sword: Sprites::new(creator, SWORD_FRAMES)?,
+						healthSprites: Sprites::new(creator, HEALTH_FRAMES)?,
+						attacking: inner.attacking,
+					},
+					PlayerData {
+						nextPos: inner.position,
+					}
+				)
+			)
+		))
+	}
 
 	fn getSwordCollision(&self) -> (i32, i32, u32, u32) {
 		match self.direction {

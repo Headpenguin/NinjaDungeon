@@ -22,7 +22,7 @@ use crate::SpriteLoader::Animations;
 use crate::IntHasher::USizeHasher;
 use crate::ID;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct InnerMap {
 	screens: HashMap<usize, Screen, USizeHasher>,
 	lastActiveScreen: usize,

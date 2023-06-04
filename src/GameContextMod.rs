@@ -2,12 +2,45 @@ use sdl2::video::WindowContext;
 use sdl2::render::TextureCreator;
 use sdl2::rect::Rect;
 
+use serde::{Serialize, Deserialize};
+
 use crate::{ID, Map, Player, Vec2d};
-use crate::Entities::{Holder, TypedID, Skeleton, BoxCode};
+use crate::Entities::{Holder, InnerHolder, TypedID, Skeleton, BoxCode};
 use crate::Entities::Traits::{EntityDyn, EntityTraitsWrappable};
 use crate::IntHasher::UInt64Hasher;
+use crate::MapMod::InnerMap;
 
 use std::collections::HashSet;
+use std::io;
+
+#[derive(Serialize, Deserialize)]
+pub struct InnerGameContext {
+	holder: InnerHolder,
+	map: InnerMap,
+	player: ID,
+	globalEntities: HashSet<u64, UInt64Hasher>,
+}
+
+impl InnerGameContext {
+	pub unsafe fn fromGameContext(ctx: &GameContext) -> InnerGameContext {
+		InnerGameContext {
+			holder: InnerHolder::fromHolder(&ctx.holder),
+			map: (&ctx.map as &InnerMap).clone(),
+			player: ctx.player.getID(),
+			globalEntities: ctx.globalEntities.clone(),
+		}
+	}
+	pub fn intoGameContext<'a>(self, creator: &'a TextureCreator<WindowContext>) -> io::Result<GameContext<'a>> {
+		Ok(GameContext {
+			holder: self.holder.intoHolder(creator)?,
+			map: Map::restore(self.map, 0, "Resources/Images/Map1.anim", creator)?,
+			player: TypedID::new(self.player),
+			collision: Vec2d::new(vec![EntityHitbox::empty(); 17*12], 17),
+			collisionCandidates: vec![],
+			globalEntities: self.globalEntities,
+		})
+	}
+}
 
 pub struct GameContext<'a> {
 	pub holder: Holder<'a>,

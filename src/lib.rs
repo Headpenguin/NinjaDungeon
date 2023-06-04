@@ -315,7 +315,7 @@ impl EditorContext {
 		})
 	}
 
-	pub fn mainLoop<'a>(&mut self, filename: &str, map: &mut Map, font: &Font, fontTexture: &mut Option<Texture<'a>>, idTexture: &mut Option<Texture<'a>>, textureCreator: &'a TextureCreator<WindowContext>) -> bool {
+	pub fn mainLoop<'a>(&mut self, filename: &str, map: &mut GameContext, font: &Font, fontTexture: &mut Option<Texture<'a>>, idTexture: &mut Option<Texture<'a>>, textureCreator: &'a TextureCreator<WindowContext>) -> bool {
 		self.canvas.set_draw_color(self.color);
 
 		self.canvas.clear();
@@ -565,15 +565,15 @@ pub fn createText<'a>(message: &str, textureCreator: &'a TextureCreator<WindowCo
 	font.render(message).shaded(Color::BLACK, Color::WHITE).unwrap().as_texture(textureCreator).unwrap()
 }
 
-pub fn loadMap<'a>(filename: &str, tileSprites: &str, creator: &'a TextureCreator<WindowContext>) -> io::Result<Map<'a>> {
+pub fn loadCtx<'a>(filename: &str, creator: &'a TextureCreator<WindowContext>) -> io::Result<GameContext<'a>> {
 	let mut deserializer = Deserializer::from_reader(File::open(filename)?);
-	let map = InnerMap::deserialize(&mut deserializer)?;
+	let ctx = InnerGameContext::deserialize(&mut deserializer)?;
 
-	Ok(Map::restore(map, 0, tileSprites, &creator)?)
+	ctx.intoGameContext(creator)
 }
 
 #[repr(u8)]
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum Direction {
 	Up,
 	Down,
@@ -581,9 +581,9 @@ pub enum Direction {
 	Right,
 }
 
-pub trait PlayerCollision {
-    fn collidePlayer(&self, player: &mut Player);
-}
+//pub trait PlayerCollision {
+  //  fn collidePlayer(&self, player: &mut Player);
+//}
 
 /*pub struct Entity {
 	code: Codes,

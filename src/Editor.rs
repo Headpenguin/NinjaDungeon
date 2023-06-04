@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 extern crate sdl2;
 
-use NinjaDungeon::{Map, EditorContext, self};
+use NinjaDungeon::{Map, EditorContext, GameContext, self};
 
 use sdl2::pixels::Color;
 
@@ -34,22 +34,22 @@ fn main() {
 		}),
 	};
 
-	let mut map = NinjaDungeon::loadMap(&file, "Resources/Images/Map1.anim", &textureCreator).unwrap_or_else(|_| {
+	let mut ctx = NinjaDungeon::loadCtx(&file, &textureCreator).unwrap_or_else(|_| {
 		eprintln!("Warning: Could not read map file \"{}\"", &file);
 		let mut map = Map::new(0, "Resources/Images/Map1.anim", &textureCreator).unwrap();
 		map.addScreen(17, 12, (0, 0));
-		map
+		GameContext::new(map, &textureCreator)
 	});
 
 	let font = ttfContext.load_font("Resources/Font/Symbola_hint.ttf", 16).unwrap();
 
 	let mut fontTexture = None;
 
-	let mut idTexture = Some(NinjaDungeon::createText(&map.getActiveScreenId().to_string(), &textureCreator, &font));
+	let mut idTexture = Some(NinjaDungeon::createText(&ctx.getMap().getActiveScreenId().to_string(), &textureCreator, &font));
 
 	//let mut entities = Vec::<Entity>::new();
 	
-	while !editor.mainLoop(&file, &mut map, &font, &mut fontTexture, &mut idTexture, &textureCreator) {
+	while !editor.mainLoop(&file, &mut ctx, &font, &mut fontTexture, &mut idTexture, &textureCreator) {
 	}
 }
 
