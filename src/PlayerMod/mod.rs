@@ -226,6 +226,9 @@ impl<'a> Player<'a> {
 			)
 		))
 	}
+	pub fn collidesStatic(&self, hitbox: Rect) -> bool {
+		self.hitbox.has_intersection(hitbox)
+	}
 
 	fn getSwordCollision(&self) -> (i32, i32, u32, u32) {
 		match self.direction {

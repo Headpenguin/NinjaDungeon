@@ -54,7 +54,8 @@ pub use GameContextMod::*;
 
 use PlayerMod::SignalsBuilder;
 
-use Entities::{TypedID, Holder, Skeleton};
+//use Entities::{TypedID, Holder, Skeleton};
+use Entities::{EntityBuilder, EntityBuilderSignals, EntityRenderer, MAX_ENTITY_IDX};
 use Entities::Traits::EntityDyn;
 
 pub use EventProcessor::PO;
@@ -257,6 +258,10 @@ pub struct EditorContext {
 	lock: bool,
 	message: String,
 	messageLen: usize,
+	scheduler: Scheduler,
+	globalEntities: bool,
+	currentEntityId: u16,
+	entityBuilder: EntityBuilder,
 }
 
 impl EditorContext {
@@ -312,10 +317,14 @@ impl EditorContext {
 			lock: false,
 			message: String::new(),
 			messageLen: 0,
+			scheduler: Scheduler::new(),
+			globalEntities: false,
+			currentEntityId: 0,
+			entityBuilder: EntityBuilder::new(u16::MAX, (0, 0)),
 		})
 	}
 
-	pub fn mainLoop<'a>(&mut self, filename: &str, ctx: &mut GameContext, font: &Font, fontTexture: &mut Option<Texture<'a>>, idTexture: &mut Option<Texture<'a>>, textureCreator: &'a TextureCreator<WindowContext>) -> bool {
+	pub fn mainLoop<'a>(&mut self, filename: &str, ctx: &mut GameContext<'a>, font: &Font, fontTexture: &mut Option<Texture<'a>>, idTexture: &mut Option<Texture<'a>>, entityRenderer: &EntityRenderer<'a>, textureCreator: &'a TextureCreator<WindowContext>) -> bool {
 		self.canvas.set_draw_color(self.color);
 
 		self.canvas.clear();
@@ -331,12 +340,6 @@ impl EditorContext {
 					self.currentTilePosition = ((x / 50) as u16, (y / 50) as u16);
 					self.state = State::AttemptBuild;
 					break;
-				},
-				Event::MouseButtonDown {mouse_btn: MouseButton::Right, x, y, ..}
-				if (y as i64) < (self.screenRect.height() - 50) as i64 => {
-					let (x, y) = (x + self.screenPos.x, y + self.screenPos.y);
-					self.currentTilePosition = ((x / 50) as u16, (y / 50) as u16);
-					ctx.getMapMut().changeTile(self.currentTilePosition, self.tileBuilder.cloneTile(&self.currentTile));
 				},
 				Event::KeyDown{scancode: Some(Scancode::Left), ..} => {
 					if self.currentTileId > 0 {
@@ -378,6 +381,9 @@ impl EditorContext {
 					self.message = String::from("Are you sure you want to delete this map? (y/n): ");
 					self.messageLen = self.message.len();
 					*fontTexture = Some(createText(&self.message, textureCreator, font));
+				},
+				Event::KeyDown{scancode: Some(Scancode::E), ..} => {
+					self.state = State::EntityPlacement;
 				},
 
 				Event::KeyDown {scancode: Some(Scancode::H), ..} => 
@@ -448,6 +454,107 @@ impl EditorContext {
 				},
 				_ => (),
 			},
+			State::EntityPlacement => match event {
+				Event::Quit {..} => self.quit = true,
+
+				Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} 
+				if (y as i64) < (self.screenRect.height() - 50) as i64 => {
+					let (x, y) = (x + self.screenPos.x, y + self.screenPos.y);
+					let entityPosition = ((x / 50) as u16, (y / 50) as u16);
+					self.entityBuilder = EntityBuilder::new(self.currentEntityId, entityPosition);
+					let entityRect = self.entityBuilder.getEntityRect();
+					if self.globalEntities {
+						if let None = unsafe { ctx.getEntityAtPositionGlobal(entityRect)} {
+							self.state = State::AttemptBuildEntity;
+							break;
+						}
+					} 
+					else { 
+						if let None = unsafe { ctx.getEntityAtPositionActiveScreen(entityRect)} {
+							self.state = State::AttemptBuildEntity;
+							break;
+						}
+					}
+				},
+				Event::MouseButtonDown {mouse_btn: MouseButton::Right, x, y, ..}
+				if (y as i64) < (self.screenRect.height() - 50) as i64 => {
+					let (x, y) = ((x + self.screenPos.x) / 50 * 50, (y + self.screenPos.y) / 50 * 50);
+					let clickRect = Rect::new(x, y, x as u32 + 50, y as u32 + 50);
+					unsafe {
+						if self.globalEntities {
+							if let Some(id) = ctx.getEntityAtPositionGlobal(clickRect) {
+								ctx.removeEntity(id);
+							}
+						}
+						else {
+							if let Some(id) = ctx.getEntityAtPositionActiveScreen(clickRect) {
+								ctx.removeEntity(id);
+							}
+						}
+					}
+
+				},
+				Event::KeyDown{scancode: Some(Scancode::Left), ..} => {
+					if self.currentEntityId > 0 {
+						self.currentEntityId -= 1;
+					}
+				},
+				Event::KeyDown{scancode: Some(Scancode::Right), ..} => {
+					if self.currentEntityId < MAX_ENTITY_IDX {
+						self.currentEntityId += 1;
+					}
+				},
+				Event::KeyDown{scancode: Some(Scancode::S), ..} => {
+					let mut ser = Serializer::new(File::create(filename).unwrap());
+					unsafe {InnerGameContext::fromGameContext(ctx)}.serialize(&mut ser).unwrap();
+					let mut f = ser.into_inner();
+					f.flush().unwrap();
+				},	
+				Event::KeyDown{scancode: Some(Scancode::A), ..} => {
+					ctx.getMapMut().decrementCurrentScreen();
+					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
+				},
+				Event::KeyDown{scancode: Some(Scancode::D), ..} => {
+					ctx.getMapMut().incrementCurrentScreen();
+					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
+				},
+				Event::KeyDown{scancode: Some(Scancode::Escape), ..} => {
+					self.state = State::Idle;
+					*idTexture = None;
+				},
+				Event::KeyDown{scancode: Some(Scancode::M), ..} => {
+					self.state = State::MoveScreen;
+					*idTexture = None;
+				},
+				Event::KeyDown{scancode: Some(Scancode::X), ..} => {
+					self.state = State::UserConfirmDelete;
+					self.textInput.start();
+					self.message = String::from("Are you sure you want to delete this map? (y/n): ");
+					self.messageLen = self.message.len();
+					*fontTexture = Some(createText(&self.message, textureCreator, font));
+				},
+				Event::KeyDown{scancode: Some(Scancode::E), ..} => {
+					self.state = State::Idle;
+				},
+				Event::KeyDown{scancode: Some(Scancode::G), ..} => {
+					self.globalEntities = !self.globalEntities;
+				},
+
+				Event::KeyDown {scancode: Some(Scancode::H), ..} => 
+					self.screenPos.offset(self.screenRect.center().x.clamp(0, self.screenPos.x) * -1, 0),
+				
+				Event::KeyDown {scancode: Some(Scancode::J), ..} =>
+					self.screenPos.offset(0, self.screenRect.center().y.clamp(0, self.screenPos.y) * -1),
+			
+				Event::KeyDown {scancode: Some(Scancode::K), ..} =>
+					self.screenPos.offset(0, self.screenRect.center().y.min(ctx.getMap().getMaxScreenCoords().1 as i32 - self.screenPos.bottom()).max(0)),
+				
+				Event::KeyDown {scancode: Some(Scancode::L), ..} => 
+					self.screenPos.offset(self.screenRect.center().x.min(ctx.getMap().getMaxScreenCoords().0 as i32 - self.screenPos.right()).max(0), 0),
+				
+				_ => (),
+
+			},
 			_ => match (event, &self.state) {
 				(Event::Quit {..}, _) => self.quit = true,
 				(_, State::Idle) => self.lock = false,
@@ -515,6 +622,7 @@ impl EditorContext {
 
 		match self.state {
 			State::AttemptBuild => self.build(ctx.getMapMut(), font, fontTexture, textureCreator),
+			State::AttemptBuildEntity => self.buildEntity(ctx, font, fontTexture, textureCreator),
 			_ => (),
 		}
 
@@ -522,10 +630,22 @@ impl EditorContext {
 			State::ViewMap | State::NewScreen | State::MoveScreen => {
 				ctx.getMapMut().drawAll(&mut self.canvas, self.mapRes, self.mapRect);
 			},
+			State::EntityPlacement => {
+				ctx.getMapMut().draw(&mut self.canvas, self.screenPos.top_left());
+			},
 			_ => {
 				ctx.getMapMut().draw(&mut self.canvas, self.screenPos.top_left());
 				ctx.getMapMut().renderTile(self.previewRect, &self.previewTile, &mut self.canvas);
 			},
+		}
+		if let State::EntityPlacement = self.state {
+			if self.globalEntities {
+				unsafe {self.scheduler.drawGlobal(&ctx, &mut self.canvas);}
+			}
+			else {
+				unsafe {self.scheduler.drawNonGlobal(&ctx, &mut self.canvas);}
+			}
+			entityRenderer.render(&mut self.canvas, self.currentEntityId, self.previewRect);
 		}
 		if let Some(ref texture) = fontTexture {
 			let q = texture.query();
@@ -557,6 +677,20 @@ impl EditorContext {
 			},
 			TileBuilderSignals::InvalidId => (),
 		}	
+	}
+	fn buildEntity<'a>(&mut self, ctx: &mut GameContext<'a>, font: &Font, fontTexture: &mut Option<Texture<'a>>, creator: &'a TextureCreator<WindowContext>) {
+		match self.entityBuilder.build(creator) {
+			EntityBuilderSignals::Complete(Ok(entity)) if self.globalEntities => {
+				self.state = State::EntityPlacement;
+				self.entityBuilder.addEntityGlobal(ctx, entity);
+			},
+			EntityBuilderSignals::Complete(Ok(entity)) => {
+				self.state = State::EntityPlacement;
+				self.entityBuilder.addEntityActiveScreen(ctx, entity);
+			},
+			EntityBuilderSignals::Complete(Err(e)) => eprintln!("Entity could not be placed because of error (details below)\n{}", e),
+			EntityBuilderSignals::InvalidId => eprintln!("Entity could not be placed because of invalid entity id produced by editor"),
+		}
 	}
 
 }
@@ -598,7 +732,9 @@ enum State {
 	NewScreen,
 	MoveScreen,
 	AttemptBuild,
+	AttemptBuildEntity,
 	Idle,
+	EntityPlacement,
 }
 
 const SCRIPT_FUNCTION_NAMES: &[&str] = &[

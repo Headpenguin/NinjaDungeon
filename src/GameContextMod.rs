@@ -173,6 +173,23 @@ impl<'a> GameContext<'a> {
 		self.collisionCandidates.clear();
 	}
 
+	pub unsafe fn getEntityAtPositionActiveScreen(&self, hitbox: Rect) -> Option<ID> {
+		for id in self.activeScreenEntityIter() {
+			if self.holder.getRefCode(id).unwrap().collidesStatic(hitbox) {
+				return Some(id);
+			}
+		}
+		None
+	}
+	pub unsafe fn getEntityAtPositionGlobal(&self, hitbox: Rect) -> Option<ID> {
+		for id in self.globalEntityIter() {
+			if self.holder.getRefCode(id).unwrap().collidesStatic(hitbox) {
+				return Some(id);
+			}
+		}
+		None
+	}
+
 	pub fn getMap(&self) -> &Map {
 		&self.map
 	}

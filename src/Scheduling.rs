@@ -35,10 +35,16 @@ impl Scheduler {
 		}
 	}
 	pub unsafe fn draw<'a, 'b: 'a>(&self, ctx: &'a GameContext<'b>, canvas: &mut Canvas<Window>) {
-		for id in ctx.activeScreenEntityIter() {
+		self.drawNonGlobal(ctx, canvas);
+		self.drawGlobal(ctx, canvas);
+	}
+	pub unsafe fn drawGlobal(&self, ctx: &GameContext, canvas: &mut Canvas<Window>) {
+		for id in ctx.globalEntityIter() {
 			(&mut *ctx.getHolder().getEntityDyn(id).unwrap()).draw(canvas);
 		}
-		for id in ctx.globalEntityIter() {
+	}
+	pub unsafe fn drawNonGlobal(&self, ctx: &GameContext, canvas: &mut Canvas<Window>) {
+		for id in ctx.activeScreenEntityIter() {
 			(&mut *ctx.getHolder().getEntityDyn(id).unwrap()).draw(canvas);
 		}
 	}

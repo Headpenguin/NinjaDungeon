@@ -1,10 +1,14 @@
 use sdl2::render::TextureCreator;
 use sdl2::video::WindowContext;
+use sdl2::rect::Rect;
 
 use serde::{Serialize, Deserialize};
 
 pub mod Traits;
 pub mod SkeletonMod;
+mod Builder;
+
+pub use Builder::*;
 
 pub use SkeletonMod::Skeleton;
 
@@ -56,6 +60,15 @@ pub enum RefCodeMut<'a, 'b> {
 pub enum RefCode<'a, 'b> {
 	Player(&'b Entity<'a, Player<'a>>),
 	Skeleton(&'b Entity<'a, Skeleton<'a>>),
+}
+
+impl<'a, 'b> RefCode<'a, 'b> {
+	pub fn collidesStatic(&self, hitbox: Rect) -> bool {
+		match self {
+			RefCode::Player(e) => e.collidesStatic(hitbox),
+			RefCode::Skeleton(e) => e.collidesStatic(hitbox),
+		}
+	}
 }
 
 impl<'a> BoxCode<'a> {
@@ -161,6 +174,11 @@ impl<'a> Holder<'a> {
 	pub unsafe fn getMut(&self, id: ID) -> Option<*mut (dyn EntityTraits + 'a)> {
 		self.entities.get(&id.getID()).map(|x| unsafe {
 			(&mut *x.get()).getInnerMut() as *mut dyn EntityTraits
+		})
+	}
+	pub unsafe fn getRefCode<'b>(&'b self, id: ID) -> Option<RefCode<'a, 'b>> {
+		self.entities.get(&id.getID()).map(|x| unsafe {
+			(& *x.get()).refcode()
 		})
 	}
 	pub unsafe fn getEntityDyn(&self, id: ID) -> Option<*mut (dyn EntityDyn + 'a)> {

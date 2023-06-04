@@ -2,6 +2,7 @@
 extern crate sdl2;
 
 use NinjaDungeon::{Map, EditorContext, GameContext, self};
+use NinjaDungeon::Entities::EntityRenderer;
 
 use sdl2::pixels::Color;
 
@@ -47,9 +48,11 @@ fn main() {
 
 	let mut idTexture = Some(NinjaDungeon::createText(&ctx.getMap().getActiveScreenId().to_string(), &textureCreator, &font));
 
+	let entityRenderer = EntityRenderer::new(&textureCreator).unwrap();
+
 	//let mut entities = Vec::<Entity>::new();
 	
-	while !editor.mainLoop(&file, &mut ctx, &font, &mut fontTexture, &mut idTexture, &textureCreator) {
+	while !editor.mainLoop(&file, &mut ctx, &font, &mut fontTexture, &mut idTexture, &entityRenderer, &textureCreator) {
 	}
 }
 

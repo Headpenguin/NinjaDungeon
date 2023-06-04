@@ -142,6 +142,9 @@ impl<'a> Skeleton<'a> {
 			)
 		))
 	}
+	pub fn collidesStatic(&self, hitbox: Rect) -> bool {
+		self.hitbox.has_intersection(hitbox)
+	}
 	fn updatePositions(&mut self, po: &mut PO) {
 		self.renderPositionTop.reposition(self.position);
 		self.renderPositionBottom.reposition(self.position + Vector(0f32, 50f32));
