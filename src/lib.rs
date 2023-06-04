@@ -315,7 +315,7 @@ impl EditorContext {
 		})
 	}
 
-	pub fn mainLoop<'a>(&mut self, filename: &str, map: &mut GameContext, font: &Font, fontTexture: &mut Option<Texture<'a>>, idTexture: &mut Option<Texture<'a>>, textureCreator: &'a TextureCreator<WindowContext>) -> bool {
+	pub fn mainLoop<'a>(&mut self, filename: &str, ctx: &mut GameContext, font: &Font, fontTexture: &mut Option<Texture<'a>>, idTexture: &mut Option<Texture<'a>>, textureCreator: &'a TextureCreator<WindowContext>) -> bool {
 		self.canvas.set_draw_color(self.color);
 
 		self.canvas.clear();
@@ -336,7 +336,7 @@ impl EditorContext {
 				if (y as i64) < (self.screenRect.height() - 50) as i64 => {
 					let (x, y) = (x + self.screenPos.x, y + self.screenPos.y);
 					self.currentTilePosition = ((x / 50) as u16, (y / 50) as u16);
-					map.changeTile(self.currentTilePosition, self.tileBuilder.cloneTile(&self.currentTile));
+					ctx.getMapMut().changeTile(self.currentTilePosition, self.tileBuilder.cloneTile(&self.currentTile));
 				},
 				Event::KeyDown{scancode: Some(Scancode::Left), ..} => {
 					if self.currentTileId > 0 {
@@ -352,17 +352,17 @@ impl EditorContext {
 				},
 				Event::KeyDown{scancode: Some(Scancode::S), ..} => {
 					let mut ser = Serializer::new(File::create(filename).unwrap());
-					map.serialize(&mut ser).unwrap();
+					unsafe {InnerGameContext::fromGameContext(ctx)}.serialize(&mut ser).unwrap();
 					let mut f = ser.into_inner();
 					f.flush().unwrap();
 				},	
 				Event::KeyDown{scancode: Some(Scancode::A), ..} => {
-					map.decrementCurrentScreen();
-					*idTexture = Some(createText(&map.getActiveScreenId().to_string(), textureCreator, font));
+					ctx.getMapMut().decrementCurrentScreen();
+					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
 				},
 				Event::KeyDown{scancode: Some(Scancode::D), ..} => {
-					map.incrementCurrentScreen();
-					*idTexture = Some(createText(&map.getActiveScreenId().to_string(), textureCreator, font));
+					ctx.getMapMut().incrementCurrentScreen();
+					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
 				},
 				Event::KeyDown{scancode: Some(Scancode::Escape), ..} => {
 					self.state = State::ViewMap;
@@ -387,10 +387,10 @@ impl EditorContext {
 					self.screenPos.offset(0, self.screenRect.center().y.clamp(0, self.screenPos.y) * -1),
 			
 				Event::KeyDown {scancode: Some(Scancode::K), ..} =>
-					self.screenPos.offset(0, self.screenRect.center().y.min(map.getMaxScreenCoords().1 as i32 - self.screenPos.bottom()).max(0)),
+					self.screenPos.offset(0, self.screenRect.center().y.min(ctx.getMap().getMaxScreenCoords().1 as i32 - self.screenPos.bottom()).max(0)),
 				
 				Event::KeyDown {scancode: Some(Scancode::L), ..} => 
-					self.screenPos.offset(self.screenRect.center().x.min(map.getMaxScreenCoords().0 as i32 - self.screenPos.right()).max(0), 0),
+					self.screenPos.offset(self.screenRect.center().x.min(ctx.getMap().getMaxScreenCoords().0 as i32 - self.screenPos.right()).max(0), 0),
 				
 				_ => (),
 			},
@@ -398,11 +398,11 @@ impl EditorContext {
 				Event::Quit {..} => self.quit = true,
                 Event::KeyDown {scancode: Some(Scancode::Escape), ..} => {
                     self.state = State::Idle;
-					*idTexture = Some(createText(&map.getActiveScreenId().to_string(), textureCreator, font));
+					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
                 }
 				Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} => {
-					if let Some(screen) = map.getScreenAtPosition(Point::new(x, y), self.mapRect, self.mapRes) {
-						map.setCurrentScreen(screen);
+					if let Some(screen) = ctx.getMap().getScreenAtPosition(Point::new(x, y), self.mapRect, self.mapRes) {
+						ctx.getMapMut().setCurrentScreen(screen);
 						self.state = State::Idle;
 					}
 					else {
@@ -414,7 +414,7 @@ impl EditorContext {
 						*fontTexture = Some(createText(&self.message, textureCreator, font));
 						self.state = State::NewScreen;
 					}
-					*idTexture = Some(createText(&map.getActiveScreenId().to_string(), textureCreator, font));
+					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
                 },
 				Event::MouseWheel {y: 1, ..} => {
 					if self.mapRes.0 > 1 && self.mapRes.1 > 1 {
@@ -438,13 +438,13 @@ impl EditorContext {
 				Event::Quit {..} => self.quit = true,
                 Event::KeyDown {scancode: Some(Scancode::Escape), ..} => {
                     self.state = State::Idle;
-					*idTexture = Some(createText(&map.getActiveScreenId().to_string(), textureCreator, font));
+					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
                 },
 				Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} => {
 					let (x, y) = MapMod::convertScreenCoordToTileCoord(self.mapRes, self.mapRect, Point::from((x, y))).into();
-					map.moveActiveScreen((x as u32, y as u32));
+					ctx.getMapMut().moveActiveScreen((x as u32, y as u32));
 					self.state = State::Idle;
-					*idTexture = Some(createText(&map.getActiveScreenId().to_string(), textureCreator, font));
+					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
 				},
 				_ => (),
 			},
@@ -455,7 +455,7 @@ impl EditorContext {
 					self.lock = false;
 					self.state = State::Idle;
 					*fontTexture = None;
-					*idTexture = Some(createText(&map.getActiveScreenId().to_string(), textureCreator, font));
+					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
 				}
 				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, State::GetUserUsize) => {
 					if let Ok(id) = usize::from_str(&self.message[self.messageLen..].trim()) {
@@ -472,22 +472,22 @@ impl EditorContext {
 				},
 				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, State::UserConfirmDelete) => {
 					if &"y" == &self.message[self.messageLen..].trim() {
-						map.popActiveScreen();
+						ctx.getMapMut().popActiveScreen();
 					}
 					self.textInput.stop();
 					self.state = State::Idle;
 					*fontTexture = None;
-					*idTexture = Some(createText(&map.getActiveScreenId().to_string(), textureCreator, font));
+					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
 				},
 				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, State::NewScreen) => {
 					if let Ok(dimension) = u16::from_str(&self.message[self.messageLen..].trim()) {
 						if let Some(width) = self.newMapWidth  {
-							map.addScreen(width, dimension, self.newMapCoords);
+							ctx.getMapMut().addScreen(width, dimension, self.newMapCoords);
 							self.newMapWidth = None;
 							self.state = State::Idle;
 							self.textInput.stop();
 							*fontTexture = None;
-							*idTexture = Some(createText(&map.getActiveScreenId().to_string(), textureCreator, font));
+							*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
 						}
 						else {
 							self.newMapWidth = Some(dimension);
@@ -514,17 +514,17 @@ impl EditorContext {
 		}}
 
 		match self.state {
-			State::AttemptBuild => self.build(map, font, fontTexture, textureCreator),
+			State::AttemptBuild => self.build(ctx.getMapMut(), font, fontTexture, textureCreator),
 			_ => (),
 		}
 
 		match self.state {
 			State::ViewMap | State::NewScreen | State::MoveScreen => {
-				map.drawAll(&mut self.canvas, self.mapRes, self.mapRect);
+				ctx.getMapMut().drawAll(&mut self.canvas, self.mapRes, self.mapRect);
 			},
 			_ => {
-				map.draw(&mut self.canvas, self.screenPos.top_left());
-				map.renderTile(self.previewRect, &self.previewTile, &mut self.canvas);
+				ctx.getMapMut().draw(&mut self.canvas, self.screenPos.top_left());
+				ctx.getMapMut().renderTile(self.previewRect, &self.previewTile, &mut self.canvas);
 			},
 		}
 		if let Some(ref texture) = fontTexture {
