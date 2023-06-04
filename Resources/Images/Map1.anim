@@ -9,3 +9,11 @@ Gate:
 Wall:
 	"Resources/Images/Wall.png"
 ;
+
+SwitchOn:
+	"Resources/Images/Switch_on__half.png"
+;
+
+SwitchOff:
+	"Resources/Images/Switch_off__half.png"
+;

@@ -17,10 +17,13 @@ pub struct Tile (u16, CollisionType);
 pub struct TileBuilder {
 	id: u16,
 	mapId: Option<usize>,
+	location: Option<(u16, u16)>,
+	locationEnd: Option<(u16, u16)>,
 }
 
 pub enum TileBuilderSignals {
 	GetUserUsize(&'static str),
+	GetCoordinate(&'static str),
 	Complete(Tile),
 	InvalidId,
 }
@@ -32,6 +35,7 @@ impl Tile {
 			1 => Ok(Tile(1, CollisionType::Block)),
 			2 => Ok(Tile(2, CollisionType::Block)),
 			3 => Ok(Tile(0, CollisionType::Transition(object))),
+			4 => Ok(Tile(0, CollisionType::SpawnGate(((object & 0xffff) as u16, ((object & 0xffff0000) >> 0x10) as u16, ((object & 0xffff00000000) >> 0x20) as u16, ((object & 0xffff000000000000) >> 0x30) as u16)))),
 			_ => Err("Recieved invalid tile id"),
 		}
 	}
@@ -57,10 +61,23 @@ impl TileBuilder {
 		TileBuilder {
 			id,
 			mapId: None,
+			location: None,
+			locationEnd: None,
 		}
 	}
 	pub fn build(&self) -> TileBuilderSignals {
 		match self.id {
+			4 => {
+				if let (Some(location), Some(locationEnd)) = (self.location, self.locationEnd) {
+					TileBuilderSignals::Complete(Tile::new(self.id, location.0 as usize + ((location.1 as usize) << 0x10) + ((locationEnd.0 as usize) << 0x20) + ((locationEnd.1 as usize) << 0x30)).unwrap())
+				}
+				else if let Some(_) = self.location {
+					TileBuilderSignals::GetCoordinate("Click where the gates end")
+				}
+				else {
+					TileBuilderSignals::GetCoordinate("Click where the gate goes")
+				}
+			}
 			3 => {
 				if let Some(id) = self.mapId {
 					TileBuilderSignals::Complete(Tile::new(self.id, id).unwrap())
@@ -84,6 +101,13 @@ impl TileBuilder {
 			_ => (),
 		}
 	}
+	pub fn addLocation(&mut self, location: (u16, u16)) {
+		match self.id {
+			4 if None == self.location => self.location = Some(location),
+			4 => self.locationEnd = Some(location),
+			_ => (),
+		};
+	}
 	pub fn cloneTile(&self, tile: &Tile) -> Tile {
 		match tile.0 {
 			_ => tile.clone()
@@ -102,7 +126,7 @@ pub enum CollisionType {
 	None, //Do nothing
 	Block, //Block the player
 	Transition(usize),
-	Switch(usize), //Collision type for switches
+	SpawnGate((u16, u16, u16, u16)), //Collision type for switches
 	Hit, //Hurt the player
 	Burn, //Burn the player
 	
@@ -166,5 +190,13 @@ pub fn blockCollide(location: (u16, u16), hitbox: Rect, map: &Map) -> Vector {
 	}
 }
 
-pub const MAX_TILE_IDX: u16 = 3;
+pub fn placeGate(location: (u16, u16), locationEnd: (u16, u16), map: &mut Map) {
+	for x in location.0..=locationEnd.0 {
+		for y in location.1..=locationEnd.1 {
+			map.changeTile((x, y), Tile::new(2, 0).unwrap());
+		}
+	}
+}
+
+pub const MAX_TILE_IDX: u16 = 4;
 

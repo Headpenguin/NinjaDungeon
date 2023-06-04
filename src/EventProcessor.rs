@@ -5,6 +5,7 @@ use crate::Entities::Traits::EntityTraits;
 use crate::Entities::Holder;
 use crate::GameContext;
 use crate::Scheduling::Scheduler;
+use crate::MapMod;
 
 use sdl2::rect::Rect;
 
@@ -18,9 +19,14 @@ impl Key {
 	}
 }
 
+enum Commands {
+	PlaceGate(u16, u16, u16, u16),
+}
+
 pub struct PO<'a> {
 	ctx: GameContext<'a>,
 	purgeList: UnsafeCell<Vec<ID>>,
+	commands: UnsafeCell<Vec<Commands>>,
 }
 
 struct Subscriber;
@@ -57,6 +63,7 @@ impl<'a> PO<'a> {
 		PO{
 			ctx,
 			purgeList: UnsafeCell::new(vec![]),
+			commands: UnsafeCell::new(vec![]),
 		}
 	}
 	pub unsafe fn getCtxMut<'b>(&'b mut self) -> &'b mut GameContext<'a> {
@@ -75,7 +82,9 @@ impl<'a> PO<'a> {
 			else {false}
 		}
 	}
-
+	pub fn spawnGate(&self, location: (u16, u16), endLocation: (u16, u16)) {
+		unsafe {&mut *self.commands.get()}.push(Commands::PlaceGate(location.0, location.1, endLocation.0, endLocation.1));
+	}
 	pub fn updatePosition(&mut self, id: ID, hitbox: Rect, prevHitbox: Rect) {
 		self.ctx.updatePosition(id, hitbox, prevHitbox);
 	}
@@ -90,6 +99,14 @@ impl<'a> PO<'a> {
 			self.ctx.removeEntity(*id).unwrap();
 		}
 		self.purgeList.get_mut().clear();
+	}
+	pub unsafe fn doCommands(&mut self) {
+		for command in self.commands.get_mut() {
+			match command {
+				&mut Commands::PlaceGate(x, y, xe, ye) => MapMod::placeGate((x, y), (xe, ye), self.ctx.getMapMut()),
+			}
+		}
+		self.commands.get_mut().clear();
 	}
 	pub fn getEntity<'b>(&'b self, id: ID, key: Key) -> (Option<&'b (dyn EntityTraits + 'a)>, Key) {
 		unsafe { (self.ctx.getHolder().get(id), key) }

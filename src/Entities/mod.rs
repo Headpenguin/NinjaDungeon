@@ -48,8 +48,8 @@ impl<'a, T: EntityTraitsWrappable<'a>> TypedID<'a, T> {
 
 #[derive(Debug)]
 pub enum BoxCode<'a> {
-	Player(Box<Entity<'a, Player<'a>>>),
-	Skeleton(Box<Entity<'a, Skeleton<'a>>>),
+	Player(Entity<'a, Player<'a>>),
+	Skeleton(Entity<'a, Skeleton<'a>>),
 }
 
 pub enum RefCodeMut<'a, 'b> {

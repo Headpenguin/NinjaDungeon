@@ -206,6 +206,8 @@ impl GameManager {
 		unsafe {
 			po.get_mut().getCtxMut().map.update();
 
+			po.get_mut().doCommands();
+
 			po.get_mut().getCtxMut().map.draw(&mut self.canvas, self.screenPos);
 		}
 		unsafe { self.scheduler.draw(po.get_mut().getCtx(), &mut self.canvas) ;}
@@ -341,6 +343,12 @@ impl EditorContext {
 					self.state = State::AttemptBuild;
 					break;
 				},
+				Event::MouseButtonDown {mouse_btn: MouseButton::Right, x, y, ..}
+                if (y as i64) < (self.screenRect.height() - 50) as i64 => {
+					let (x, y) = (x + self.screenPos.x, y + self.screenPos.y);
+					self.currentTilePosition = ((x / 50) as u16, (y / 50) as u16);
+                    ctx.getMapMut().changeTile(self.currentTilePosition, self.tileBuilder.cloneTile(&self.currentTile));
+               },
 				Event::KeyDown{scancode: Some(Scancode::Left), ..} => {
 					if self.currentTileId > 0 {
 						self.currentTileId -= 1;
@@ -558,6 +566,13 @@ impl EditorContext {
 			_ => match (event, &self.state) {
 				(Event::Quit {..}, _) => self.quit = true,
 				(_, State::Idle) => self.lock = false,
+				(Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..}, State::GetCoordinate) 
+					if (y as i32) < (self.screenRect.height() - 50) as i32 => {
+					let location = ((x + self.screenPos.x) as u16 / 50u16, (y + self.screenPos.y) as u16 / 50u16);
+					self.tileBuilder.addLocation(location);
+					self.state = State::AttemptBuild;
+					*fontTexture = None;
+				}
 				(Event::KeyDown {scancode: Some(Scancode::Escape), ..}, _) => {
 					self.lock = false;
 					self.state = State::Idle;
@@ -608,6 +623,7 @@ impl EditorContext {
 						*fontTexture = Some(createText(&self.message, textureCreator, font));
 					}
 				}
+				(Event::TextInput {text, ..}, State::GetCoordinate) => (),
 				(Event::TextInput {text, ..}, _) => {
 					self.message.push_str(&text);
 					*fontTexture = Some(createText(&self.message, textureCreator, font));
@@ -662,6 +678,12 @@ impl EditorContext {
 	}
 	fn build<'a>(&mut self, map: &mut Map, font: &Font, fontTexture: &mut Option<Texture<'a>>, textureCreator: &'a TextureCreator<WindowContext>) {
 		match self.tileBuilder.build() {
+			TileBuilderSignals::GetCoordinate(tmpMessage) => {
+				self.state = State::GetCoordinate;
+				self.message = String::from(tmpMessage);
+				self.messageLen = tmpMessage.len() - 1;
+				*fontTexture = Some(createText(&self.message, textureCreator, font));
+			}
 			TileBuilderSignals::GetUserUsize(tmpMessage) => {
 				self.state = State::GetUserUsize;
 				self.lock = true;
@@ -727,6 +749,7 @@ pub enum Direction {
 
 enum State {
 	GetUserUsize,
+	GetCoordinate,
 	UserConfirmDelete,
 	ViewMap,
 	NewScreen,

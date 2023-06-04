@@ -108,37 +108,33 @@ impl<'a> Skeleton<'a> {
 		let renderPositionBottom = Rect::new(position.0.round() as i32, position.1.round() as i32 + 50, 50, 50);
 		let hitbox = Rect::new(position.0.round() as i32, position.1.round() as i32, 50, 100);
 		Ok(BoxCode::Skeleton(
-			Box::new(
-				Entity::new(
-					Skeleton {id: TypedID::new(ID::empty()), animationsTop, animationsBottom, timer, renderPositionTop, renderPositionBottom, position, idle, hitbox, iframeCounter, health,},
-					SkeletonData{
-						nextPos: Vector(0f32, 0f32),
-					},
-				)
+			Entity::new(
+				Skeleton {id: TypedID::new(ID::empty()), animationsTop, animationsBottom, timer, renderPositionTop, renderPositionBottom, position, idle, hitbox, iframeCounter, health,},
+				SkeletonData{
+					nextPos: Vector(0f32, 0f32),
+				},
 			)
 		))
 	}
 	pub fn fromInner(inner: InnerSkeleton, creator: &'a TextureCreator<WindowContext>) -> io::Result<BoxCode<'a>> {
 		Ok(BoxCode::Skeleton(
-			Box::new(
-				Entity::new(
-					Skeleton {
-						id: TypedID::new(inner.id),
-						animationsTop: Animations::new("Resources/Images/Skeleton_top.anim", NAMES_TOP, creator)?,
-						animationsBottom: Animations::new("Resources/Images/Skeleton_bottom.anim", NAMES_BOTTOM, creator)?,
-						timer: inner.timer,
-						renderPositionTop: Rect::from(inner.renderPositionTop),
-						renderPositionBottom: Rect::from(inner.renderPositionBottom),
-						position: inner.position,
-						idle: inner.idle,
-						hitbox: Rect::from(inner.hitbox),
-						iframeCounter: inner.iframeCounter,
-						health: inner.health,
-					},
-					SkeletonData {
-						nextPos: Vector(0f32, 0f32),
-					}
-				)
+			Entity::new(
+				Skeleton {
+					id: TypedID::new(inner.id),
+					animationsTop: Animations::new("Resources/Images/Skeleton_top.anim", NAMES_TOP, creator)?,
+					animationsBottom: Animations::new("Resources/Images/Skeleton_bottom.anim", NAMES_BOTTOM, creator)?,
+					timer: inner.timer,
+					renderPositionTop: Rect::from(inner.renderPositionTop),
+					renderPositionBottom: Rect::from(inner.renderPositionBottom),
+					position: inner.position,
+					idle: inner.idle,
+					hitbox: Rect::from(inner.hitbox),
+					iframeCounter: inner.iframeCounter,
+					health: inner.health,
+				},
+				SkeletonData {
+					nextPos: Vector(0f32, 0f32),
+				}
 			)
 		))
 	}

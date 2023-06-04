@@ -124,7 +124,7 @@ pub struct PlayerData {
 }
 
 impl PlayerData {
-	fn doCollision(&mut self, player: &Player, map: &Map) {
+	fn doCollision(&mut self, player: &Player, map: &Map, po: &PO) {
 		let mut tmp = player.hitbox;
 		tmp.reposition(self.nextPos + Vector(2f32, 2f32));
 		let mut iter = map.calculateCollisionBounds(tmp);
@@ -133,14 +133,10 @@ impl PlayerData {
 			match tile.getCollisionType() {
 				CollisionType::Block => {
 					let eject = MapMod::blockCollide(location, tmp, map);
-//					if self.nextPos.1.round() as u32 == 505 || self.nextPos.1.round() as u32 == 507 {println!("a{:?}", eject)}
 					self.nextPos += eject;
-//		if self.nextPos.1.round() as u32 % 50 == 4 {println!("b{:?}", self.nextPos);}
 					tmp.reposition(self.nextPos + Vector(2f32, 2f32));
 				},
-     /*           CollisionType::SharpBlock => {
-					self.nextPos += sharpBlockCollide(location, tmp);
-                },*/
+				CollisionType::SpawnGate(location) => po.spawnGate((location.0, location.1), (location.2, location.3)),
 				_ => (),
 			}
 		}
@@ -187,42 +183,38 @@ impl<'a> Player<'a> {
 
         Ok(
 			BoxCode::Player(
-				Box::new(
-					Entity::new(
-						Player {id: TypedID::new(ID::empty()), animations, direction, velocity, position, timer, idle, hitbox, renderPosition, attackTimer, sword, attacking, health, iframes, healthSprites},
-						PlayerData {
-							nextPos: position,
-						},
-					)
+				Entity::new(
+					Player {id: TypedID::new(ID::empty()), animations, direction, velocity, position, timer, idle, hitbox, renderPosition, attackTimer, sword, attacking, health, iframes, healthSprites},
+					PlayerData {
+						nextPos: position,
+					},
 				)
 			)
 		)
     }
 	pub fn fromInner(inner: InnerPlayer, creator: &'a TextureCreator<WindowContext>) -> io::Result<BoxCode<'a>> {
 		Ok(BoxCode::Player(
-			Box::new(
-				Entity::new(
-					Player {
-						id: TypedID::new(inner.id),
-						animations: Animations::new("Resources/Images/Ninja.anim", NAMES, creator)?,
-						direction: inner.direction,
-						velocity: inner.velocity,
-						position: inner.position,
-						timer: inner.timer,
-						idle: inner.idle,
-						hitbox: Rect::from(inner.hitbox),
-						attackTimer: inner.attackTimer,
-						health: inner.health,
-						renderPosition: Rect::from(inner.renderPosition),
-						iframes: inner.iframes,
-						sword: Sprites::new(creator, SWORD_FRAMES)?,
-						healthSprites: Sprites::new(creator, HEALTH_FRAMES)?,
-						attacking: inner.attacking,
-					},
-					PlayerData {
-						nextPos: inner.position,
-					}
-				)
+			Entity::new(
+				Player {
+					id: TypedID::new(inner.id),
+					animations: Animations::new("Resources/Images/Ninja.anim", NAMES, creator)?,
+					direction: inner.direction,
+					velocity: inner.velocity,
+					position: inner.position,
+					timer: inner.timer,
+					idle: inner.idle,
+					hitbox: Rect::from(inner.hitbox),
+					attackTimer: inner.attackTimer,
+					health: inner.health,
+					renderPosition: Rect::from(inner.renderPosition),
+					iframes: inner.iframes,
+					sword: Sprites::new(creator, SWORD_FRAMES)?,
+					healthSprites: Sprites::new(creator, HEALTH_FRAMES)?,
+					attacking: inner.attacking,
+				},
+				PlayerData {
+					nextPos: inner.position,
+				}
 			)
 		))
 	}
@@ -363,7 +355,7 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 		data.nextPos = if self.idle {
 			self.position + self.velocity
 		} else {self.position};
-		data.doCollision(self, po.getCtx().getMap());
+		data.doCollision(self, po.getCtx().getMap(), po);
 		data.doEntityCollision(self, po, key)
 	}
 	fn update(&mut self, data: &Self::Data, po: &mut PO) {
