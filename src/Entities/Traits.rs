@@ -7,6 +7,11 @@ use crate::{GameContext, ID};
 
 use std::ops::{Deref, DerefMut};
 
+pub trait Counter {
+    pub fn inc(amt: u8);
+    pub fn dec(amt: u8);
+}
+
 pub trait Collision {
 	fn collide(&mut self, _msg: Envelope<CollisionMsg>, _po: &PO) {}
 	fn collideWith(&self, other: ID, po: &PO, key: Key) -> (Option<Envelope<CollisionMsg>>, Key);

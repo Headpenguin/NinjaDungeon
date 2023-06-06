@@ -249,21 +249,21 @@ pub struct EditorContext {
 	newMapCoords: (u32, u32),
 	newMapWidth: Option<u16>,
 	currentTileId: u16,
-	currentTilePosition: (u16, u16),
+//	currentTilePosition: (u16, u16),
 	currentTile: Tile,
 	previewTile: Tile,
 	previewRect: Rect,
-	tileBuilder: TileBuilder,
+//	tileBuilder: TileBuilder,
 	screenRect: Rect,
 	screenPos: Rect,
-	state: State,
-	lock: bool,
+	state: Vec<State>,
+//	lock: bool,
 	message: String,
 	messageLen: usize,
 	scheduler: Scheduler,
 	globalEntities: bool,
 	currentEntityId: u16,
-	entityBuilder: EntityBuilder,
+//	entityBuilder: EntityBuilder,
 }
 
 impl EditorContext {
@@ -304,7 +304,7 @@ impl EditorContext {
 			color,
 			quit: false,
 			currentTileId: 0,
-			currentTilePosition: (0, 0),
+//			currentTilePosition: (0, 0),
 			currentTile: Tile::new(0, 0).unwrap(),
 			previewTile: Tile::new(0, 0).unwrap(),
 			screenRect: Rect::new(0, 0, width, height),
@@ -314,15 +314,15 @@ impl EditorContext {
 			newMapCoords: (0, 0),
 			newMapWidth: None,
 			previewRect: Rect::new(0, height as i32 - 50, 50, 50),
-			tileBuilder: TileBuilder::new(0),
-			state: State::Idle,
-			lock: false,
+//			tileBuilder: TileBuilder::new(0),
+			state: vec![State::Idle],
+//			lock: false,
 			message: String::new(),
 			messageLen: 0,
 			scheduler: Scheduler::new(),
 			globalEntities: false,
-			currentEntityId: 0,
-			entityBuilder: EntityBuilder::new(u16::MAX, (0, 0)),
+            currentEntityId: 0,
+//			entityBuilder: EntityBuilder::new(u16::MAX, (0, 0)),
 		})
 	}
 
@@ -331,23 +331,24 @@ impl EditorContext {
 
 		self.canvas.clear();
 	
-		for event in self.events.poll_iter() {match &self.state {
+		for event in self.events.poll_iter() {match self.state.last().unwrap() {
 			State::Idle => match event {
 				Event::Quit {..} => self.quit = true,
 
 				Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} 
 				if (y as i64) < (self.screenRect.height() - 50) as i64 => {
 					let (x, y) = (x + self.screenPos.x, y + self.screenPos.y);
-					self.tileBuilder = TileBuilder::new(self.currentTileId);
-					self.currentTilePosition = ((x / 50) as u16, (y / 50) as u16);
-					self.state = State::AttemptBuild;
+					let currentTilePosition = ((x / 50) as u16, (y / 50) as u16);
+					let tileBuilder = TileBuilder::new(self.currentTileId, currentTilePosition);
+                    self.state.push(State::GetTile);
+					self.state.push(State::AttemptBuild(tileBuilder));
 					break;
 				},
 				Event::MouseButtonDown {mouse_btn: MouseButton::Right, x, y, ..}
                 if (y as i64) < (self.screenRect.height() - 50) as i64 => {
 					let (x, y) = (x + self.screenPos.x, y + self.screenPos.y);
-					self.currentTilePosition = ((x / 50) as u16, (y / 50) as u16);
-                    ctx.getMapMut().changeTile(self.currentTilePosition, self.tileBuilder.cloneTile(&self.currentTile));
+					let currentTilePosition = ((x / 50) as u16, (y / 50) as u16);
+                    ctx.getMapMut().changeTile(currentTilePosition, self.currentTile.clone());
                },
 				Event::KeyDown{scancode: Some(Scancode::Left), ..} => {
 					if self.currentTileId > 0 {
@@ -376,22 +377,22 @@ impl EditorContext {
 					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
 				},
 				Event::KeyDown{scancode: Some(Scancode::Escape), ..} => {
-					self.state = State::ViewMap;
+					self.state.push(State::ViewMap);
 					*idTexture = None;
 				},
 				Event::KeyDown{scancode: Some(Scancode::M), ..} => {
-					self.state = State::MoveScreen;
+					self.state.push(State::MoveScreen);
 					*idTexture = None;
 				},
 				Event::KeyDown{scancode: Some(Scancode::X), ..} => {
-					self.state = State::UserConfirmDelete;
+					self.state.push(State::UserConfirmDelete);
 					self.textInput.start();
 					self.message = String::from("Are you sure you want to delete this map? (y/n): ");
 					self.messageLen = self.message.len();
 					*fontTexture = Some(createText(&self.message, textureCreator, font));
 				},
 				Event::KeyDown{scancode: Some(Scancode::E), ..} => {
-					self.state = State::EntityPlacement;
+					self.state.push(State::EntityPlacement);
 				},
 
 				Event::KeyDown {scancode: Some(Scancode::H), ..} => 
@@ -411,13 +412,13 @@ impl EditorContext {
 			State::ViewMap => match event {
 				Event::Quit {..} => self.quit = true,
                 Event::KeyDown {scancode: Some(Scancode::Escape), ..} => {
-                    self.state = State::Idle;
+                    self.state.pop();
 					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
                 }
 				Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} => {
 					if let Some(screen) = ctx.getMap().getScreenAtPosition(Point::new(x, y), self.mapRect, self.mapRes) {
 						ctx.getMapMut().setCurrentScreen(screen);
-						self.state = State::Idle;
+						self.state.pop();
 					}
 					else {
 						let (x, y) = MapMod::convertScreenCoordToTileCoord(self.mapRes, self.mapRect, Point::from((x, y))).into();
@@ -426,7 +427,7 @@ impl EditorContext {
 						self.messageLen = self.message.len();
 						self.textInput.start();
 						*fontTexture = Some(createText(&self.message, textureCreator, font));
-						self.state = State::NewScreen;
+						self.state.push(State::NewScreen);
 					}
 					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
                 },
@@ -451,13 +452,13 @@ impl EditorContext {
 			State::MoveScreen => match event {
 				Event::Quit {..} => self.quit = true,
                 Event::KeyDown {scancode: Some(Scancode::Escape), ..} => {
-                    self.state = State::Idle;
+                    self.state.pop();
 					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
                 },
 				Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} => {
 					let (x, y) = MapMod::convertScreenCoordToTileCoord(self.mapRes, self.mapRect, Point::from((x, y))).into();
 					ctx.getMapMut().moveActiveScreen((x as u32, y as u32));
-					self.state = State::Idle;
+					self.state.pop();
 					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
 				},
 				_ => (),
@@ -469,17 +470,17 @@ impl EditorContext {
 				if (y as i64) < (self.screenRect.height() - 50) as i64 => {
 					let (x, y) = (x + self.screenPos.x, y + self.screenPos.y);
 					let entityPosition = ((x / 50) as u16, (y / 50) as u16);
-					self.entityBuilder = EntityBuilder::new(self.currentEntityId, entityPosition);
-					let entityRect = self.entityBuilder.getEntityRect();
+					let entityBuilder = EntityBuilder::new(self.currentEntityId, entityPosition);
+					let entityRect = entityBuilder.getEntityRect();
 					if self.globalEntities {
 						if let None = unsafe { ctx.getEntityAtPositionGlobal(entityRect)} {
-							self.state = State::AttemptBuildEntity;
+							self.state.push(State::AttemptBuildEntity(entityBuilder));
 							break;
 						}
 					} 
 					else { 
 						if let None = unsafe { ctx.getEntityAtPositionActiveScreen(entityRect)} {
-							self.state = State::AttemptBuildEntity;
+							self.state.push(State::AttemptBuildEntity(entityBuilder));
 							break;
 						}
 					}
@@ -527,22 +528,22 @@ impl EditorContext {
 					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
 				},
 				Event::KeyDown{scancode: Some(Scancode::Escape), ..} => {
-					self.state = State::Idle;
+					self.state.pop();
 					*idTexture = None;
 				},
 				Event::KeyDown{scancode: Some(Scancode::M), ..} => {
-					self.state = State::MoveScreen;
+					self.state.push(State::MoveScreen);
 					*idTexture = None;
 				},
 				Event::KeyDown{scancode: Some(Scancode::X), ..} => {
-					self.state = State::UserConfirmDelete;
+					self.state.push(State::UserConfirmDelete);
 					self.textInput.start();
 					self.message = String::from("Are you sure you want to delete this map? (y/n): ");
 					self.messageLen = self.message.len();
 					*fontTexture = Some(createText(&self.message, textureCreator, font));
 				},
 				Event::KeyDown{scancode: Some(Scancode::E), ..} => {
-					self.state = State::Idle;
+					self.state.pop();
 				},
 				Event::KeyDown{scancode: Some(Scancode::G), ..} => {
 					self.globalEntities = !self.globalEntities;
@@ -563,29 +564,67 @@ impl EditorContext {
 				_ => (),
 
 			},
-			_ => match (event, &self.state) {
+			_ => match (event, self.state.last().unwrap()) {
 				(Event::Quit {..}, _) => self.quit = true,
-				(_, State::Idle) => self.lock = false,
+				(Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..}, State::GetTile)
+				if (y as i64) < (self.screenRect.height() - 50) as i64 => {
+					let (x, y) = (x + self.screenPos.x, y + self.screenPos.y);
+					let currentTilePosition = ((x / 50) as u16, (y / 50) as u16);
+					let tileBuilder = TileBuilder::new(self.currentTileId, currentTilePosition);
+					self.state.push(State::AttemptBuild(tileBuilder));
+                    *fontTexture = None;
+					break;
+				},
+				(Event::MouseButtonDown {mouse_btn: MouseButton::Right, x, y, ..}, State::GetTile)
+                if (y as i64) < (self.screenRect.height() - 50) as i64 => {
+					let (x, y) = (x + self.screenPos.x, y + self.screenPos.y);
+					let currentTilePosition = ((x / 50) as u16, (y / 50) as u16);
+                    ctx.getMapMut().changeTile(currentTilePosition, self.currentTile.clone());
+                    *fontTexture = None;
+                },
+				(Event::KeyDown{scancode: Some(Scancode::Left), ..}, State::GetTile) => {
+					if self.currentTileId > 0 {
+						self.currentTileId -= 1;
+						self.previewTile = Tile::new(self.currentTileId, 0).unwrap();
+					}
+				},
+				(Event::KeyDown{scancode: Some(Scancode::Right), ..}, State::GetTile) => {
+					if self.currentTileId < MAX_TILE_IDX {
+						self.currentTileId += 1;
+						self.previewTile = Tile::new(self.currentTileId, 0).unwrap();
+					}
+				},
 				(Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..}, State::GetCoordinate) 
 					if (y as i32) < (self.screenRect.height() - 50) as i32 => {
+					self.state.pop();
 					let location = ((x + self.screenPos.x) as u16 / 50u16, (y + self.screenPos.y) as u16 / 50u16);
-					self.tileBuilder.addLocation(location);
-					self.state = State::AttemptBuild;
+					match self.state.last_mut().unwrap() {
+                        State::AttemptBuild(ref mut builder) => {
+                            builder.addLocation(location);
+                        },
+                        /*State::AttemptBuildEntity(ref mut builder) => {
+                            builder.addLocation(location);
+                        },*/
+                        _ => unreachable!(),
+                    };
+                    
 					*fontTexture = None;
 				}
 				(Event::KeyDown {scancode: Some(Scancode::Escape), ..}, _) => {
-					self.lock = false;
-					self.state = State::Idle;
+					self.state.pop();
 					*fontTexture = None;
 					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
 				}
 				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, State::GetUserUsize) => {
 					if let Ok(id) = usize::from_str(&self.message[self.messageLen..].trim()) {
-						self.lock = false;
-						self.tileBuilder.addUsize(id);
 						self.textInput.stop();
-						self.state = State::AttemptBuild;
 						*fontTexture = None;
+                        self.state.pop();
+                        match self.state.last_mut().unwrap() {
+                            State::AttemptBuild(ref mut builder) => builder.addUsize(id),
+                            //State::AttemptBuildEntity(ref mut builder) => builder.addUsize(id),
+                            _ => panic!(),
+                        }
 					}
 					else {
 						self.message.truncate(self.messageLen);
@@ -597,7 +636,7 @@ impl EditorContext {
 						ctx.getMapMut().popActiveScreen();
 					}
 					self.textInput.stop();
-					self.state = State::Idle;
+					self.state.pop();
 					*fontTexture = None;
 					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
 				},
@@ -606,7 +645,7 @@ impl EditorContext {
 						if let Some(width) = self.newMapWidth  {
 							ctx.getMapMut().addScreen(width, dimension, self.newMapCoords);
 							self.newMapWidth = None;
-							self.state = State::Idle;
+							self.state.pop();
 							self.textInput.stop();
 							*fontTexture = None;
 							*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
@@ -636,13 +675,19 @@ impl EditorContext {
 			},
 		}}
 
-		match self.state {
-			State::AttemptBuild => self.build(ctx.getMapMut(), font, fontTexture, textureCreator),
-			State::AttemptBuildEntity => self.buildEntity(ctx, font, fontTexture, textureCreator),
+		match self.state.last_mut().unwrap() {
+			State::AttemptBuild(ref mut builder) => {
+                let signal = builder.build();
+                self.build(signal, ctx.getMapMut(), font, fontTexture, textureCreator);
+            },
+			State::AttemptBuildEntity(ref mut builder) => {
+                let signal = builder.build(textureCreator);
+                self.buildEntity(signal, ctx, font, fontTexture, textureCreator);
+            },
 			_ => (),
 		}
 
-		match self.state {
+		match self.state.last().unwrap() {
 			State::ViewMap | State::NewScreen | State::MoveScreen => {
 				ctx.getMapMut().drawAll(&mut self.canvas, self.mapRes, self.mapRect);
 			},
@@ -654,7 +699,7 @@ impl EditorContext {
 				ctx.getMapMut().renderTile(self.previewRect, &self.previewTile, &mut self.canvas);
 			},
 		}
-		if let State::EntityPlacement = self.state {
+		if let State::EntityPlacement = self.state.last().unwrap() {
 			if self.globalEntities {
 				unsafe {self.scheduler.drawGlobal(&ctx, &mut self.canvas);}
 			}
@@ -676,41 +721,52 @@ impl EditorContext {
 
 		self.quit
 	}
-	fn build<'a>(&mut self, map: &mut Map, font: &Font, fontTexture: &mut Option<Texture<'a>>, textureCreator: &'a TextureCreator<WindowContext>) {
-		match self.tileBuilder.build() {
+	fn build<'a>(&mut self, signal: TileBuilderSignals, map: &mut Map, font: &Font, fontTexture: &mut Option<Texture<'a>>, textureCreator: &'a TextureCreator<WindowContext>) {
+		match signal {
 			TileBuilderSignals::GetCoordinate(tmpMessage) => {
-				self.state = State::GetCoordinate;
-				self.message = String::from(tmpMessage);
-				self.messageLen = tmpMessage.len() - 1;
+				self.state.push(State::GetCoordinate);
 				*fontTexture = Some(createText(&self.message, textureCreator, font));
 			}
 			TileBuilderSignals::GetUserUsize(tmpMessage) => {
-				self.state = State::GetUserUsize;
-				self.lock = true;
+				self.state.push(State::GetUserUsize);
 				self.textInput.start();
 				self.message = String::from(tmpMessage);
 				self.messageLen = tmpMessage.len() - 1;
 				*fontTexture = Some(createText(&self.message, textureCreator, font));
 			},
-			TileBuilderSignals::Complete(tile) => {
-				self.state = State::Idle;
+			TileBuilderSignals::Complete(tile, pos) => {
+				let tilebuilder = if let Some(State::AttemptBuild(builder)) = self.state.pop() {builder} else {panic!()};
 				self.currentTile = tile;
-				map.changeTile(self.currentTilePosition, self.tileBuilder.cloneTile(&self.currentTile));
+                if let State::GetTile = self.state.last().unwrap() {
+                    self.state.pop();
+                    match self.state.last_mut().unwrap() {
+                        State::AttemptBuildEntity(ref mut builder) => builder.addTile(tilebuilder.cloneTile(&self.currentTile), pos),
+                        State::Idle => map.changeTile(pos, tilebuilder.cloneTile(&self.currentTile)),
+                        _ => unimplemented!(),
+                    };
+                }
+                else {panic!()}
 			},
 			TileBuilderSignals::InvalidId => (),
 		}	
 	}
-	fn buildEntity<'a>(&mut self, ctx: &mut GameContext<'a>, font: &Font, fontTexture: &mut Option<Texture<'a>>, creator: &'a TextureCreator<WindowContext>) {
-		match self.entityBuilder.build(creator) {
+	fn buildEntity<'a>(&mut self, signal: EntityBuilderSignals<'a>, ctx: &mut GameContext<'a>, font: &Font, fontTexture: &mut Option<Texture<'a>>, creator: &'a TextureCreator<WindowContext>) {
+		match signal {
 			EntityBuilderSignals::Complete(Ok(entity)) if self.globalEntities => {
-				self.state = State::EntityPlacement;
-				self.entityBuilder.addEntityGlobal(ctx, entity);
+				if let Some(State::AttemptBuildEntity(builder)) = self.state.pop() {
+    				builder.addEntityGlobal(ctx, entity);
+                }
 			},
 			EntityBuilderSignals::Complete(Ok(entity)) => {
-				self.state = State::EntityPlacement;
-				self.entityBuilder.addEntityActiveScreen(ctx, entity);
-			},
+				if let Some(State::AttemptBuildEntity(builder)) = self.state.pop() {
+    				builder.addEntityActiveScreen(ctx, entity);
+                }
+            },
 			EntityBuilderSignals::Complete(Err(e)) => eprintln!("Entity could not be placed because of error (details below)\n{}", e),
+            EntityBuilderSignals::GetTile(msg) => {
+                *fontTexture = Some(createText(msg, creator, font));
+                self.state.push(State::GetTile);
+            },
 			EntityBuilderSignals::InvalidId => eprintln!("Entity could not be placed because of invalid entity id produced by editor"),
 		}
 	}
@@ -750,12 +806,13 @@ pub enum Direction {
 enum State {
 	GetUserUsize,
 	GetCoordinate,
+    GetTile,
 	UserConfirmDelete,
 	ViewMap,
 	NewScreen,
 	MoveScreen,
-	AttemptBuild,
-	AttemptBuildEntity,
+	AttemptBuild(TileBuilder),
+	AttemptBuildEntity(EntityBuilder),
 	Idle,
 	EntityPlacement,
 }
