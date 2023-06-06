@@ -17,6 +17,7 @@ const ENTITY_SPRITES: &'static [&'static str] = &[
 pub struct EntityBuilder {
 	id: u16,
 	position: (u16, u16),
+	locations: Option<Vec<(Tile, (u16, u16))>>,
 }
 
 pub enum EntityBuilderSignals<'a> {
@@ -35,6 +36,9 @@ impl EntityBuilder {
 		match self.id {
 			0 => EntityBuilderSignals::Complete(Player::new(creator, self.position.0 as f32 * 50f32, self.position.1 as f32 * 50f32)),
 			1 => EntityBuilderSignals::Complete(Skeleton::new(creator, (self.position.0 as f32 * 50f32, self.position.1 as f32 * 50f32))),
+			2 => {
+				
+			}
 			MAX_ENTITY_IDX.. => EntityBuilderSignals::InvalidId,
 		}
 	}
@@ -77,5 +81,5 @@ impl<'a> EntityRenderer<'a> {
 	}
 }
 
-pub const MAX_ENTITY_IDX: u16 = 1;
+pub const MAX_ENTITY_IDX: u16 = 2;
 

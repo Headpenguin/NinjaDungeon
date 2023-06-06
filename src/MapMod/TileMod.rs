@@ -11,7 +11,7 @@ use super::Map;
 
 pub const OOB: Tile = Tile::OOB();
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Tile (u16, CollisionType);
 
 pub struct TileBuilder {
@@ -121,7 +121,7 @@ impl TileBuilder {
  and check collision like that. For a sign, check some amount in front of the player (probably
  the same amount as the walking velocity). Also, just add an index to a vector to have additional data.
 */
-#[derive(Serialize, Deserialize, Clone, Copy)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 pub enum CollisionType {
 	None, //Do nothing
 	Block, //Block the player
