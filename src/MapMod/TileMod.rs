@@ -11,11 +11,12 @@ use super::Map;
 
 pub const OOB: Tile = Tile::OOB();
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Tile (u16, CollisionType);
 
 pub struct TileBuilder {
 	id: u16,
+    pos: (u16, u16),
 	mapId: Option<usize>,
 	location: Option<(u16, u16)>,
 	locationEnd: Option<(u16, u16)>,
@@ -24,7 +25,7 @@ pub struct TileBuilder {
 pub enum TileBuilderSignals {
 	GetUserUsize(&'static str),
 	GetCoordinate(&'static str),
-	Complete(Tile),
+	Complete(Tile, (u16, u16)),
 	InvalidId,
 }
 
@@ -57,9 +58,10 @@ impl Default for Tile {
 }
 
 impl TileBuilder {
-	pub fn new(id: u16) -> TileBuilder {
+	pub fn new(id: u16, pos: (u16, u16)) -> TileBuilder {
 		TileBuilder {
 			id,
+            pos,
 			mapId: None,
 			location: None,
 			locationEnd: None,
@@ -69,7 +71,7 @@ impl TileBuilder {
 		match self.id {
 			4 => {
 				if let (Some(location), Some(locationEnd)) = (self.location, self.locationEnd) {
-					TileBuilderSignals::Complete(Tile::new(self.id, location.0 as usize + ((location.1 as usize) << 0x10) + ((locationEnd.0 as usize) << 0x20) + ((locationEnd.1 as usize) << 0x30)).unwrap())
+					TileBuilderSignals::Complete(Tile::new(self.id, location.0 as usize + ((location.1 as usize) << 0x10) + ((locationEnd.0 as usize) << 0x20) + ((locationEnd.1 as usize) << 0x30)).unwrap(), self.pos)
 				}
 				else if let Some(_) = self.location {
 					TileBuilderSignals::GetCoordinate("Click where the gates end")
@@ -80,7 +82,7 @@ impl TileBuilder {
 			}
 			3 => {
 				if let Some(id) = self.mapId {
-					TileBuilderSignals::Complete(Tile::new(self.id, id).unwrap())
+					TileBuilderSignals::Complete(Tile::new(self.id, id).unwrap(), self.pos)
 				}
 				else {
 					TileBuilderSignals::GetUserUsize("Enter the map id to transition to: ")
@@ -88,7 +90,7 @@ impl TileBuilder {
 			},
 
 			id => if let Ok(tile) = Tile::new(id, 0) {
-				TileBuilderSignals::Complete(tile)
+				TileBuilderSignals::Complete(tile, self.pos)
 			}
 			else {
 				TileBuilderSignals::InvalidId
@@ -121,7 +123,7 @@ impl TileBuilder {
  and check collision like that. For a sign, check some amount in front of the player (probably
  the same amount as the walking velocity). Also, just add an index to a vector to have additional data.
 */
-#[derive(Serialize, Deserialize, Clone, Copy)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 pub enum CollisionType {
 	None, //Do nothing
 	Block, //Block the player

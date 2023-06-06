@@ -6,13 +6,16 @@ use serde::{Serialize, Deserialize};
 
 pub mod Traits;
 pub mod SkeletonMod;
+pub mod GeneratorMod;
 mod Builder;
 
 pub use Builder::*;
 
 pub use SkeletonMod::Skeleton;
+pub use GeneratorMod::Generator;
 
 use SkeletonMod::InnerSkeleton;
+use GeneratorMod::InnerGenerator;
 
 use Traits::{Entity, EntityDyn, EntityTraits, EntityTraitsWrappable};
 use std::collections::HashMap;
@@ -50,16 +53,19 @@ impl<'a, T: EntityTraitsWrappable<'a>> TypedID<'a, T> {
 pub enum BoxCode<'a> {
 	Player(Entity<'a, Player<'a>>),
 	Skeleton(Entity<'a, Skeleton<'a>>),
+	Generator(Entity<'a, Generator<'a>>),
 }
 
 pub enum RefCodeMut<'a, 'b> {
 	Player(&'b mut Entity<'a, Player<'a>>),
 	Skeleton(&'b mut Entity<'a, Skeleton<'a>>),
+	Generator(&'b mut Entity<'a, Generator<'a>>),
 }
 
 pub enum RefCode<'a, 'b> {
 	Player(&'b Entity<'a, Player<'a>>),
 	Skeleton(&'b Entity<'a, Skeleton<'a>>),
+	Generator(&'b Entity<'a, Generator<'a>>),
 }
 
 impl<'a, 'b> RefCode<'a, 'b> {
@@ -67,6 +73,7 @@ impl<'a, 'b> RefCode<'a, 'b> {
 		match self {
 			RefCode::Player(e) => e.collidesStatic(hitbox),
 			RefCode::Skeleton(e) => e.collidesStatic(hitbox),
+			RefCode::Generator(e) => e.collidesStatic(hitbox),
 		}
 	}
 }
@@ -76,12 +83,14 @@ impl<'a> BoxCode<'a> {
 		match self {
 			BoxCode::Player(ref mut e) => RefCodeMut::Player(e),
 			BoxCode::Skeleton(ref mut e) => RefCodeMut::Skeleton(e),
+			BoxCode::Generator(ref mut e) => RefCodeMut::Generator(e),
 		}
 	}
 	pub fn refcode<'b>(&'b self) -> RefCode<'a, 'b> {
 		match self {
 			BoxCode::Player(ref e) => RefCode::Player(e),
 			BoxCode::Skeleton(ref e) => RefCode::Skeleton(e),
+			BoxCode::Generator(ref e) => RefCode::Generator(e),
 		}
 	}
 }
@@ -92,6 +101,7 @@ impl<'a> Deref for BoxCode<'a> {
 		match self {
 			Self::Player(e) => e as &Entity<Player> as &(dyn EntityDyn + 'a),
 			Self::Skeleton(e) => e as &Entity<Skeleton> as &(dyn EntityDyn + 'a),
+			Self::Generator(e) => e as &Entity<Generator> as &(dyn EntityDyn + 'a),
 		}
 	}
 }
@@ -100,6 +110,7 @@ impl<'a> DerefMut for BoxCode<'a> {
 		match self {
 			Self::Player(e) => e as &mut Entity<Player> as &mut (dyn EntityDyn + 'a),
 			Self::Skeleton(e) => e as &mut Entity<Skeleton> as &mut (dyn EntityDyn + 'a),
+			Self::Generator(e) => e as &mut Entity<Generator> as &mut (dyn EntityDyn + 'a),
 		}
 	}
 }
@@ -108,6 +119,7 @@ impl<'a> DerefMut for BoxCode<'a> {
 pub enum InnerCode {
 	Player(InnerPlayer),
 	Skeleton(InnerSkeleton),
+	Generator(InnerGenerator),
 }
 
 impl InnerCode {
@@ -115,12 +127,14 @@ impl InnerCode {
 		match self {
 			InnerCode::Player(e) => Player::fromInner(e, creator),
 			InnerCode::Skeleton(e) => Skeleton::fromInner(e, creator),
+			InnerCode::Generator(e) => Generator::fromInner(e, creator),
 		}
 	}
 	pub fn fromBoxCode(code: &BoxCode) -> InnerCode {
 		match code {
 			BoxCode::Player(e) => InnerCode::Player(InnerPlayer::fromPlayer(e)),
 			BoxCode::Skeleton(e) => InnerCode::Skeleton(InnerSkeleton::fromSkeleton(e)),
+			BoxCode::Generator(e) => InnerCode::Generator(InnerGenerator::fromGenerator(e)),
 		}
 	}
 }
