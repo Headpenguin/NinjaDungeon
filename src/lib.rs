@@ -566,7 +566,7 @@ impl EditorContext {
 			},
 			_ => match (event, self.state.last().unwrap()) {
 				(Event::Quit {..}, _) => self.quit = true,
-				(Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..}, State::GetTile)
+				(Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..}, State::GetEntityID)
 				if (y as i64) < (self.screenRect.height() - 50) as i64 => {
 					let (x, y) = ((x + self.screenPos.x) / 50 * 50, (y + self.screenPos.y) / 50 * 50);
 					let clickRect = Rect::new(x, y, x as u32 + 50, y as u32 + 50);
