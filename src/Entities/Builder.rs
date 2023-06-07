@@ -94,7 +94,15 @@ impl EntityBuilder {
 		match self.id {
 			0 => ctx.addEntityActiveScreen::<Player>(entity),
 			1 => ctx.addEntityActiveScreen::<Skeleton>(entity),
-            2 => ctx.addEntityActiveScreen::<Generator>(entity),
+            2 => {
+				let genID = ctx.addEntityActiveScreen::<Generator>(entity);
+				if let Some(genID) = genID {
+					for id in self.linkedIDs.0.iter() {
+						ctx.getHolderMut().getMutSafe(*id).unwrap().register(IDRegistration::DeathCounter(genID));
+					}
+				}
+				genID
+			},
 			MAX_ENTITY_IDX.. => unreachable!(),
 		};
 	}
