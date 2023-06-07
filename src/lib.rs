@@ -37,7 +37,7 @@ pub use PlayerMod::Player;
 
 pub use MapMod::{Map, InnerMap, Location, Tile, MAX_TILE_IDX, CollisionType, CollisionBounds, TileBuilder, TileBuilderSignals};
 pub use GameContextMod::*;
-pub use EditorContextMod::{EditorContext, createText};
+pub use EditorContextMod::{EditorContext, EditorContextDeps, createText};
 
 use PlayerMod::SignalsBuilder;
 

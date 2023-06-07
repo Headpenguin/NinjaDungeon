@@ -27,7 +27,6 @@ pub struct EditorContext {
 	sdlContext: Sdl,
 	videoSubsystem: VideoSubsystem,
 	canvas: Canvas<Window>,
-	events: EventPump,
 	textInput: TextInputUtil,
 	color: Color,
 	quit: bool,
@@ -49,8 +48,18 @@ pub struct EditorContext {
 	currentEntityId: u16,
 }
 
+pub struct EditorContextDeps<'tex, 'ttf, 'ctx, 'filename, 'idTex, 'fontTex, 'font, 'entTex> {
+    pub filename: &'filename str,
+    pub ctx: &'ctx mut GameContext<'tex>,
+    pub font: &'font Font<'ttf, 'static>,
+    pub fontTexture: &'fontTex mut Option<Texture<'tex>>,
+    pub idTexture: &'idTex mut Option<Texture<'tex>>,
+    pub entityRenderer: &'entTex EntityRenderer<'tex>,
+    pub textureCreator: &'tex TextureCreator<WindowContext>,
+}
+
 impl EditorContext {
-	pub fn new(width: u32, height: u32, name: &'static str, color: Color,) -> (TextureCreator<WindowContext>, Sdl2TtfContext, EditorContext) {
+	pub fn new(width: u32, height: u32, name: &'static str, color: Color,) -> (TextureCreator<WindowContext>, Sdl2TtfContext, EventPump, EditorContext) {
 
 		let sdlContext = sdl2::init().unwrap();
 		let videoSubsystem = sdlContext.video().unwrap();
@@ -78,16 +87,14 @@ impl EditorContext {
 		
 		let ttfContext = ttf::init().unwrap();
 
-		(textureCreator, ttfContext, EditorContext {
+		(textureCreator, ttfContext, sdlContext.event_pump().unwrap(), EditorContext {
 			canvas,
-			events: sdlContext.event_pump().unwrap(),
 			textInput,
 			sdlContext,
 			videoSubsystem,
 			color,
 			quit: false,
 			currentTileId: 0,
-//			currentTilePosition: (0, 0),
 			currentTile: Tile::new(0, 0).unwrap(),
 			previewTile: Tile::new(0, 0).unwrap(),
 			screenRect: Rect::new(0, 0, width, height),
@@ -97,257 +104,26 @@ impl EditorContext {
 			newMapCoords: (0, 0),
 			newMapWidth: None,
 			previewRect: Rect::new(0, height as i32 - 50, 50, 50),
-//			tileBuilder: TileBuilder::new(0),
 			state: vec![State::Idle],
-//			lock: false,
 			message: String::new(),
 			messageLen: 0,
 			scheduler: Scheduler::new(),
 			globalEntities: false,
             currentEntityId: 0,
-//			entityBuilder: EntityBuilder::new(u16::MAX, (0, 0)),
 		})
-	}
+    }	
 
-	pub fn mainLoop<'a>(&mut self, filename: &str, ctx: &mut GameContext<'a>, font: &Font, fontTexture: &mut Option<Texture<'a>>, idTexture: &mut Option<Texture<'a>>, entityRenderer: &EntityRenderer<'a>, textureCreator: &'a TextureCreator<WindowContext>) -> bool {
-		self.canvas.set_draw_color(self.color);
+	pub fn mainLoop<'a>(&mut self, events: &mut EventPump, deps: &mut EditorContextDeps) -> bool {
+        self.canvas.set_draw_color(self.color);
 
 		self.canvas.clear();
 	
-		for event in self.events.poll_iter() {match self.state.last().unwrap() {
-			State::Idle => match event {
-				Event::Quit {..} => self.quit = true,
-
-				Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} 
-				if (y as i64) < (self.screenRect.height() - 50) as i64 => {
-					let (x, y) = (x + self.screenPos.x, y + self.screenPos.y);
-					let currentTilePosition = ((x / 50) as u16, (y / 50) as u16);
-					let tileBuilder = TileBuilder::new(self.currentTileId, currentTilePosition);
-                    self.state.push(State::GetTile);
-					self.state.push(State::AttemptBuild(tileBuilder));
-					break;
-				},
-				Event::MouseButtonDown {mouse_btn: MouseButton::Right, x, y, ..}
-                if (y as i64) < (self.screenRect.height() - 50) as i64 => {
-					let (x, y) = (x + self.screenPos.x, y + self.screenPos.y);
-					let currentTilePosition = ((x / 50) as u16, (y / 50) as u16);
-                    ctx.getMapMut().changeTile(currentTilePosition, self.currentTile.clone());
-               },
-				Event::KeyDown{scancode: Some(Scancode::Left), ..} => {
-					if self.currentTileId > 0 {
-						self.currentTileId -= 1;
-						self.previewTile = Tile::new(self.currentTileId, 0).unwrap();
-					}
-				},
-				Event::KeyDown{scancode: Some(Scancode::Right), ..} => {
-					if self.currentTileId < MAX_TILE_IDX {
-						self.currentTileId += 1;
-						self.previewTile = Tile::new(self.currentTileId, 0).unwrap();
-					}
-				},
-				Event::KeyDown{scancode: Some(Scancode::S), ..} => {
-					let mut ser = Serializer::new(File::create(filename).unwrap());
-					unsafe {InnerGameContext::fromGameContext(ctx)}.serialize(&mut ser).unwrap();
-					let mut f = ser.into_inner();
-					f.flush().unwrap();
-				},	
-				Event::KeyDown{scancode: Some(Scancode::A), ..} => {
-					ctx.getMapMut().decrementCurrentScreen();
-					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
-				},
-				Event::KeyDown{scancode: Some(Scancode::D), ..} => {
-					ctx.getMapMut().incrementCurrentScreen();
-					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
-				},
-				Event::KeyDown{scancode: Some(Scancode::Escape), ..} => {
-					self.state.push(State::ViewMap);
-					*idTexture = None;
-				},
-				Event::KeyDown{scancode: Some(Scancode::M), ..} => {
-					self.state.push(State::MoveScreen);
-					*idTexture = None;
-				},
-				Event::KeyDown{scancode: Some(Scancode::X), ..} => {
-					self.state.push(State::UserConfirmDelete);
-					self.textInput.start();
-					self.message = String::from("Are you sure you want to delete this map? (y/n): ");
-					self.messageLen = self.message.len();
-					*fontTexture = Some(createText(&self.message, textureCreator, font));
-				},
-				Event::KeyDown{scancode: Some(Scancode::E), ..} => {
-					self.state.push(State::EntityPlacement);
-				},
-
-				Event::KeyDown {scancode: Some(Scancode::H), ..} => 
-					self.screenPos.offset(self.screenRect.center().x.clamp(0, self.screenPos.x) * -1, 0),
-				
-				Event::KeyDown {scancode: Some(Scancode::J), ..} =>
-					self.screenPos.offset(0, self.screenRect.center().y.clamp(0, self.screenPos.y) * -1),
-			
-				Event::KeyDown {scancode: Some(Scancode::K), ..} =>
-					self.screenPos.offset(0, self.screenRect.center().y.min(ctx.getMap().getMaxScreenCoords().1 as i32 - self.screenPos.bottom()).max(0)),
-				
-				Event::KeyDown {scancode: Some(Scancode::L), ..} => 
-					self.screenPos.offset(self.screenRect.center().x.min(ctx.getMap().getMaxScreenCoords().0 as i32 - self.screenPos.right()).max(0), 0),
-				
-				_ => (),
-			},
-			State::ViewMap => match event {
-				Event::Quit {..} => self.quit = true,
-                Event::KeyDown {scancode: Some(Scancode::Escape), ..} => {
-                    self.state.pop();
-					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
-                }
-				Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} => {
-					if let Some(screen) = ctx.getMap().getScreenAtPosition(Point::new(x, y), self.mapRect, self.mapRes) {
-						ctx.getMapMut().setCurrentScreen(screen);
-						self.state.pop();
-					}
-					else {
-						let (x, y) = MapMod::convertScreenCoordToTileCoord(self.mapRes, self.mapRect, Point::from((x, y))).into();
-						self.newMapCoords = (x as u32, y as u32);
-						self.message = String::from("Please enter the map width: ");
-						self.messageLen = self.message.len();
-						self.textInput.start();
-						*fontTexture = Some(createText(&self.message, textureCreator, font));
-						self.state.push(State::NewScreen);
-					}
-					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
-                },
-				Event::MouseWheel {y: 1, ..} => {
-					if self.mapRes.0 > 1 && self.mapRes.1 > 1 {
-						self.mapRes.0 /= 2;
-						self.mapRes.1 /= 2;
-					}
-				},
-				Event::MouseWheel {y: -1, ..} => {
-					if self.mapRes.0 < i32::MAX as u32 && self.mapRes.1 < i32::MAX as u32 {
-						self.mapRes.0 *= 2;
-						self.mapRes.1 *= 2;
-					}
-				}
-				Event::KeyDown {scancode: Some(Scancode::H), ..} => self.mapRect.offset(((self.mapRes.0 >> 1) as i32).clamp(0, self.mapRect.x()) * -1, 0),
-				Event::KeyDown {scancode: Some(Scancode::J), ..} => self.mapRect.offset(0, ((self.mapRes.1 >> 1) as i32).clamp(0, self.mapRect.y()) * -1),
-				Event::KeyDown {scancode: Some(Scancode::K), ..} => self.mapRect.offset(0, ((self.mapRes.1 >> 1) as i32).clamp(0, i32::MAX - self.mapRect.y())),
-				Event::KeyDown {scancode: Some(Scancode::L), ..} => self.mapRect.offset(((self.mapRes.0 >> 1) as i32).clamp(0, i32::MAX - self.mapRect.x()), 0),
-				_ => (),
-			},
-			State::MoveScreen => match event {
-				Event::Quit {..} => self.quit = true,
-                Event::KeyDown {scancode: Some(Scancode::Escape), ..} => {
-                    self.state.pop();
-					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
-                },
-				Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} => {
-					let (x, y) = MapMod::convertScreenCoordToTileCoord(self.mapRes, self.mapRect, Point::from((x, y))).into();
-					ctx.getMapMut().moveActiveScreen((x as u32, y as u32));
-					self.state.pop();
-					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
-				},
-				_ => (),
-			},
-			State::EntityPlacement => match event {
-				Event::Quit {..} => self.quit = true,
-
-				Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} 
-				if (y as i64) < (self.screenRect.height() - 50) as i64 => {
-					let (x, y) = (x + self.screenPos.x, y + self.screenPos.y);
-					let entityPosition = ((x / 50) as u16, (y / 50) as u16);
-					let entityBuilder = EntityBuilder::new(self.currentEntityId, entityPosition);
-					let entityRect = entityBuilder.getEntityRect();
-					if self.globalEntities {
-						if let None = unsafe { ctx.getEntityAtPositionGlobal(entityRect)} {
-							self.state.push(State::AttemptBuildEntity(entityBuilder));
-							break;
-						}
-					} 
-					else { 
-						if let None = unsafe { ctx.getEntityAtPositionActiveScreen(entityRect)} {
-							self.state.push(State::AttemptBuildEntity(entityBuilder));
-							break;
-						}
-					}
-				},
-				Event::MouseButtonDown {mouse_btn: MouseButton::Right, x, y, ..}
-				if (y as i64) < (self.screenRect.height() - 50) as i64 => {
-					let (x, y) = ((x + self.screenPos.x) / 50 * 50, (y + self.screenPos.y) / 50 * 50);
-					let clickRect = Rect::new(x, y, x as u32 + 50, y as u32 + 50);
-					unsafe {
-						if self.globalEntities {
-							if let Some(id) = ctx.getEntityAtPositionGlobal(clickRect) {
-								ctx.removeEntity(id);
-							}
-						}
-						else {
-							if let Some(id) = ctx.getEntityAtPositionActiveScreen(clickRect) {
-								ctx.removeEntity(id);
-							}
-						}
-					}
-
-				},
-				Event::KeyDown{scancode: Some(Scancode::Left), ..} => {
-					if self.currentEntityId > 0 {
-						self.currentEntityId -= 1;
-					}
-				},
-				Event::KeyDown{scancode: Some(Scancode::Right), ..} => {
-					if self.currentEntityId < MAX_ENTITY_IDX {
-						self.currentEntityId += 1;
-					}
-				},
-				Event::KeyDown{scancode: Some(Scancode::S), ..} => {
-					let mut ser = Serializer::new(File::create(filename).unwrap());
-					unsafe {InnerGameContext::fromGameContext(ctx)}.serialize(&mut ser).unwrap();
-					let mut f = ser.into_inner();
-					f.flush().unwrap();
-				},	
-				Event::KeyDown{scancode: Some(Scancode::A), ..} => {
-					ctx.getMapMut().decrementCurrentScreen();
-					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
-				},
-				Event::KeyDown{scancode: Some(Scancode::D), ..} => {
-					ctx.getMapMut().incrementCurrentScreen();
-					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
-				},
-				Event::KeyDown{scancode: Some(Scancode::Escape), ..} => {
-					self.state.pop();
-					*idTexture = None;
-				},
-				Event::KeyDown{scancode: Some(Scancode::M), ..} => {
-					self.state.push(State::MoveScreen);
-					*idTexture = None;
-				},
-				Event::KeyDown{scancode: Some(Scancode::X), ..} => {
-					self.state.push(State::UserConfirmDelete);
-					self.textInput.start();
-					self.message = String::from("Are you sure you want to delete this map? (y/n): ");
-					self.messageLen = self.message.len();
-					*fontTexture = Some(createText(&self.message, textureCreator, font));
-				},
-				Event::KeyDown{scancode: Some(Scancode::E), ..} => {
-					self.state.pop();
-				},
-				Event::KeyDown{scancode: Some(Scancode::G), ..} => {
-					self.globalEntities = !self.globalEntities;
-				},
-
-				Event::KeyDown {scancode: Some(Scancode::H), ..} => 
-					self.screenPos.offset(self.screenRect.center().x.clamp(0, self.screenPos.x) * -1, 0),
-				
-				Event::KeyDown {scancode: Some(Scancode::J), ..} =>
-					self.screenPos.offset(0, self.screenRect.center().y.clamp(0, self.screenPos.y) * -1),
-			
-				Event::KeyDown {scancode: Some(Scancode::K), ..} =>
-					self.screenPos.offset(0, self.screenRect.center().y.min(ctx.getMap().getMaxScreenCoords().1 as i32 - self.screenPos.bottom()).max(0)),
-				
-				Event::KeyDown {scancode: Some(Scancode::L), ..} => 
-					self.screenPos.offset(self.screenRect.center().x.min(ctx.getMap().getMaxScreenCoords().0 as i32 - self.screenPos.right()).max(0), 0),
-				
-				_ => (),
-
-			},
-			_ => match (event, self.state.last().unwrap()) {
+		for event in events.poll_iter() {match self.state.last().unwrap() {
+			State::Idle => self.doIdleEvents(event, deps),
+			State::ViewMap => self.doViewMapEvents(event, deps),
+            State::MoveScreen => self.doMoveScreenEvents(event, deps),
+            State::EntityPlacement => self.doEntityPlacementEvents(event, deps),
+            _ => match (event, self.state.last().unwrap()) {
 				(Event::Quit {..}, _) => self.quit = true,
 				(Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..}, State::GetEntityID)
 				if (y as i64) < (self.screenRect.height() - 50) as i64 => {
@@ -355,7 +131,7 @@ impl EditorContext {
 					let clickRect = Rect::new(x, y, x as u32 + 50, y as u32 + 50);
 					unsafe {
 						if self.globalEntities {
-							if let Some(id) = ctx.getEntityAtPositionGlobal(clickRect) {
+							if let Some(id) = deps.ctx.getEntityAtPositionGlobal(clickRect) {
 								self.state.pop();
 								if let Some(State::AttemptBuildEntity(ref mut builder)) = self.state.last_mut() {
 									builder.addLinkedID(id);
@@ -363,7 +139,7 @@ impl EditorContext {
 							}
 						}
 						else {
-							if let Some(id) = ctx.getEntityAtPositionActiveScreen(clickRect) {
+							if let Some(id) = deps.ctx.getEntityAtPositionActiveScreen(clickRect) {
 								self.state.pop();
 								if let Some(State::AttemptBuildEntity(ref mut builder)) = self.state.last_mut() {
 									builder.addLinkedID(id);
@@ -379,15 +155,15 @@ impl EditorContext {
 					let currentTilePosition = ((x / 50) as u16, (y / 50) as u16);
 					let tileBuilder = TileBuilder::new(self.currentTileId, currentTilePosition);
 					self.state.push(State::AttemptBuild(tileBuilder));
-                    *fontTexture = None;
+                    *deps.fontTexture = None;
 					break;
 				},
 				(Event::MouseButtonDown {mouse_btn: MouseButton::Right, x, y, ..}, State::GetTile)
                 if (y as i64) < (self.screenRect.height() - 50) as i64 => {
 					let (x, y) = (x + self.screenPos.x, y + self.screenPos.y);
 					let currentTilePosition = ((x / 50) as u16, (y / 50) as u16);
-                    ctx.getMapMut().changeTile(currentTilePosition, self.currentTile.clone());
-                    *fontTexture = None;
+                    deps.ctx.getMapMut().changeTile(currentTilePosition, self.currentTile.clone());
+                    *deps.fontTexture = None;
                 },
 				(Event::KeyDown{scancode: Some(Scancode::Left), ..}, State::GetTile) => {
 					if self.currentTileId > 0 {
@@ -402,7 +178,7 @@ impl EditorContext {
 					}
 				},
 				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, State::GetTile | State::GetEntityID) => {
-					*fontTexture = None;
+					*deps.fontTexture = None;
 					self.state.pop();
 					if let Some(State::AttemptBuildEntity(ref mut builder)) = self.state.last_mut() {
 						builder.endList();
@@ -425,17 +201,17 @@ impl EditorContext {
                         _ => unreachable!(),
                     };
                     
-					*fontTexture = None;
+					*deps.fontTexture = None;
 				}
 				(Event::KeyDown {scancode: Some(Scancode::Escape), ..}, _) => {
 					self.state.pop();
-					*fontTexture = None;
-					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
+					*deps.fontTexture = None;
+					*deps.idTexture = Some(createText(&deps.ctx.getMap().getActiveScreenId().to_string(), deps.textureCreator, deps.font));
 				}
 				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, State::GetUserUsize) => {
 					if let Ok(id) = usize::from_str(&self.message[self.messageLen..].trim()) {
 						self.textInput.stop();
-						*fontTexture = None;
+						*deps.fontTexture = None;
                         self.state.pop();
                         match self.state.last_mut().unwrap() {
                             State::AttemptBuild(ref mut builder) => builder.addUsize(id),
@@ -445,48 +221,48 @@ impl EditorContext {
 					}
 					else {
 						self.message.truncate(self.messageLen);
-						*fontTexture = Some(createText(&self.message, textureCreator, font));
+						*deps.fontTexture = Some(createText(&self.message, deps.textureCreator, deps.font));
 					}
 				},
 				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, State::UserConfirmDelete) => {
 					if &"y" == &self.message[self.messageLen..].trim() {
-						ctx.getMapMut().popActiveScreen();
+						deps.ctx.getMapMut().popActiveScreen();
 					}
 					self.textInput.stop();
 					self.state.pop();
-					*fontTexture = None;
-					*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
+					*deps.fontTexture = None;
+					*deps.idTexture = Some(createText(&deps.ctx.getMap().getActiveScreenId().to_string(), deps.textureCreator, deps.font));
 				},
 				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, State::NewScreen) => {
 					if let Ok(dimension) = u16::from_str(&self.message[self.messageLen..].trim()) {
 						if let Some(width) = self.newMapWidth  {
-							ctx.getMapMut().addScreen(width, dimension, self.newMapCoords);
+							deps.ctx.getMapMut().addScreen(width, dimension, self.newMapCoords);
 							self.newMapWidth = None;
 							self.state.pop();
 							self.textInput.stop();
-							*fontTexture = None;
-							*idTexture = Some(createText(&ctx.getMap().getActiveScreenId().to_string(), textureCreator, font));
+							*deps.fontTexture = None;
+							*deps.idTexture = Some(createText(&deps.ctx.getMap().getActiveScreenId().to_string(), deps.textureCreator, deps.font));
 						}
 						else {
 							self.newMapWidth = Some(dimension);
 							self.message = String::from("Please enter the map height: ");
 							self.messageLen = self.message.len();
-							*fontTexture = Some(createText(&self.message, textureCreator, font));
+							*deps.fontTexture = Some(createText(&self.message, deps.textureCreator, deps.font));
 						}
 					}
 					else {
 						self.message.truncate(self.messageLen);
-						*fontTexture = Some(createText(&self.message, textureCreator, font));
+						*deps.fontTexture = Some(createText(&self.message, deps.textureCreator, deps.font));
 					}
 				}
 				(Event::TextInput {..}, State::GetCoordinate) => (),
 				(Event::TextInput {text, ..}, _) => {
 					self.message.push_str(&text);
-					*fontTexture = Some(createText(&self.message, textureCreator, font));
+					*deps.fontTexture = Some(createText(&self.message, deps.textureCreator, deps.font));
 				},
 				(Event::KeyDown {scancode: Some(Scancode::Backspace), ..}, _) if self.message.len() > self.messageLen => {
 					self.message.pop();
-					*fontTexture = Some(createText(&self.message, textureCreator, font));
+					*deps.fontTexture = Some(createText(&self.message, deps.textureCreator, deps.font));
 				},
 				_ => (),
 			},
@@ -495,41 +271,41 @@ impl EditorContext {
 		match self.state.last_mut().unwrap() {
 			State::AttemptBuild(ref mut builder) => {
                 let signal = builder.build();
-                self.build(signal, ctx.getMapMut(), font, fontTexture, textureCreator);
+                self.build(signal, deps);
             },
 			State::AttemptBuildEntity(ref mut builder) => {
-                let signal = builder.build(textureCreator);
-                self.buildEntity(signal, ctx, font, fontTexture, textureCreator);
+                let signal = builder.build(deps.textureCreator);
+                self.buildEntity(signal, deps);
             },
 			_ => (),
 		}
 
 		match self.state.last().unwrap() {
 			State::ViewMap | State::NewScreen | State::MoveScreen => {
-				ctx.getMapMut().drawAll(&mut self.canvas, self.mapRes, self.mapRect);
+				deps.ctx.getMapMut().drawAll(&mut self.canvas, self.mapRes, self.mapRect);
 			},
 			State::EntityPlacement => {
-				ctx.getMapMut().draw(&mut self.canvas, self.screenPos.top_left());
+				deps.ctx.getMapMut().draw(&mut self.canvas, self.screenPos.top_left());
 			},
 			_ => {
-				ctx.getMapMut().draw(&mut self.canvas, self.screenPos.top_left());
-				ctx.getMapMut().renderTile(self.previewRect, &self.previewTile, &mut self.canvas);
+				deps.ctx.getMapMut().draw(&mut self.canvas, self.screenPos.top_left());
+				deps.ctx.getMapMut().renderTile(self.previewRect, &self.previewTile, &mut self.canvas);
 			},
 		}
 		if let State::EntityPlacement | State::GetEntityID = self.state.last().unwrap() {
 			if self.globalEntities {
-				unsafe {self.scheduler.drawGlobal(&ctx, &mut self.canvas);}
+				unsafe {self.scheduler.drawGlobal(&deps.ctx, &mut self.canvas);}
 			}
 			else {
-				unsafe {self.scheduler.drawNonGlobal(&ctx, &mut self.canvas);}
+				unsafe {self.scheduler.drawNonGlobal(&deps.ctx, &mut self.canvas);}
 			}
-			entityRenderer.render(&mut self.canvas, self.currentEntityId, self.previewRect);
+			deps.entityRenderer.render(&mut self.canvas, self.currentEntityId, self.previewRect);
 		}
-		if let Some(ref texture) = fontTexture {
+		if let Some(ref texture) = deps.fontTexture {
 			let q = texture.query();
 			self.canvas.copy(texture, None, Some(Rect::from_center(self.screenRect.center(), q.width, q.height)));
 		}
-		if let Some(ref texture) = idTexture {
+		if let Some(ref texture) = deps.idTexture {
 			let q = texture.query();
 			self.canvas.copy(texture, None, Some(Rect::from_center((self.screenRect.right() - 25, self.screenRect.bottom() - 25), q.width, q.height)));
 		}
@@ -538,18 +314,246 @@ impl EditorContext {
 
 		self.quit
 	}
-	fn build<'a>(&mut self, signal: TileBuilderSignals, map: &mut Map, font: &Font, fontTexture: &mut Option<Texture<'a>>, textureCreator: &'a TextureCreator<WindowContext>) {
+    fn doIdleEvents(&mut self, event: Event, deps: &mut EditorContextDeps) {
+        match event {
+            Event::Quit {..} => self.quit = true,
+
+            Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} 
+            if (y as i64) < (self.screenRect.height() - 50) as i64 => {
+                let currentTilePosition = convertToTilePos(x + self.screenPos.x, y + self.screenPos.y);
+                let tileBuilder = TileBuilder::new(self.currentTileId, currentTilePosition);
+                self.state.push(State::GetTile);
+                self.state.push(State::AttemptBuild(tileBuilder));
+            },
+            Event::MouseButtonDown {mouse_btn: MouseButton::Right, x, y, ..}
+            if (y as i64) < (self.screenRect.height() - 50) as i64 => {
+                let currentTilePosition = convertToTilePos(x + self.screenPos.x, y + self.screenPos.y);
+                deps.ctx.getMapMut().changeTile(currentTilePosition, self.currentTile.clone());
+           },
+            Event::KeyDown{scancode: Some(Scancode::Left), ..} => {
+                if self.currentTileId > 0 {
+                    self.currentTileId -= 1;
+                    self.previewTile = Tile::new(self.currentTileId, 0).unwrap();
+                }
+            },
+            Event::KeyDown{scancode: Some(Scancode::Right), ..} => {
+                if self.currentTileId < MAX_TILE_IDX {
+                    self.currentTileId += 1;
+                    self.previewTile = Tile::new(self.currentTileId, 0).unwrap();
+                }
+            },
+            Event::KeyDown{scancode: Some(Scancode::S), ..} => {
+                let mut ser = Serializer::new(File::create(deps.filename).unwrap());
+                unsafe {InnerGameContext::fromGameContext(deps.ctx)}.serialize(&mut ser).unwrap();
+                let mut f = ser.into_inner();
+                f.flush().unwrap();
+            },	
+            Event::KeyDown{scancode: Some(Scancode::A), ..} => {
+                deps.ctx.getMapMut().decrementCurrentScreen();
+                *deps.idTexture = Some(createText(&deps.ctx.getMap().getActiveScreenId().to_string(), deps.textureCreator, deps.font));
+            },
+            Event::KeyDown{scancode: Some(Scancode::D), ..} => {
+                deps.ctx.getMapMut().incrementCurrentScreen();
+                *deps.idTexture = Some(createText(&deps.ctx.getMap().getActiveScreenId().to_string(), deps.textureCreator, deps.font));
+            },
+            Event::KeyDown{scancode: Some(Scancode::Escape), ..} => {
+                self.state.push(State::ViewMap);
+                *deps.idTexture = None;
+            },
+            Event::KeyDown{scancode: Some(Scancode::M), ..} => {
+                self.state.push(State::MoveScreen);
+                *deps.idTexture = None;
+            },
+            Event::KeyDown{scancode: Some(Scancode::X), ..} => {
+                self.state.push(State::UserConfirmDelete);
+                self.textInput.start();
+                self.message = String::from("Are you sure you want to delete this map? (y/n): ");
+                self.messageLen = self.message.len();
+                *deps.fontTexture = Some(createText(&self.message, deps.textureCreator, deps.font));
+            },
+            Event::KeyDown{scancode: Some(Scancode::E), ..} => {
+                self.state.push(State::EntityPlacement);
+            },
+
+            Event::KeyDown {scancode: Some(Scancode::H), ..} => 
+                self.screenPos.offset(self.screenRect.center().x.clamp(0, self.screenPos.x) * -1, 0),
+            
+            Event::KeyDown {scancode: Some(Scancode::J), ..} =>
+                self.screenPos.offset(0, self.screenRect.center().y.clamp(0, self.screenPos.y) * -1),
+        
+            Event::KeyDown {scancode: Some(Scancode::K), ..} =>
+                self.screenPos.offset(0, self.screenRect.center().y.min(deps.ctx.getMap().getMaxScreenCoords().1 as i32 - self.screenPos.bottom()).max(0)),
+            
+            Event::KeyDown {scancode: Some(Scancode::L), ..} => 
+                self.screenPos.offset(self.screenRect.center().x.min(deps.ctx.getMap().getMaxScreenCoords().0 as i32 - self.screenPos.right()).max(0), 0),
+            
+            _ => (),
+        }
+    }
+    fn doViewMapEvents(&mut self, event: Event, deps: &mut EditorContextDeps) {
+        match event {
+            Event::Quit {..} => self.quit = true,
+            Event::KeyDown {scancode: Some(Scancode::Escape), ..} => {
+                self.state.pop();
+                *deps.idTexture = Some(createText(&deps.ctx.getMap().getActiveScreenId().to_string(), deps.textureCreator, deps.font));
+            }
+            Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} => {
+                if let Some(screen) = deps.ctx.getMap().getScreenAtPosition(Point::new(x, y), self.mapRect, self.mapRes) {
+                    deps.ctx.getMapMut().setCurrentScreen(screen);
+                    self.state.pop();
+                }
+                else {
+                    let (x, y) = MapMod::convertScreenCoordToTileCoord(self.mapRes, self.mapRect, Point::from((x, y))).into();
+                    self.newMapCoords = (x as u32, y as u32);
+                    self.message = String::from("Please enter the map width: ");
+                    self.messageLen = self.message.len();
+                    self.textInput.start();
+                    *deps.fontTexture = Some(createText(&self.message, deps.textureCreator, deps.font));
+                    self.state.push(State::NewScreen);
+                }
+                *deps.idTexture = Some(createText(&deps.ctx.getMap().getActiveScreenId().to_string(), deps.textureCreator, deps.font));
+            },
+            Event::MouseWheel {y: 1, ..} => {
+                if self.mapRes.0 > 1 && self.mapRes.1 > 1 {
+                    self.mapRes.0 /= 2;
+                    self.mapRes.1 /= 2;
+                }
+            },
+            Event::MouseWheel {y: -1, ..} => {
+                if self.mapRes.0 < i32::MAX as u32 && self.mapRes.1 < i32::MAX as u32 {
+                    self.mapRes.0 *= 2;
+                    self.mapRes.1 *= 2;
+                }
+            }
+            Event::KeyDown {scancode: Some(Scancode::H), ..} => self.mapRect.offset(((self.mapRes.0 >> 1) as i32).clamp(0, self.mapRect.x()) * -1, 0),
+            Event::KeyDown {scancode: Some(Scancode::J), ..} => self.mapRect.offset(0, ((self.mapRes.1 >> 1) as i32).clamp(0, self.mapRect.y()) * -1),
+            Event::KeyDown {scancode: Some(Scancode::K), ..} => self.mapRect.offset(0, ((self.mapRes.1 >> 1) as i32).clamp(0, i32::MAX - self.mapRect.y())),
+            Event::KeyDown {scancode: Some(Scancode::L), ..} => self.mapRect.offset(((self.mapRes.0 >> 1) as i32).clamp(0, i32::MAX - self.mapRect.x()), 0),
+            _ => (),
+        }
+    }
+    fn doMoveScreenEvents(&mut self, event: Event, deps: &mut EditorContextDeps) {
+        match event {
+            Event::Quit {..} => self.quit = true,
+            Event::KeyDown {scancode: Some(Scancode::Escape), ..} => {
+                self.state.pop();
+                *deps.idTexture = Some(createText(&deps.ctx.getMap().getActiveScreenId().to_string(), deps.textureCreator, deps.font));
+            },
+            Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} => {
+                let (x, y) = MapMod::convertScreenCoordToTileCoord(self.mapRes, self.mapRect, Point::from((x, y))).into();
+                deps.ctx.getMapMut().moveActiveScreen((x as u32, y as u32));
+                self.state.pop();
+                *deps.idTexture = Some(createText(&deps.ctx.getMap().getActiveScreenId().to_string(), deps.textureCreator, deps.font));
+            },
+            _ => (),
+        }
+    }
+    fn doEntityPlacementEvents(&mut self, event: Event, deps: &mut EditorContextDeps) {
+        match event {
+            Event::Quit {..} => self.quit = true,
+
+            Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} 
+            if (y as i64) < (self.screenRect.height() - 50) as i64 => {
+                let entityPosition = convertToTilePos(x + self.screenPos.x, y + self.screenPos.y);
+                let entityBuilder = EntityBuilder::new(self.currentEntityId, entityPosition);
+                let entityRect = entityBuilder.getEntityRect();
+                if self.globalEntities {
+                    if let None = unsafe { deps.ctx.getEntityAtPositionGlobal(entityRect)} {
+                        self.state.push(State::AttemptBuildEntity(entityBuilder));
+                    }
+                } 
+                else { 
+                    if let None = unsafe { deps.ctx.getEntityAtPositionActiveScreen(entityRect)} {
+                        self.state.push(State::AttemptBuildEntity(entityBuilder));
+                    }
+                }
+            },
+            Event::MouseButtonDown {mouse_btn: MouseButton::Right, x, y, ..}
+            if (y as i64) < (self.screenRect.height() - 50) as i64 => {
+                let (x, y) = ((x + self.screenPos.x) / 50 * 50, (y + self.screenPos.y) / 50 * 50);
+                let clickRect = Rect::new(x, y, x as u32 + 50, y as u32 + 50);
+                unsafe {
+                    let entity = if self.globalEntities { deps.ctx.getEntityAtPositionGlobal(clickRect)}
+                    else {deps.ctx.getEntityAtPositionActiveScreen(clickRect)};
+                    if let Some(id) = entity {
+                        deps.ctx.removeEntity(id);
+                    }
+                }
+            },
+            Event::KeyDown{scancode: Some(Scancode::Left), ..} => {
+                if self.currentEntityId > 0 {
+                    self.currentEntityId -= 1;
+                }
+            },
+            Event::KeyDown{scancode: Some(Scancode::Right), ..} => {
+                if self.currentEntityId < MAX_ENTITY_IDX {
+                    self.currentEntityId += 1;
+                }
+            },
+            Event::KeyDown{scancode: Some(Scancode::S), ..} => {
+                let mut ser = Serializer::new(File::create(deps.filename).unwrap());
+                unsafe {InnerGameContext::fromGameContext(deps.ctx)}.serialize(&mut ser).unwrap();
+                let mut f = ser.into_inner();
+                f.flush().unwrap();
+            },	
+            Event::KeyDown{scancode: Some(Scancode::A), ..} => {
+                deps.ctx.getMapMut().decrementCurrentScreen();
+                *deps.idTexture = Some(createText(&deps.ctx.getMap().getActiveScreenId().to_string(), deps.textureCreator, deps.font));
+            },
+            Event::KeyDown{scancode: Some(Scancode::D), ..} => {
+                deps.ctx.getMapMut().incrementCurrentScreen();
+                *deps.idTexture = Some(createText(&deps.ctx.getMap().getActiveScreenId().to_string(), deps.textureCreator, deps.font));
+            },
+            Event::KeyDown{scancode: Some(Scancode::Escape), ..} => {
+                self.state.pop();
+                *deps.idTexture = None;
+            },
+            Event::KeyDown{scancode: Some(Scancode::M), ..} => {
+                self.state.push(State::MoveScreen);
+                *deps.idTexture = None;
+            },
+            Event::KeyDown{scancode: Some(Scancode::X), ..} => {
+                self.state.push(State::UserConfirmDelete);
+                self.textInput.start();
+                self.message = String::from("Are you sure you want to delete this map? (y/n): ");
+                self.messageLen = self.message.len();
+                *deps.fontTexture = Some(createText(&self.message, deps.textureCreator, deps.font));
+            },
+            Event::KeyDown{scancode: Some(Scancode::E), ..} => {
+                self.state.pop();
+            },
+            Event::KeyDown{scancode: Some(Scancode::G), ..} => {
+                self.globalEntities = !self.globalEntities;
+            },
+
+            Event::KeyDown {scancode: Some(Scancode::H), ..} => 
+                self.screenPos.offset(self.screenRect.center().x.clamp(0, self.screenPos.x) * -1, 0),
+            
+            Event::KeyDown {scancode: Some(Scancode::J), ..} =>
+                self.screenPos.offset(0, self.screenRect.center().y.clamp(0, self.screenPos.y) * -1),
+        
+            Event::KeyDown {scancode: Some(Scancode::K), ..} =>
+                self.screenPos.offset(0, self.screenRect.center().y.min(deps.ctx.getMap().getMaxScreenCoords().1 as i32 - self.screenPos.bottom()).max(0)),
+            
+            Event::KeyDown {scancode: Some(Scancode::L), ..} => 
+                self.screenPos.offset(self.screenRect.center().x.min(deps.ctx.getMap().getMaxScreenCoords().0 as i32 - self.screenPos.right()).max(0), 0),
+            
+            _ => (),
+
+        }
+    }
+	fn build<'a>(&mut self, signal: TileBuilderSignals, deps: &mut EditorContextDeps) {
 		match signal {
 			TileBuilderSignals::GetCoordinate(tmpMessage) => {
 				self.state.push(State::GetCoordinate);
-				*fontTexture = Some(createText(&self.message, textureCreator, font));
+				*deps.fontTexture = Some(createText(&self.message, deps.textureCreator, deps.font));
 			}
 			TileBuilderSignals::GetUserUsize(tmpMessage) => {
 				self.state.push(State::GetUserUsize);
 				self.textInput.start();
 				self.message = String::from(tmpMessage);
 				self.messageLen = tmpMessage.len() - 1;
-				*fontTexture = Some(createText(&self.message, textureCreator, font));
+				*deps.fontTexture = Some(createText(&self.message, deps.textureCreator, deps.font));
 			},
 			TileBuilderSignals::Complete(tile, pos) => {
 				let tilebuilder = if let Some(State::AttemptBuild(builder)) = self.state.pop() {builder} else {panic!()};
@@ -558,7 +562,7 @@ impl EditorContext {
                     self.state.pop();
                     match self.state.last_mut().unwrap() {
                         State::AttemptBuildEntity(ref mut builder) => builder.addTile(tilebuilder.cloneTile(&self.currentTile), pos),
-                        State::Idle => map.changeTile(pos, tilebuilder.cloneTile(&self.currentTile)),
+                        State::Idle => deps.ctx.getMapMut().changeTile(pos, tilebuilder.cloneTile(&self.currentTile)),
                         _ => unimplemented!(),
                     };
                 }
@@ -567,25 +571,25 @@ impl EditorContext {
 			TileBuilderSignals::InvalidId => (),
 		}	
 	}
-	fn buildEntity<'a>(&mut self, signal: EntityBuilderSignals<'a>, ctx: &mut GameContext<'a>, font: &Font, fontTexture: &mut Option<Texture<'a>>, creator: &'a TextureCreator<WindowContext>) {
+	fn buildEntity<'a>(&mut self, signal: EntityBuilderSignals<'a>, deps: &mut EditorContextDeps<'a, '_, '_, '_, '_, '_, '_, '_,>) {
 		match signal {
 			EntityBuilderSignals::Complete(Ok(entity)) if self.globalEntities => {
 				if let Some(State::AttemptBuildEntity(builder)) = self.state.pop() {
-    				builder.addEntityGlobal(ctx, entity);
+					builder.addEntityGlobal(deps.ctx, entity);
                 }
 			},
 			EntityBuilderSignals::Complete(Ok(entity)) => {
 				if let Some(State::AttemptBuildEntity(builder)) = self.state.pop() {
-    				builder.addEntityActiveScreen(ctx, entity);
+    				builder.addEntityActiveScreen(deps.ctx, entity);
                 }
             },
 			EntityBuilderSignals::Complete(Err(e)) => eprintln!("Entity could not be placed because of error (details below)\n{}", e),
             EntityBuilderSignals::GetTile(msg) => {
-                *fontTexture = Some(createText(msg, creator, font));
+                *deps.fontTexture = Some(createText(msg, deps.textureCreator, deps.font));
                 self.state.push(State::GetTile);
             },
 			EntityBuilderSignals::GetEntity(msg) => {
-				*fontTexture = Some(createText(msg, creator, font));
+				*deps.fontTexture = Some(createText(msg, deps.textureCreator, deps.font));
 				self.state.push(State::GetEntityID);
 			}
 			EntityBuilderSignals::InvalidId => eprintln!("Entity could not be placed because of invalid entity id produced by editor"),
@@ -593,6 +597,12 @@ impl EditorContext {
 	}
 
 }
+
+fn convertToTilePos(x: i32, y: i32) -> (u16, u16) {
+    ((x / 50) as u16, (y / 50) as u16);
+
+}
+
 
 pub fn createText<'a>(message: &str, textureCreator: &'a TextureCreator<WindowContext>, font: &Font) -> Texture<'a> {
 	font.render(message).shaded(Color::BLACK, Color::WHITE).unwrap().as_texture(textureCreator).unwrap()

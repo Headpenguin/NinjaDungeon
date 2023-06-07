@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 extern crate sdl2;
 
-use NinjaDungeon::{Map, EditorContext, GameContext, self};
+use NinjaDungeon::{Map, EditorContext, EditorContextDeps, GameContext, self};
 use NinjaDungeon::Entities::EntityRenderer;
 
 use sdl2::pixels::Color;
@@ -51,8 +51,18 @@ fn main() {
 	let entityRenderer = EntityRenderer::new(&textureCreator).unwrap();
 
 	//let mut entities = Vec::<Entity>::new();
+
+    let mut editorContextDeps = EditorContextDeps{
+        filename: &file,
+        font: &font,
+        fontTexture: &mut fontTexture,
+        idTexture: &mut idTexture,
+        entityRenderer: &entityRenderer,
+        textureCreator: &textureCreator,
+        ctx: &mut ctx,
+    };
 	
-	while !editor.mainLoop(&file, &mut ctx, &font, &mut fontTexture, &mut idTexture, &entityRenderer, &textureCreator) {
+	while !editor.mainLoop(&mut editorContextDeps) {
 	}
 }
 
