@@ -5,7 +5,7 @@ use crate::Entities::Traits::EntityTraits;
 use crate::Entities::Holder;
 use crate::GameContext;
 use crate::Scheduling::Scheduler;
-use crate::MapMod;
+use crate::MapMod::{self, Tile};
 
 use sdl2::rect::Rect;
 
@@ -21,6 +21,7 @@ impl Key {
 
 enum Commands {
 	PlaceGate(u16, u16, u16, u16),
+	PlaceTile(Tile, (u16, u16)),
 }
 
 pub struct PO<'a> {
@@ -34,6 +35,8 @@ struct Subscriber;
 pub enum CollisionMsg {
 	Damage(i32),
 }
+
+pub struct CounterMsg(pub i32);
 
 pub struct Envelope<T> {
 	priority: i32,
@@ -56,6 +59,10 @@ impl<T> Envelope<T> {
 }
 impl Envelope<CollisionMsg> {
 	pub fn send(self, recv: &mut dyn EntityTraits, po: &PO) {recv.collide(self, po);}
+}
+
+impl Envelope<CounterMsg> {
+	pub fn send(self, recv: &mut dyn EntityTraits, po: &PO) {recv.inc(self, po);}
 }
 
 impl<'a> PO<'a> {
@@ -82,8 +89,20 @@ impl<'a> PO<'a> {
 			else {false}
 		}
 	}
+	pub fn sendCounterMsg(&self, msg: Envelope<CounterMsg>) -> bool {
+		unsafe {
+			if let Some(recv) = self.getCtx().getHolder().getMut(msg.recv.mask()) {
+				msg.send(&mut *recv, self);
+				true
+			}
+			else {false}
+		}
+	}
 	pub fn spawnGate(&self, location: (u16, u16), endLocation: (u16, u16)) {
 		unsafe {&mut *self.commands.get()}.push(Commands::PlaceGate(location.0, location.1, endLocation.0, endLocation.1));
+	}
+	pub fn spawnTile(&self, tile: Tile, location: (u16, u16)) {
+		unsafe {&mut *self.commands.get()}.push(Commands::PlaceTile(tile, location));
 	}
 	pub fn updatePosition(&mut self, id: ID, hitbox: Rect, prevHitbox: Rect) {
 		self.ctx.updatePosition(id, hitbox, prevHitbox);
@@ -101,12 +120,12 @@ impl<'a> PO<'a> {
 		self.purgeList.get_mut().clear();
 	}
 	pub unsafe fn doCommands(&mut self) {
-		for command in self.commands.get_mut() {
+		for command in self.commands.get_mut().drain(..) {
 			match command {
-				&mut Commands::PlaceGate(x, y, xe, ye) => MapMod::placeGate((x, y), (xe, ye), self.ctx.getMapMut()),
+				Commands::PlaceGate(x, y, xe, ye) => MapMod::placeGate((x, y), (xe, ye), self.ctx.getMapMut()),
+				Commands::PlaceTile(tile, location) => self.ctx.getMapMut().changeTile(location, tile),
 			}
 		}
-		self.commands.get_mut().clear();
 	}
 	pub fn getEntity<'b>(&'b self, id: ID, key: Key) -> (Option<&'b (dyn EntityTraits + 'a)>, Key) {
 		unsafe { (self.ctx.getHolder().get(id), key) }

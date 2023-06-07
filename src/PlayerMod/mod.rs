@@ -14,7 +14,7 @@ pub use SignalsMod::{SignalsBuilder, Signals, Mapping};
 
 use crate::SpriteLoader::{Animations, Sprites};
 use crate::{Direction, Map, CollisionType, Vector, GameContext, ID};
-use crate::Entities::Traits::{Collision, EntityTraitsWrappable, Entity};
+use crate::Entities::Traits::{Collision, EntityTraitsWrappable, Entity, Counter, RegisterID};
 use crate::Entities::{BoxCode, RefCode, RefCodeMut, TypedID};
 use crate::EventProcessor::{CollisionMsg, Envelope, PO, Key};
 use crate::MapMod;
@@ -336,6 +336,9 @@ impl<'a> Collision for Player<'a> {
 		(None, key)
 	}
 }
+
+impl<'a> Counter for Player<'a> {}
+impl<'a> RegisterID for Player<'a> {}
 
 impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 	type Data = PlayerData;

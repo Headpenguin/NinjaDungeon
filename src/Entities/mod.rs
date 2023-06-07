@@ -7,7 +7,9 @@ use serde::{Serialize, Deserialize};
 pub mod Traits;
 pub mod SkeletonMod;
 pub mod GeneratorMod;
+pub mod Common;
 mod Builder;
+
 
 pub use Builder::*;
 
@@ -96,12 +98,12 @@ impl<'a> BoxCode<'a> {
 }
 
 impl<'a> Deref for BoxCode<'a> {
-	type Target = dyn EntityDyn + 'a;
+	type Target = dyn EntityDyn<'a> + 'a;
 	fn deref(&self) -> &Self::Target {
 		match self {
-			Self::Player(e) => e as &Entity<Player> as &(dyn EntityDyn + 'a),
-			Self::Skeleton(e) => e as &Entity<Skeleton> as &(dyn EntityDyn + 'a),
-			Self::Generator(e) => e as &Entity<Generator> as &(dyn EntityDyn + 'a),
+			Self::Player(e) => e as &Entity<Player> as &dyn EntityDyn,
+			Self::Skeleton(e) => e as &Entity<Skeleton> as &dyn EntityDyn,
+			Self::Generator(e) => e as &Entity<Generator> as &dyn EntityDyn,
 		}
 	}
 }
@@ -190,12 +192,15 @@ impl<'a> Holder<'a> {
 			(&mut *x.get()).getInnerMut() as *mut dyn EntityTraits
 		})
 	}
+	pub fn getMutSafe<'b>(&'b mut self, id: ID) -> Option<&'b mut (dyn EntityTraits + 'a)> {
+		self.entities.get_mut(&id.getID()).map(|e| e.get_mut().getInnerMut())
+	}
 	pub unsafe fn getRefCode<'b>(&'b self, id: ID) -> Option<RefCode<'a, 'b>> {
 		self.entities.get(&id.getID()).map(|x| unsafe {
 			(& *x.get()).refcode()
 		})
 	}
-	pub unsafe fn getEntityDyn(&self, id: ID) -> Option<*mut (dyn EntityDyn + 'a)> {
+	pub unsafe fn getEntityDyn(&self, id: ID) -> Option<*mut (dyn EntityDyn<'a> + 'a)> {
 		self.entities.get(&id.getID()).map(|x| unsafe {
 			(&mut *x.get()).deref_mut() as *mut dyn EntityDyn
 		})
@@ -212,11 +217,11 @@ impl<'a> Holder<'a> {
 	pub unsafe fn remove<'b>(&'b mut self, id: ID) -> Option<BoxCode<'a>> {
 		self.entities.remove(&id.getID()).map(|x| x.into_inner())
 	}
-	pub unsafe fn iter<'b>(&'b self) -> impl Iterator<Item=(ID, &'b (dyn EntityDyn + 'a))> {
+	pub unsafe fn iter<'b>(&'b self) -> impl Iterator<Item=(ID, &'b (dyn EntityDyn<'a> + 'a))> {
 		self.entities.iter().map(|kv| (ID::new(*kv.0, 0), (& *kv.1.get()).deref()))
 	}
-	pub unsafe fn iterMut<'b>(&'b mut self) -> impl Iterator<Item=(ID, &'b mut (dyn EntityDyn + 'a))> {
-		self.entities.iter_mut().map(|kv| (ID::new(*kv.0, 0), (&mut *kv.1.get()).deref_mut()))
+	pub unsafe fn iterMut<'b>(&'b mut self) -> impl Iterator<Item=(ID, &'b mut (dyn EntityDyn<'a> + 'a))> + 'b {
+		self.entities.iter_mut().map(|kv| (ID::new(*kv.0, 0), kv.1.get_mut().deref_mut()))
 	}
 	pub fn getCurrentID(&self) -> ID {
 		ID::new(self.currentId - 1, 0)

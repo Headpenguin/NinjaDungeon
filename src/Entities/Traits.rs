@@ -1,25 +1,32 @@
 use sdl2::video::Window;
 use sdl2::render::Canvas;
 
-use crate::EventProcessor::{Envelope, CollisionMsg, PO, Key};
+use crate::EventProcessor::{Envelope, CollisionMsg, PO, Key, CounterMsg};
 use super::{RefCode, RefCodeMut, TypedID};
 use crate::{GameContext, ID};
 
 use std::ops::{Deref, DerefMut};
 
 pub trait Counter {
-    pub fn inc(amt: u8);
-    pub fn dec(amt: u8);
+    fn inc(&mut self, msg: Envelope<CounterMsg>, po: &PO) {}
+}
+
+pub enum IDRegistration {
+	DeathCounter(ID),
+}
+
+pub trait RegisterID {
+	fn register(&mut self, id: IDRegistration) {}
 }
 
 pub trait Collision {
 	fn collide(&mut self, _msg: Envelope<CollisionMsg>, _po: &PO) {}
-	fn collideWith(&self, other: ID, po: &PO, key: Key) -> (Option<Envelope<CollisionMsg>>, Key);
+	fn collideWith(&self, other: ID, po: &PO, key: Key) -> (Option<Envelope<CollisionMsg>>, Key) {(None, key)}
 }
 
-pub trait EntityTraits : Collision {}
+pub trait EntityTraits : Collision + Counter + RegisterID {}
 impl<T> EntityTraits for T where
-	T: Collision, {}
+	T: Collision + Counter + RegisterID {}
 
 pub trait EntityTraitsWrappable<'a> : EntityTraits where Self: Sized {
 	type Data;
@@ -61,24 +68,24 @@ impl<'a, T: EntityTraitsWrappable<'a>> Entity<'a, T> {
 	}
 }
 
-pub trait EntityDyn {
+pub trait EntityDyn<'a> {
 	fn getData(&mut self, ctx: &PO, key: Key) -> Key;
 	fn update(&mut self, po: &mut PO);
 	fn getInner(&self) -> &dyn EntityTraits;
-	fn getInnerMut(&mut self) -> &mut dyn EntityTraits;
+	fn getInnerMut<'b>(&'b mut self) -> &'b mut (dyn EntityTraits + 'a);
 	fn needsExecution(&self) -> bool;
 	fn tick(&mut self);
 	fn draw(&self, canvas: &mut Canvas<Window>);
 }
 
-impl<'a, T: EntityTraitsWrappable<'a>> EntityDyn for Entity<'a, T> {
+impl<'a, T: EntityTraitsWrappable<'a> + 'a> EntityDyn<'a> for Entity<'a, T> {
 	fn getData(&mut self, po: &PO, key: Key) -> Key {
 		self.entity.getData(&mut self.data, po, key)
 	}
 	fn update(&mut self, po: &mut PO) {
 		self.entity.update(&self.data, po);
 	}
-	fn getInnerMut(&mut self) -> &mut dyn EntityTraits {
+	fn getInnerMut<'b>(&'b mut self) -> &'b mut (dyn EntityTraits + 'a) {
 		&mut self.entity
 	}
 	fn getInner(&self) -> &dyn EntityTraits {

@@ -7,9 +7,9 @@ use serde::{Serialize, Deserialize};
 use std::io;
 
 use crate::{Tile, ID};
-use crate::EventProcessor::{Envelope, CollisionMsg, PO, Key};
+use crate::EventProcessor::{Envelope, CollisionMsg, CounterMsg, PO, Key};
 use crate::Entities::{TypedID, BoxCode, RefCode, RefCodeMut};
-use crate::Entities::Traits::{Collision, EntityTraitsWrappable, Entity};
+use crate::Entities::Traits::{Collision, RegisterID, EntityTraitsWrappable, Entity, Counter};
 use crate::SpriteLoader::Sprites;
 
 const NAME: &'static[&'static str] = &["Resources/Images/Generator.png"];
@@ -18,13 +18,15 @@ const NAME: &'static[&'static str] = &["Resources/Images/Generator.png"];
 pub struct InnerGenerator {
 	renderRect: (i32, i32, u32, u32),
 	tiles: Vec<(Tile, (u16, u16))>,
+	cnt: u8,
 }
 
 impl InnerGenerator {
-	pub fn fromGenerator(Generator { renderRect, tiles, .. }: &Generator) -> InnerGenerator {
+	pub fn fromGenerator(Generator { renderRect, tiles, cnt, .. }: &Generator) -> InnerGenerator {
 		InnerGenerator {
 			renderRect: (*renderRect).into(),
 			tiles: tiles.clone(),
+			cnt: *cnt,
 		}
 	}
 }
@@ -34,23 +36,25 @@ pub struct Generator<'a> {
 	tiles: Vec<(Tile, (u16, u16))>,
 	editor: bool,
 	sprite: Sprites<'a>,
+	cnt: u8,
 }
 
 impl<'a> Generator<'a> {
-	pub fn new(creator: &'a TextureCreator<WindowContext>, pos: (i32, i32), tiles: Vec<(Tile, (u16, u16))>) -> io::Result<BoxCode<'a>> {
+	pub fn new(creator: &'a TextureCreator<WindowContext>, pos: (i32, i32), tiles: Vec<(Tile, (u16, u16))>, cnt: u8) -> io::Result<BoxCode<'a>> {
 		Ok(BoxCode::Generator(
 			Entity::new(
 				Generator {
 					renderRect: Rect::new(pos.0, pos.1, 50, 50),
 					tiles,
 					editor: true,
-					sprite: Sprites::new(creator, NAME)?
+					sprite: Sprites::new(creator, NAME)?,
+					cnt,
 				},
 				()
 			)
 		))
 	}
-	pub fn fromInner(InnerGenerator { renderRect, tiles }: InnerGenerator, creator: &'a TextureCreator<WindowContext>) -> io::Result<BoxCode<'a>> {
+	pub fn fromInner(InnerGenerator { renderRect, tiles, cnt }: InnerGenerator, creator: &'a TextureCreator<WindowContext>) -> io::Result<BoxCode<'a>> {
 		Ok(BoxCode::Generator(
 			Entity::new(
 				Generator {
@@ -58,6 +62,7 @@ impl<'a> Generator<'a> {
 					tiles,
 					editor: true,
 					sprite: Sprites::new(creator, NAME)?,
+					cnt,
 				},
 				()
 			)
@@ -70,6 +75,19 @@ impl<'a> Generator<'a> {
 
 impl<'a> Collision for Generator<'a> {
 	fn collideWith(&self, _other: ID, _po: &PO, key: Key) -> (Option<Envelope<CollisionMsg>>, Key) {(None, key)}
+}
+
+impl<'a> RegisterID for Generator<'a> {}
+
+impl<'a> Counter for Generator<'a> {
+	fn inc(&mut self, msg: Envelope<CounterMsg>, po: &PO) {
+		self.cnt = (self.cnt as i32 + msg.getMsg().0) as u8;
+		if self.cnt == 0 {
+			for (tile, location) in self.tiles.drain(..) {
+				po.spawnTile(tile, location);
+			}
+		}
+	}
 }
 
 impl<'a> EntityTraitsWrappable<'a> for Generator<'a> {

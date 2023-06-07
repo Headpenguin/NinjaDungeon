@@ -6,8 +6,9 @@ use sdl2::video::{Window, WindowContext};
 
 use std::io;
 
-use super::Traits::{Collision, EntityTraitsWrappable, Entity};
+use super::Traits::{Collision, EntityTraitsWrappable, Entity, Counter, RegisterID, IDRegistration};
 use super::{BoxCode, RefCode, RefCodeMut, TypedID};
+use super::Common::DeathCounter;
 use crate::SpriteLoader::Animations;
 use crate::{GameContext, Vector, ID};
 use crate::EventProcessor::{CollisionMsg, Envelope, PO, Key};
@@ -46,12 +47,13 @@ pub struct InnerSkeleton {
 	hitbox: (i32, i32, u32, u32),
 	iframeCounter: u32,
 	health: i32,
+	deathCounter: Option<DeathCounter>,
 }
 
 impl InnerSkeleton {
 	pub fn fromSkeleton(skeleton: &Skeleton) -> InnerSkeleton {
-		let &Skeleton {id, timer, renderPositionTop, renderPositionBottom, position, idle, hitbox, iframeCounter, health, ..} = skeleton;
-		InnerSkeleton {id:id.getID(), timer, renderPositionTop:renderPositionTop.into(), renderPositionBottom: renderPositionBottom.into(), position, idle, hitbox:hitbox.into(), iframeCounter, health}
+		let &Skeleton {id, timer, renderPositionTop, renderPositionBottom, position, idle, hitbox, iframeCounter, health, deathCounter, ..} = skeleton;
+		InnerSkeleton {id:id.getID(), timer, renderPositionTop:renderPositionTop.into(), renderPositionBottom: renderPositionBottom.into(), position, idle, hitbox:hitbox.into(), iframeCounter, health, deathCounter}
 	}
 }
 
@@ -68,6 +70,7 @@ pub struct Skeleton<'a> {
 	hitbox: Rect,
 	iframeCounter: u32,
 	health: i32,
+	deathCounter: Option<DeathCounter>,
 }
 #[derive(Debug)]
 pub struct SkeletonData {
@@ -94,12 +97,13 @@ impl SkeletonData {
 
 impl<'a> Skeleton<'a> {
 	pub fn new(creator: &'a TextureCreator<WindowContext>, position: (f32, f32)) -> io::Result<BoxCode<'a>> {
-		let (timer, position, idle, iframeCounter, health) = (
+		let (timer, position, idle, iframeCounter, health, deathCounter) = (
 			0u32,
 			Vector(position.0, position.1),
 			false,
 			0,
 			10,
+			None,
 		);
 
 		let animationsTop = Animations::new("Resources/Images/Skeleton_top.anim", NAMES_TOP, creator)?;
@@ -109,7 +113,7 @@ impl<'a> Skeleton<'a> {
 		let hitbox = Rect::new(position.0.round() as i32, position.1.round() as i32, 50, 100);
 		Ok(BoxCode::Skeleton(
 			Entity::new(
-				Skeleton {id: TypedID::new(ID::empty()), animationsTop, animationsBottom, timer, renderPositionTop, renderPositionBottom, position, idle, hitbox, iframeCounter, health,},
+				Skeleton {id: TypedID::new(ID::empty()), animationsTop, animationsBottom, timer, renderPositionTop, renderPositionBottom, position, idle, hitbox, iframeCounter, health,deathCounter,},
 				SkeletonData{
 					nextPos: Vector(0f32, 0f32),
 				},
@@ -131,6 +135,7 @@ impl<'a> Skeleton<'a> {
 					hitbox: Rect::from(inner.hitbox),
 					iframeCounter: inner.iframeCounter,
 					health: inner.health,
+					deathCounter: inner.deathCounter,
 				},
 				SkeletonData {
 					nextPos: Vector(0f32, 0f32),
@@ -172,6 +177,16 @@ impl<'a> Collision for Skeleton<'a> {
 	}
 }
 
+impl<'a> Counter for Skeleton<'a> {}
+
+impl<'a> RegisterID for Skeleton<'a> {
+	fn register(&mut self, id: IDRegistration) {
+		match id {
+			IDRegistration::DeathCounter(id) => self.deathCounter = Some(DeathCounter::new(id)),
+		};
+	}
+}
+
 impl<'a> EntityTraitsWrappable<'a> for Skeleton<'a> {
 	type Data = SkeletonData;
 	fn setID(&mut self, id: TypedID<'a, Self>) {
@@ -203,6 +218,9 @@ impl<'a> EntityTraitsWrappable<'a> for Skeleton<'a> {
 		if self.health <= 0 {
 			po.addToPurgeList(self.id.getID());
 			po.removeCollision(self.id.getID(), self.hitbox);
+			if let Some(counter) = self.deathCounter {
+				counter.inc(Some(self.id.getID()), -1, po);
+			}
 			return;
 		}
 

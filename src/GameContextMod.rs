@@ -208,10 +208,10 @@ impl<'a> GameContext<'a> {
 	pub fn getHolder<'b>(&'b self) -> &'b Holder<'a> {
 		&self.holder
 	}
-	pub unsafe fn entityIter<'b>(&'b self) -> impl Iterator<Item = (ID, &'b (dyn EntityDyn + 'a))> {
+	pub unsafe fn entityIter<'b>(&'b self) -> impl Iterator<Item = (ID, &'b (dyn EntityDyn<'a> + 'a))> {
 		self.holder.iter()
 	}
-	pub unsafe fn entityIterMut<'b>(&'b mut self) -> impl Iterator<Item = (ID, &'b mut (dyn EntityDyn + 'a))> {
+	pub unsafe fn entityIterMut<'b>(&'b mut self) -> impl Iterator<Item = (ID, &'b mut (dyn EntityDyn<'a> + 'a))> {
 		self.holder.iterMut()
 	}
 	pub unsafe fn globalEntityIter<'b>(&'b self) -> impl Iterator<Item = ID> + 'b {

@@ -568,6 +568,30 @@ impl EditorContext {
 				(Event::Quit {..}, _) => self.quit = true,
 				(Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..}, State::GetTile)
 				if (y as i64) < (self.screenRect.height() - 50) as i64 => {
+					let (x, y) = ((x + self.screenPos.x) / 50 * 50, (y + self.screenPos.y) / 50 * 50);
+					let clickRect = Rect::new(x, y, x as u32 + 50, y as u32 + 50);
+					unsafe {
+						if self.globalEntities {
+							if let Some(id) = ctx.getEntityAtPositionGlobal(clickRect) {
+								self.state.pop();
+								if let Some(State::AttemptBuildEntity(ref mut builder)) = self.state.last_mut() {
+									builder.addLinkedID(id);
+								}
+							}
+						}
+						else {
+							if let Some(id) = ctx.getEntityAtPositionActiveScreen(clickRect) {
+								self.state.pop();
+								if let Some(State::AttemptBuildEntity(ref mut builder)) = self.state.last_mut() {
+									builder.addLinkedID(id);
+								}
+							}
+						}
+					}
+					break;
+				},
+				(Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..}, State::GetTile)
+				if (y as i64) < (self.screenRect.height() - 50) as i64 => {
 					let (x, y) = (x + self.screenPos.x, y + self.screenPos.y);
 					let currentTilePosition = ((x / 50) as u16, (y / 50) as u16);
 					let tileBuilder = TileBuilder::new(self.currentTileId, currentTilePosition);
@@ -592,6 +616,16 @@ impl EditorContext {
 					if self.currentTileId < MAX_TILE_IDX {
 						self.currentTileId += 1;
 						self.previewTile = Tile::new(self.currentTileId, 0).unwrap();
+					}
+				},
+				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, State::GetTile | State::GetEntityID) => {
+					*fontTexture = None;
+					self.state.pop();
+					if let Some(State::AttemptBuildEntity(ref mut builder)) = self.state.last_mut() {
+						builder.endList();
+					}
+					else {
+						unreachable!();
 					}
 				},
 				(Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..}, State::GetCoordinate) 
@@ -699,7 +733,7 @@ impl EditorContext {
 				ctx.getMapMut().renderTile(self.previewRect, &self.previewTile, &mut self.canvas);
 			},
 		}
-		if let State::EntityPlacement = self.state.last().unwrap() {
+		if let State::EntityPlacement | State::GetEntityID = self.state.last().unwrap() {
 			if self.globalEntities {
 				unsafe {self.scheduler.drawGlobal(&ctx, &mut self.canvas);}
 			}
@@ -767,6 +801,10 @@ impl EditorContext {
                 *fontTexture = Some(createText(msg, creator, font));
                 self.state.push(State::GetTile);
             },
+			EntityBuilderSignals::GetEntity(msg) => {
+				*fontTexture = Some(createText(msg, creator, font));
+				self.state.push(State::GetEntityID);
+			}
 			EntityBuilderSignals::InvalidId => eprintln!("Entity could not be placed because of invalid entity id produced by editor"),
 		}
 	}
@@ -807,6 +845,7 @@ enum State {
 	GetUserUsize,
 	GetCoordinate,
     GetTile,
+	GetEntityID,
 	UserConfirmDelete,
 	ViewMap,
 	NewScreen,
