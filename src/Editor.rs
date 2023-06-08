@@ -1,10 +1,11 @@
 #![allow(non_snake_case)]
 extern crate sdl2;
 
-use NinjaDungeon::{Map, EditorContext, EditorContextDeps, GameContext, self};
+use NinjaDungeon::{Map, EditorContext, EditorContextDeps, GameContext, COLLISION_NAMES, self};
 use NinjaDungeon::Entities::EntityRenderer;
 
 use sdl2::pixels::Color;
+use sdl2::render::Texture;
 
 
 use std::env;
@@ -48,6 +49,8 @@ fn main() {
 
 	let mut idTexture = Some(NinjaDungeon::createText(&ctx.getMap().getActiveScreenId().to_string(), &textureCreator, &font));
 
+    let collisionTextures: Vec<Texture> = COLLISION_NAMES.iter().map(|s| NinjaDungeon::createText(s, &textureCreator, &font)).collect();
+
 	let entityRenderer = EntityRenderer::new(&textureCreator).unwrap();
 
 	//let mut entities = Vec::<Entity>::new();
@@ -59,6 +62,7 @@ fn main() {
         idTexture: &mut idTexture,
         entityRenderer: &entityRenderer,
         textureCreator: &textureCreator,
+        collisionTextures: &collisionTextures,
         ctx: &mut ctx,
     };
 	

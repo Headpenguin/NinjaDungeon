@@ -20,7 +20,7 @@ use std::str::FromStr;
 use crate::Scheduling::Scheduler;
 
 use crate::MapMod::{TileBuilder, TileBuilderSignals, Tile, Map, self};
-use crate::{GameContext, MAX_TILE_IDX, InnerGameContext};
+use crate::{GameContext, MAX_TILE_IDX, MAX_COLLISION_IDX, InnerGameContext};
 use crate::Entities::{EntityBuilder, EntityBuilderSignals, EntityRenderer, MAX_ENTITY_IDX};
 
 pub struct EditorContext {
@@ -35,6 +35,7 @@ pub struct EditorContext {
 	newMapCoords: (u32, u32),
 	newMapWidth: Option<u16>,
 	currentTileId: u16,
+    currentCollision: usize,
 	currentTile: Tile,
 	previewTile: Tile,
 	previewRect: Rect,
@@ -48,12 +49,13 @@ pub struct EditorContext {
 	currentEntityId: u16,
 }
 
-pub struct EditorContextDeps<'tex, 'ttf, 'ctx, 'filename, 'idTex, 'fontTex, 'font, 'entTex> {
+pub struct EditorContextDeps<'tex, 'ttf, 'ctx, 'filename, 'idTex, 'collisionTex, 'fontTex, 'font, 'entTex> {
     pub filename: &'filename str,
     pub ctx: &'ctx mut GameContext<'tex>,
     pub font: &'font Font<'ttf, 'static>,
     pub fontTexture: &'fontTex mut Option<Texture<'tex>>,
     pub idTexture: &'idTex mut Option<Texture<'tex>>,
+    pub collisionTextures: &'collisionTex [Texture<'tex>],
     pub entityRenderer: &'entTex EntityRenderer<'tex>,
     pub textureCreator: &'tex TextureCreator<WindowContext>,
 }
@@ -95,8 +97,9 @@ impl EditorContext {
 			color,
 			quit: false,
 			currentTileId: 0,
-			currentTile: Tile::new(0, 0).unwrap(),
-			previewTile: Tile::new(0, 0).unwrap(),
+            currentCollision: 0,
+			currentTile: Tile::default(),
+			previewTile: Tile::default(),
 			screenRect: Rect::new(0, 0, width, height),
 			screenPos: Rect::new(0, 0, width, height),
             mapRes: (136, 104),
@@ -144,7 +147,7 @@ impl EditorContext {
 				(Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..}, State::GetTile)
 				if (y as i64) < (self.screenRect.height() - 50) as i64 => {
 					let currentTilePosition = convertToTilePos(x + self.screenPos.x, y + self.screenPos.y);
-					let tileBuilder = TileBuilder::new(self.currentTileId, currentTilePosition);
+					let tileBuilder = TileBuilder::new(self.currentTileId, self.currentCollision, currentTilePosition);
 					self.state.push(State::AttemptBuild(tileBuilder));
                     *deps.fontTexture = None;
 					break;
@@ -157,17 +160,17 @@ impl EditorContext {
                     *deps.fontTexture = None;
                 },
 				(Event::KeyDown{scancode: Some(Scancode::Left), ..}, State::GetTile) => {
-					if self.currentTileId > 0 {
-						self.currentTileId -= 1;
-						self.previewTile = Tile::new(self.currentTileId, 0).unwrap();
-					}
+                    self.incTile(-1);
 				},
 				(Event::KeyDown{scancode: Some(Scancode::Right), ..}, State::GetTile) => {
-					if self.currentTileId < MAX_TILE_IDX {
-						self.currentTileId += 1;
-						self.previewTile = Tile::new(self.currentTileId, 0).unwrap();
-					}
+                    self.incTile(1);
 				},
+                (Event::KeyDown{scancode: Some(Scancode::Up), ..}, State::GetTile) => {
+                    self.incCollision(1);
+                },
+                (Event::KeyDown{scancode: Some(Scancode::Down), ..}, State::GetTile) => {
+                    self.incCollision(-1);
+                },
 				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, State::GetTile | State::GetEntityID) => {
 					*deps.fontTexture = None;
 					self.state.pop();
@@ -287,6 +290,8 @@ impl EditorContext {
 			_ => {
 				deps.ctx.getMapMut().draw(&mut self.canvas, self.screenPos.top_left());
 				deps.ctx.getMapMut().renderTile(self.previewRect, &self.previewTile, &mut self.canvas);
+                let q = deps.collisionTextures[self.currentCollision].query();
+                self.canvas.copy(&deps.collisionTextures[self.currentCollision], None, Some(Rect::new(self.previewRect.x() + 100, self.previewRect.y(), q.width, q.height)));
 			},
 		}
 		if let State::EntityPlacement | State::GetEntityID = self.state.last().unwrap() {
@@ -318,7 +323,7 @@ impl EditorContext {
             Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} 
             if (y as i64) < (self.screenRect.height() - 50) as i64 => {
                 let currentTilePosition = convertToTilePos(x + self.screenPos.x, y + self.screenPos.y);
-                let tileBuilder = TileBuilder::new(self.currentTileId, currentTilePosition);
+                let tileBuilder = TileBuilder::new(self.currentTileId, self.currentCollision, currentTilePosition);
                 self.state.push(State::GetTile);
                 self.state.push(State::AttemptBuild(tileBuilder));
             },
@@ -328,16 +333,16 @@ impl EditorContext {
                 deps.ctx.getMapMut().changeTile(currentTilePosition, self.currentTile.clone());
            },
             Event::KeyDown{scancode: Some(Scancode::Left), ..} => {
-                if self.currentTileId > 0 {
-                    self.currentTileId -= 1;
-                    self.previewTile = Tile::new(self.currentTileId, 0).unwrap();
-                }
+                self.incTile(-1);
             },
             Event::KeyDown{scancode: Some(Scancode::Right), ..} => {
-                if self.currentTileId < MAX_TILE_IDX {
-                    self.currentTileId += 1;
-                    self.previewTile = Tile::new(self.currentTileId, 0).unwrap();
-                }
+                self.incTile(1);
+            },
+            Event::KeyDown{scancode: Some(Scancode::Up), ..} => {
+                self.incCollision(1);
+            },
+            Event::KeyDown{scancode: Some(Scancode::Down), ..} => {
+                self.incCollision(-1);
             },
             Event::KeyDown{scancode: Some(Scancode::E), ..} => {
                 self.state.push(State::EntityPlacement);
@@ -433,14 +438,10 @@ impl EditorContext {
                 }
             },
             Event::KeyDown{scancode: Some(Scancode::Left), ..} => {
-                if self.currentEntityId > 0 {
-                    self.currentEntityId -= 1;
-                }
+                self.incEntity(-1);
             },
             Event::KeyDown{scancode: Some(Scancode::Right), ..} => {
-                if self.currentEntityId < MAX_ENTITY_IDX {
-                    self.currentEntityId += 1;
-                }
+                self.incEntity(1);
             },
             Event::KeyDown{scancode: Some(Scancode::E), ..} => {
                 self.state.pop();
@@ -457,7 +458,7 @@ impl EditorContext {
 		match signal {
 			TileBuilderSignals::GetCoordinate(tmpMessage) => {
 				self.state.push(State::GetCoordinate);
-				*deps.fontTexture = Some(createText(&self.message, deps.textureCreator, deps.font));
+				*deps.fontTexture = Some(createText(&tmpMessage, deps.textureCreator, deps.font));
 			}
 			TileBuilderSignals::GetUserUsize(tmpMessage) => {
 				self.state.push(State::GetUserUsize);
@@ -482,7 +483,7 @@ impl EditorContext {
 			TileBuilderSignals::InvalidId => (),
 		}	
 	}
-	fn buildEntity<'a>(&mut self, signal: EntityBuilderSignals<'a>, deps: &mut EditorContextDeps<'a, '_, '_, '_, '_, '_, '_, '_,>) {
+	fn buildEntity<'a>(&mut self, signal: EntityBuilderSignals<'a>, deps: &mut EditorContextDeps<'a, '_, '_, '_, '_, '_, '_, '_, '_,>) {
 		match signal {
 			EntityBuilderSignals::Complete(Ok(entity)) if self.globalEntities => {
 				if let Some(State::AttemptBuildEntity(builder)) = self.state.pop() {
@@ -554,6 +555,22 @@ impl EditorContext {
 			_ => (),
 		};
 	}
+    fn incTile(&mut self, amt: i32) {
+        if self.currentTileId as i32 + amt <= MAX_TILE_IDX as i32 && self.currentTileId as i32 + amt >= 0 {
+            self.currentTileId = (self.currentTileId as i32 + amt) as u16;
+            self.previewTile = Tile::preview(self.currentTileId);
+        }
+    }
+    fn incCollision(&mut self, amt: isize) {
+        if self.currentCollision as isize + amt <= MAX_COLLISION_IDX as isize && self.currentCollision as isize + amt >= 0 {
+            self.currentCollision = (self.currentCollision as isize + amt) as usize;
+        }
+    }
+    fn incEntity(&mut self, amt: i32) {
+        if self.currentEntityId as i32 + amt <= MAX_ENTITY_IDX as i32 && self.currentEntityId as i32 + amt >= 0 {
+            self.currentEntityId += (self.currentEntityId as i32 + amt) as u16;
+        }
+    }
 }
 
 fn convertToTilePos(x: i32, y: i32) -> (u16, u16) {

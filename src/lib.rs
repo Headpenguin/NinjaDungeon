@@ -35,7 +35,7 @@ pub use VectorMod::Vector;
 pub use Vec2dMod::Vec2d;
 pub use PlayerMod::Player;
 
-pub use MapMod::{Map, InnerMap, Location, Tile, MAX_TILE_IDX, CollisionType, CollisionBounds, TileBuilder, TileBuilderSignals};
+pub use MapMod::*;
 pub use GameContextMod::*;
 pub use EditorContextMod::{EditorContext, EditorContextDeps, createText};
 
