@@ -198,81 +198,12 @@ impl InnerMap {
 	pub fn collide(&self, bounds: &mut CollisionBounds) -> Option<((u16, u16), &Tile)> {
 		self.screens[&self.activeScreen].collide(bounds)
 	}
-/*	pub fn createRenderer(&mut self, tileset: &str, textureCreator: &'a TextureCreator<WindowContext>) {
-		//addr_of_mut!(self.renderer).write(TileRenderer::new(0, tileset, textureCreator).unwrap());
-		self.renderer = Some(TileRenderer::new(0, tileset, textureCreator).unwrap());
-	}*/
 }
 
 pub fn convertScreenCoordToTileCoord(res: (u32, u32), screenRect: Rect, point: Point) -> Point {
     Point::from((point.x * res.0 as i32 / screenRect.width() as i32, point.y * res.1 as i32 / screenRect.height() as i32)) + screenRect.top_left()
 }
-/*
-unsafe impl<'a> SelfOwned for Map<'a> {}
 
-impl<'a> ProvideReferencesDynamic<'a> for Map<'a> {
-	type Type = Map<'static>;
-	fn provideReferencesDyn<T: DynamicBinaryTranslator<'a>>(&'a self, translator: &mut T) {
-		translator.translateContained(&self.ioData);
-		for (id, screen) in self.screens.iter() {
-			translator.translateContained(id);
-			translator.translateRaw(screen);
-		}
-		for screen in self.screens.values() {
-			screen.provideReferencesDyn(translator);
-		}
-	}
-}
-
-impl<'a> ProvidePointersMutDynamic<'a> for Map<'a> {
-	type Type = Map<'static>;
-	unsafe fn providePointersMutDyn<T: DynamicTypedTranslator<'a>>(uninitialized: *mut Self, depth: usize, translator: &mut T) -> bool {
-		match depth {
-			0 => {
-				translator.translateContained(&mut (*uninitialized).ioData);
-				false
-			},
-			1 => {
-				let len = (*uninitialized).ioData;
-				addr_of_mut!((*uninitialized).screens).write(HashMap::with_capacity_and_hasher(len, IntHasher::new()));
-				let layout = Layout::array::<(usize, Screen)>(len + 1).unwrap();
-				let memory = alloc::alloc(layout);
-				assert_ne!(memory, ptr::null_mut());
-				(*uninitialized).ioData = memory as usize;
-				let memory = memory as *mut (usize, Screen);
-				let entries = slice::from_raw_parts_mut(memory.add(1), len);
-				(*memory).0 = len;
-				for (id, screen) in entries.iter_mut() {
-					translator.translateContained(id);
-					translator.translateRaw(screen);
-				}
-				false
-			},
-			depth => {
-				let ptr = (*uninitialized).ioData as *mut (usize, Screen);
-				let len = (*ptr).0;
-				let mut flag = true;
-				{
-					let entries = slice::from_raw_parts_mut(ptr.add(1), len);
-					for (_, screen) in entries.iter_mut() {
-						let result = Screen::providePointersMutDyn(screen, depth - 2, translator);
-						flag &= result;
-					}
-				}
-				if flag {
-					{
-						let entries = slice::from_raw_parts_mut(ptr.add(1), len);
-						(*uninitialized).screens.extend(entries.iter().map(|e| ptr::read(e)));
-					}
-					let layout = Layout::array::<usize>(len + 1).unwrap();
-					alloc::dealloc(ptr as *mut u8, layout);
-				}
-				flag
-			},
-		}
-	}
-}
-*/
 impl<'a> TileRenderer<'a> {
 	pub fn new(id: usize, tileset: &str, creator: &'a TextureCreator<WindowContext>) -> io::Result<TileRenderer<'a>> {
 		Ok(TileRenderer {
@@ -296,20 +227,3 @@ const TILESETS: &'static [&'static [&'static str]] = &[
 		"Gate",
 	],
 ];
-/*
-impl<'a> Serialize for Map<'a> {
-	pub fn serialize(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
-		self.screens.serialize(serializer)?;
-		serializer.serialize_u64(self.lastActiveScreen)?;
-		serializer.serialize_u64(self.activeScreen)?;
-		serializer.serialize_u64(self.ioData)?;
-		serializer.serialize_u64(self.nextId)?;
-	}
-}
-
-impl<'a> Deserialize for Map<'a> {
-	pub fn deserialize(&self, deserializer: D) -> Result<D::Ok, D::Error> where D: Deserializer {
-		self.screens = HashMap::deserialize(deserializer)?;
-		self.lastActiveScreen = deserializer.deserialize_u64();
-}
-*/

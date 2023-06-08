@@ -17,7 +17,7 @@ use crate::{Direction, Map, CollisionType, Vector, GameContext, ID};
 use crate::Entities::Traits::{Collision, EntityTraitsWrappable, Entity, Counter, RegisterID};
 use crate::Entities::{BoxCode, RefCode, RefCodeMut, TypedID};
 use crate::EventProcessor::{CollisionMsg, Envelope, PO, Key};
-use crate::MapMod;
+use crate::MapMod::{self, Tile};
 
 const SWORD_FRAMES: &'static[&'static str] = &[
 	"Resources/Images/Sword__half.png",
@@ -136,7 +136,8 @@ impl PlayerData {
 					self.nextPos += eject;
 					tmp.reposition(self.nextPos + Vector(2f32, 2f32));
 				},
-				CollisionType::SpawnGate(location) => po.spawnGate((location.0, location.1), (location.2, location.3)),
+				CollisionType::SpawnGate(location) => po.spawnTiles(Tile::gate(), (location.0, location.1), (location.2, location.3)),
+				CollisionType::ClearTiles(location) => po.spawnTiles(Tile::default(), (location.0, location.1), (location.2, location.3)),
 				_ => (),
 			}
 		}
@@ -147,8 +148,6 @@ impl PlayerData {
 			po.sendCollisionMsg(Envelope::new(CollisionMsg::Damage(5), id, player.id.getID().sub(1)));
 		}
 		for id in po.getCtx().getCollisionList(player.id.getID()).filter(|id| id.mask() != player.id.getID().mask()) {
-			//po.sendCollisionMsg(Envelope::new(CollisionMsg::Damage(5), id, player.id.getID().sub(1)));
-	//		println!("Player: {:?}", player.hitbox);
 			let res = po.getEntity(id.mask(), key);
 			key = res.1;
 			let entity = if let Some(entity) = res.0 {entity} else {panic!("{:?}", id)};

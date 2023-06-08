@@ -46,6 +46,9 @@ impl Tile {
 	pub fn getCollisionType(&self) -> CollisionType {
 		self.1
 	}
+    pub fn gate() -> Tile {
+        Tile::new(2, CollisionType::Block)
+    }
 }
 
 impl Default for Tile {
@@ -209,18 +212,11 @@ pub fn blockCollide(location: (u16, u16), hitbox: Rect, map: &Map) -> Vector {
 	}
 }
 
-pub fn placeGate(location: (u16, u16), locationEnd: (u16, u16), map: &mut Map) {
-	for x in location.0..=locationEnd.0 {
-		for y in location.1..=locationEnd.1 {
-			map.changeTile((x, y), Tile::new(2, CollisionType::Block));
-		}
-	}
-}
-
-pub fn clearTiles(location: (u16, u16), locationEnd: (u16, u16), map: &mut Map) {
+pub fn spawnTiles(tile: Tile, location: (u16, u16), locationEnd: (u16, u16), map: &mut Map) {
+    println!("mjfd");
     for x in location.0..=locationEnd.0 {
         for y in location.1..=locationEnd.1 {
-            map.changeTile((x, y), Tile::new(0, CollisionType::None));
+            map.changeTile((x, y), tile.clone());
        }
     }
 }

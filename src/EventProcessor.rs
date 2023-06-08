@@ -20,8 +20,8 @@ impl Key {
 }
 
 enum Commands {
-	PlaceGate(u16, u16, u16, u16),
 	PlaceTile(Tile, (u16, u16)),
+	PlaceTiles(Tile, (u16, u16), (u16, u16)),
 }
 
 pub struct PO<'a> {
@@ -98,11 +98,11 @@ impl<'a> PO<'a> {
 			else {false}
 		}
 	}
-	pub fn spawnGate(&self, location: (u16, u16), endLocation: (u16, u16)) {
-		unsafe {&mut *self.commands.get()}.push(Commands::PlaceGate(location.0, location.1, endLocation.0, endLocation.1));
-	}
 	pub fn spawnTile(&self, tile: Tile, location: (u16, u16)) {
 		unsafe {&mut *self.commands.get()}.push(Commands::PlaceTile(tile, location));
+	}
+	pub fn spawnTiles(&self, tile: Tile, locationBegin: (u16, u16), locationEnd: (u16, u16)) {
+		unsafe {&mut *self.commands.get()}.push(Commands::PlaceTiles(tile, locationBegin, locationEnd));
 	}
 	pub fn updatePosition(&mut self, id: ID, hitbox: Rect, prevHitbox: Rect) {
 		self.ctx.updatePosition(id, hitbox, prevHitbox);
@@ -122,8 +122,8 @@ impl<'a> PO<'a> {
 	pub unsafe fn doCommands(&mut self) {
 		for command in self.commands.get_mut().drain(..) {
 			match command {
-				Commands::PlaceGate(x, y, xe, ye) => MapMod::placeGate((x, y), (xe, ye), self.ctx.getMapMut()),
 				Commands::PlaceTile(tile, location) => self.ctx.getMapMut().changeTile(location, tile),
+				Commands::PlaceTiles(tile, locationBegin, locationEnd) => MapMod::spawnTiles(tile, locationBegin, locationEnd, self.ctx.getMapMut()),
 			}
 		}
 	}
