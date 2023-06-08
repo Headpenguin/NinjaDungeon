@@ -568,7 +568,7 @@ impl EditorContext {
     }
     fn incEntity(&mut self, amt: i32) {
         if self.currentEntityId as i32 + amt <= MAX_ENTITY_IDX as i32 && self.currentEntityId as i32 + amt >= 0 {
-            self.currentEntityId += (self.currentEntityId as i32 + amt) as u16;
+            self.currentEntityId = (self.currentEntityId as i32 + amt) as u16;
         }
     }
 }
