@@ -104,7 +104,7 @@ impl EditorContext {
 			newMapCoords: (0, 0),
 			newMapWidth: None,
 			previewRect: Rect::new(0, height as i32 - 50, 50, 50),
-			state: vec![State::Idle],
+			state: vec![State::ViewMap, State::Idle],
 			message: String::new(),
 			messageLen: 0,
 			scheduler: Scheduler::new(),
@@ -130,20 +130,12 @@ impl EditorContext {
 					let (x, y) = ((x + self.screenPos.x) / 50 * 50, (y + self.screenPos.y) / 50 * 50);
 					let clickRect = Rect::new(x, y, x as u32 + 50, y as u32 + 50);
 					unsafe {
-						if self.globalEntities {
-							if let Some(id) = deps.ctx.getEntityAtPositionGlobal(clickRect) {
-								self.state.pop();
-								if let Some(State::AttemptBuildEntity(ref mut builder)) = self.state.last_mut() {
-									builder.addLinkedID(id);
-								}
-							}
-						}
-						else {
-							if let Some(id) = deps.ctx.getEntityAtPositionActiveScreen(clickRect) {
-								self.state.pop();
-								if let Some(State::AttemptBuildEntity(ref mut builder)) = self.state.last_mut() {
-									builder.addLinkedID(id);
-								}
+						let id = if self.globalEntities {deps.ctx.getEntityAtPositionGlobal(clickRect)}
+						else {deps.ctx.getEntityAtPositionActiveScreen(clickRect)};
+						if let Some(id) = id {
+							self.state.pop();
+							if let Some(State::AttemptBuildEntity(ref mut builder)) = self.state.last_mut() {
+								builder.addLinkedID(id);
 							}
 						}
 					}
@@ -151,8 +143,7 @@ impl EditorContext {
 				},
 				(Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..}, State::GetTile)
 				if (y as i64) < (self.screenRect.height() - 50) as i64 => {
-					let (x, y) = (x + self.screenPos.x, y + self.screenPos.y);
-					let currentTilePosition = ((x / 50) as u16, (y / 50) as u16);
+					let currentTilePosition = convertToTilePos(x + self.screenPos.x, y + self.screenPos.y);
 					let tileBuilder = TileBuilder::new(self.currentTileId, currentTilePosition);
 					self.state.push(State::AttemptBuild(tileBuilder));
                     *deps.fontTexture = None;
@@ -160,9 +151,9 @@ impl EditorContext {
 				},
 				(Event::MouseButtonDown {mouse_btn: MouseButton::Right, x, y, ..}, State::GetTile)
                 if (y as i64) < (self.screenRect.height() - 50) as i64 => {
-					let (x, y) = (x + self.screenPos.x, y + self.screenPos.y);
-					let currentTilePosition = ((x / 50) as u16, (y / 50) as u16);
+					let currentTilePosition = convertToTilePos(x + self.screenPos.x, y + self.screenPos.y);
                     deps.ctx.getMapMut().changeTile(currentTilePosition, self.currentTile.clone());
+					self.state.pop();
                     *deps.fontTexture = None;
                 },
 				(Event::KeyDown{scancode: Some(Scancode::Left), ..}, State::GetTile) => {
@@ -183,6 +174,9 @@ impl EditorContext {
 					if let Some(State::AttemptBuildEntity(ref mut builder)) = self.state.last_mut() {
 						builder.endList();
 					}
+					else if let Some(State::AttemptBuild(ref mut builder)) = self.state.last_mut() {
+						unimplemented!();
+					}
 					else {
 						unreachable!();
 					}
@@ -195,9 +189,9 @@ impl EditorContext {
                         State::AttemptBuild(ref mut builder) => {
                             builder.addLocation(location);
                         },
-                        /*State::AttemptBuildEntity(ref mut builder) => {
-                            builder.addLocation(location);
-                        },*/
+						State::AttemptBuildEntity(ref mut Builder) => {
+							unimplemented!();
+						}
                         _ => unreachable!(),
                     };
                     
@@ -206,7 +200,7 @@ impl EditorContext {
 				(Event::KeyDown {scancode: Some(Scancode::Escape), ..}, _) => {
 					self.state.pop();
 					*deps.fontTexture = None;
-					*deps.idTexture = Some(createText(&deps.ctx.getMap().getActiveScreenId().to_string(), deps.textureCreator, deps.font));
+	//				*deps.idTexture = Some(createText(&deps.ctx.getMap().getActiveScreenId().to_string(), deps.textureCreator, deps.font));
 				}
 				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, State::GetUserUsize) => {
 					if let Ok(id) = usize::from_str(&self.message[self.messageLen..].trim()) {
@@ -215,8 +209,8 @@ impl EditorContext {
                         self.state.pop();
                         match self.state.last_mut().unwrap() {
                             State::AttemptBuild(ref mut builder) => builder.addUsize(id),
-                            //State::AttemptBuildEntity(ref mut builder) => builder.addUsize(id),
-                            _ => panic!(),
+                            State::AttemptBuildEntity(ref mut builder) => unimplemented!(),
+                            _ => unreachable!(),
                         }
 					}
 					else {
@@ -342,65 +336,19 @@ impl EditorContext {
                     self.previewTile = Tile::new(self.currentTileId, 0).unwrap();
                 }
             },
-            Event::KeyDown{scancode: Some(Scancode::S), ..} => {
-                let mut ser = Serializer::new(File::create(deps.filename).unwrap());
-                unsafe {InnerGameContext::fromGameContext(deps.ctx)}.serialize(&mut ser).unwrap();
-                let mut f = ser.into_inner();
-                f.flush().unwrap();
-            },	
-            Event::KeyDown{scancode: Some(Scancode::A), ..} => {
-                deps.ctx.getMapMut().decrementCurrentScreen();
-                *deps.idTexture = Some(createText(&deps.ctx.getMap().getActiveScreenId().to_string(), deps.textureCreator, deps.font));
-            },
-            Event::KeyDown{scancode: Some(Scancode::D), ..} => {
-                deps.ctx.getMapMut().incrementCurrentScreen();
-                *deps.idTexture = Some(createText(&deps.ctx.getMap().getActiveScreenId().to_string(), deps.textureCreator, deps.font));
-            },
-            Event::KeyDown{scancode: Some(Scancode::Escape), ..} => {
-                self.state.push(State::ViewMap);
-                *deps.idTexture = None;
-            },
-            Event::KeyDown{scancode: Some(Scancode::M), ..} => {
-                self.state.push(State::MoveScreen);
-                *deps.idTexture = None;
-            },
-            Event::KeyDown{scancode: Some(Scancode::X), ..} => {
-                self.state.push(State::UserConfirmDelete);
-                self.textInput.start();
-                self.message = String::from("Are you sure you want to delete this map? (y/n): ");
-                self.messageLen = self.message.len();
-                *deps.fontTexture = Some(createText(&self.message, deps.textureCreator, deps.font));
-            },
             Event::KeyDown{scancode: Some(Scancode::E), ..} => {
                 self.state.push(State::EntityPlacement);
             },
-
-            Event::KeyDown {scancode: Some(Scancode::H), ..} => 
-                self.screenPos.offset(self.screenRect.center().x.clamp(0, self.screenPos.x) * -1, 0),
-            
-            Event::KeyDown {scancode: Some(Scancode::J), ..} =>
-                self.screenPos.offset(0, self.screenRect.center().y.clamp(0, self.screenPos.y) * -1),
-        
-            Event::KeyDown {scancode: Some(Scancode::K), ..} =>
-                self.screenPos.offset(0, self.screenRect.center().y.min(deps.ctx.getMap().getMaxScreenCoords().1 as i32 - self.screenPos.bottom()).max(0)),
-            
-            Event::KeyDown {scancode: Some(Scancode::L), ..} => 
-                self.screenPos.offset(self.screenRect.center().x.min(deps.ctx.getMap().getMaxScreenCoords().0 as i32 - self.screenPos.right()).max(0), 0),
-            
-            _ => (),
+            _ => self.matchCommon(event, deps),
         }
     }
     fn doViewMapEvents(&mut self, event: Event, deps: &mut EditorContextDeps) {
         match event {
             Event::Quit {..} => self.quit = true,
-            Event::KeyDown {scancode: Some(Scancode::Escape), ..} => {
-                self.state.pop();
-                *deps.idTexture = Some(createText(&deps.ctx.getMap().getActiveScreenId().to_string(), deps.textureCreator, deps.font));
-            }
             Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..} => {
                 if let Some(screen) = deps.ctx.getMap().getScreenAtPosition(Point::new(x, y), self.mapRect, self.mapRes) {
                     deps.ctx.getMapMut().setCurrentScreen(screen);
-                    self.state.pop();
+                    self.state.push(State::Idle);
                 }
                 else {
                     let (x, y) = MapMod::convertScreenCoordToTileCoord(self.mapRes, self.mapRect, Point::from((x, y))).into();
@@ -424,11 +372,12 @@ impl EditorContext {
                     self.mapRes.0 *= 2;
                     self.mapRes.1 *= 2;
                 }
-            }
+            },
             Event::KeyDown {scancode: Some(Scancode::H), ..} => self.mapRect.offset(((self.mapRes.0 >> 1) as i32).clamp(0, self.mapRect.x()) * -1, 0),
             Event::KeyDown {scancode: Some(Scancode::J), ..} => self.mapRect.offset(0, ((self.mapRes.1 >> 1) as i32).clamp(0, self.mapRect.y()) * -1),
             Event::KeyDown {scancode: Some(Scancode::K), ..} => self.mapRect.offset(0, ((self.mapRes.1 >> 1) as i32).clamp(0, i32::MAX - self.mapRect.y())),
             Event::KeyDown {scancode: Some(Scancode::L), ..} => self.mapRect.offset(((self.mapRes.0 >> 1) as i32).clamp(0, i32::MAX - self.mapRect.x()), 0),
+            Event::KeyDown {scancode: Some(Scancode::Escape), ..} => (),
             _ => (),
         }
     }
@@ -490,55 +439,14 @@ impl EditorContext {
                     self.currentEntityId += 1;
                 }
             },
-            Event::KeyDown{scancode: Some(Scancode::S), ..} => {
-                let mut ser = Serializer::new(File::create(deps.filename).unwrap());
-                unsafe {InnerGameContext::fromGameContext(deps.ctx)}.serialize(&mut ser).unwrap();
-                let mut f = ser.into_inner();
-                f.flush().unwrap();
-            },	
-            Event::KeyDown{scancode: Some(Scancode::A), ..} => {
-                deps.ctx.getMapMut().decrementCurrentScreen();
-                *deps.idTexture = Some(createText(&deps.ctx.getMap().getActiveScreenId().to_string(), deps.textureCreator, deps.font));
-            },
-            Event::KeyDown{scancode: Some(Scancode::D), ..} => {
-                deps.ctx.getMapMut().incrementCurrentScreen();
-                *deps.idTexture = Some(createText(&deps.ctx.getMap().getActiveScreenId().to_string(), deps.textureCreator, deps.font));
-            },
-            Event::KeyDown{scancode: Some(Scancode::Escape), ..} => {
-                self.state.pop();
-                *deps.idTexture = None;
-            },
-            Event::KeyDown{scancode: Some(Scancode::M), ..} => {
-                self.state.push(State::MoveScreen);
-                *deps.idTexture = None;
-            },
-            Event::KeyDown{scancode: Some(Scancode::X), ..} => {
-                self.state.push(State::UserConfirmDelete);
-                self.textInput.start();
-                self.message = String::from("Are you sure you want to delete this map? (y/n): ");
-                self.messageLen = self.message.len();
-                *deps.fontTexture = Some(createText(&self.message, deps.textureCreator, deps.font));
-            },
             Event::KeyDown{scancode: Some(Scancode::E), ..} => {
                 self.state.pop();
             },
             Event::KeyDown{scancode: Some(Scancode::G), ..} => {
                 self.globalEntities = !self.globalEntities;
             },
-
-            Event::KeyDown {scancode: Some(Scancode::H), ..} => 
-                self.screenPos.offset(self.screenRect.center().x.clamp(0, self.screenPos.x) * -1, 0),
             
-            Event::KeyDown {scancode: Some(Scancode::J), ..} =>
-                self.screenPos.offset(0, self.screenRect.center().y.clamp(0, self.screenPos.y) * -1),
-        
-            Event::KeyDown {scancode: Some(Scancode::K), ..} =>
-                self.screenPos.offset(0, self.screenRect.center().y.min(deps.ctx.getMap().getMaxScreenCoords().1 as i32 - self.screenPos.bottom()).max(0)),
-            
-            Event::KeyDown {scancode: Some(Scancode::L), ..} => 
-                self.screenPos.offset(self.screenRect.center().x.min(deps.ctx.getMap().getMaxScreenCoords().0 as i32 - self.screenPos.right()).max(0), 0),
-            
-            _ => (),
+            _ => self.matchCommon(event, deps),
 
         }
     }
@@ -595,11 +503,58 @@ impl EditorContext {
 			EntityBuilderSignals::InvalidId => eprintln!("Entity could not be placed because of invalid entity id produced by editor"),
 		}
 	}
+	fn matchCommon(&mut self, event: Event, deps: &mut EditorContextDeps) {
+		match event {
+            Event::KeyDown{scancode: Some(Scancode::S), ..} => {
+                let mut ser = Serializer::new(File::create(deps.filename).unwrap());
+                unsafe {InnerGameContext::fromGameContext(deps.ctx)}.serialize(&mut ser).unwrap();
+                let mut f = ser.into_inner();
+                f.flush().unwrap();
+            },	
+            Event::KeyDown{scancode: Some(Scancode::A), ..} => {
+                deps.ctx.getMapMut().decrementCurrentScreen();
+                *deps.idTexture = Some(createText(&deps.ctx.getMap().getActiveScreenId().to_string(), deps.textureCreator, deps.font));
+            },
+            Event::KeyDown{scancode: Some(Scancode::D), ..} => {
+                deps.ctx.getMapMut().incrementCurrentScreen();
+                *deps.idTexture = Some(createText(&deps.ctx.getMap().getActiveScreenId().to_string(), deps.textureCreator, deps.font));
+            },
+            Event::KeyDown{scancode: Some(Scancode::Escape), ..} => {
+				if self.state.len() > 1 {
+	                self.state.pop();
+				}
+                *deps.idTexture = None;
+            },
+            Event::KeyDown{scancode: Some(Scancode::M), ..} => {
+                self.state.push(State::MoveScreen);
+                *deps.idTexture = None;
+            },
+            Event::KeyDown{scancode: Some(Scancode::X), ..} => {
+                self.state.push(State::UserConfirmDelete);
+                self.textInput.start();
+                self.message = String::from("Are you sure you want to delete this map? (y/n): ");
+                self.messageLen = self.message.len();
+                *deps.fontTexture = Some(createText(&self.message, deps.textureCreator, deps.font));
+            },
 
+            Event::KeyDown {scancode: Some(Scancode::H), ..} => 
+                self.screenPos.offset(self.screenRect.center().x.clamp(0, self.screenPos.x) * -1, 0),
+            
+            Event::KeyDown {scancode: Some(Scancode::J), ..} =>
+                self.screenPos.offset(0, self.screenRect.center().y.clamp(0, self.screenPos.y) * -1),
+        
+            Event::KeyDown {scancode: Some(Scancode::K), ..} =>
+                self.screenPos.offset(0, self.screenRect.center().y.min(deps.ctx.getMap().getMaxScreenCoords().1 as i32 - self.screenPos.bottom()).max(0)),
+            
+            Event::KeyDown {scancode: Some(Scancode::L), ..} => 
+                self.screenPos.offset(self.screenRect.center().x.min(deps.ctx.getMap().getMaxScreenCoords().0 as i32 - self.screenPos.right()).max(0), 0),
+			_ => (),
+		};
+	}
 }
 
 fn convertToTilePos(x: i32, y: i32) -> (u16, u16) {
-    ((x / 50) as u16, (y / 50) as u16);
+    ((x / 50) as u16, (y / 50) as u16)
 
 }
 

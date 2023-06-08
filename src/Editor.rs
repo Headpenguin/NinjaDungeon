@@ -25,7 +25,7 @@ pub fn removeEntity(&mut self, position: (i32, i32)) -> Result<(), ()> {
 	Ok(())
 }*/
 fn main() {
-	let (textureCreator, ttfContext, mut editor) = EditorContext::new(WIDTH, HEIGHT, NAME, COLOR);
+	let (textureCreator, ttfContext, mut events, mut editor) = EditorContext::new(WIDTH, HEIGHT, NAME, COLOR);
 
 	let file = match env::args().skip(1).next() {
 		Some(name) => name,
@@ -62,7 +62,7 @@ fn main() {
         ctx: &mut ctx,
     };
 	
-	while !editor.mainLoop(&mut editorContextDeps) {
+	while !editor.mainLoop(&mut events, &mut editorContextDeps) {
 	}
 }
 
