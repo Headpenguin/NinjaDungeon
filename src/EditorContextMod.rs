@@ -199,6 +199,9 @@ impl EditorContext {
 				}
 				(Event::KeyDown {scancode: Some(Scancode::Escape), ..}, _) => {
 					self.state.pop();
+                    if let Some(State::AttemptBuildEntity(..)) | Some(State::AttemptBuild(..)) = self.state.last() {
+                        self.state.pop();
+                    }
 					*deps.fontTexture = None;
 	//				*deps.idTexture = Some(createText(&deps.ctx.getMap().getActiveScreenId().to_string(), deps.textureCreator, deps.font));
 				}
@@ -420,7 +423,7 @@ impl EditorContext {
             Event::MouseButtonDown {mouse_btn: MouseButton::Right, x, y, ..}
             if (y as i64) < (self.screenRect.height() - 50) as i64 => {
                 let (x, y) = ((x + self.screenPos.x) / 50 * 50, (y + self.screenPos.y) / 50 * 50);
-                let clickRect = Rect::new(x, y, x as u32 + 50, y as u32 + 50);
+                let clickRect = Rect::new(x, y, 50, 50);
                 unsafe {
                     let entity = if self.globalEntities { deps.ctx.getEntityAtPositionGlobal(clickRect)}
                     else {deps.ctx.getEntityAtPositionActiveScreen(clickRect)};
