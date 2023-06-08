@@ -116,11 +116,13 @@ pub struct Player<'a> {
 	iframes: u32,
 	sword: Sprites<'a>,
 	healthSprites: Sprites<'a>,
+	hitSwitchLastFrame: bool,
 }
 #[derive(Debug)]
 pub struct PlayerData {
 	//transition: Option<Rect>,
 	nextPos: Vector,
+	stopHitSwitch: bool,
 }
 
 impl PlayerData {
@@ -136,10 +138,32 @@ impl PlayerData {
 					self.nextPos += eject;
 					tmp.reposition(self.nextPos + Vector(2f32, 2f32));
 				},
-                CollisionType::SwitchToggleGate(location) => 
 				CollisionType::SpawnGate(location) => po.spawnTiles(Tile::gate(), (location.0, location.1), (location.2, location.3)),
 				CollisionType::ClearTiles(location) => po.spawnTiles(Tile::default(), (location.0, location.1), (location.2, location.3)),
 				_ => (),
+			}
+		}
+		if player.attacking || player.attackTimer > 0 {
+			let tmp = relTupleToRect(player.getSwordCollision(), (self.nextPos + Vector(2f32, 2f32)).into());
+			let mut iter = map.calculateCollisionBounds(tmp);
+
+			while let Some((location, tile)) = map.collide(&mut iter) {
+				match tile.getCollisionType() {
+					CollisionType::SwitchToggleGate(..) if player.hitSwitchLastFrame => self.stopHitSwitch = false,
+					CollisionType::SwitchToggleGate(range) => {
+						let spawnedTile = if let CollisionType::Block = map.getScreen(map.getActiveScreenId()).unwrap().getTile((range.0, range.1)).getCollisionType() {Tile::default()}
+						else {Tile::gate()};
+						po.spawnTiles(spawnedTile, (range.0, range.1), (range.2, range.3));
+						let id = match tile.getId() {
+							3 => 4,
+							4 => 3,
+							_ => tile.getId(),
+						};
+						po.spawnTile(Tile::new(id, tile.getCollisionType()), location);
+						self.stopHitSwitch = false;
+					},
+					_ => (),
+				}
 			}
 		}
 	}
@@ -164,7 +188,7 @@ impl PlayerData {
 
 impl<'a> Player<'a> {
     pub fn new(creator: &'a TextureCreator<WindowContext>, positionX: f32, positionY: f32) -> io::Result<BoxCode<'a>> {
-        let (direction, velocity, position, timer, idle, attackTimer, attacking, health, iframes) = (
+        let (direction, velocity, position, timer, idle, attackTimer, attacking, health, iframes, hitSwitchLastFrame) = (
             Direction::Down, 
             Vector(0f32, 0f32), 
             Vector(positionX, positionY),
@@ -174,6 +198,7 @@ impl<'a> Player<'a> {
 			false,
 			50,
 			0,
+			false,
         );
 		let animations = Animations::new("Resources/Images/Ninja.anim", NAMES, creator)?;
 		let sword = Sprites::new(creator, SWORD_FRAMES)?;
@@ -184,9 +209,10 @@ impl<'a> Player<'a> {
         Ok(
 			BoxCode::Player(
 				Entity::new(
-					Player {id: TypedID::new(ID::empty()), animations, direction, velocity, position, timer, idle, hitbox, renderPosition, attackTimer, sword, attacking, health, iframes, healthSprites},
+					Player {id: TypedID::new(ID::empty()), animations, direction, velocity, position, timer, idle, hitbox, renderPosition, attackTimer, sword, attacking, health, iframes, healthSprites, hitSwitchLastFrame},
 					PlayerData {
 						nextPos: position,
+						stopHitSwitch: true,
 					},
 				)
 			)
@@ -211,9 +237,11 @@ impl<'a> Player<'a> {
 					sword: Sprites::new(creator, SWORD_FRAMES)?,
 					healthSprites: Sprites::new(creator, HEALTH_FRAMES)?,
 					attacking: inner.attacking,
+					hitSwitchLastFrame: false,
 				},
 				PlayerData {
 					nextPos: inner.position,
+					stopHitSwitch: true,
 				}
 			)
 		))
@@ -355,6 +383,7 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 	}
 	fn getData(&self, data: &mut Self::Data, po: &PO, key: Key) -> Key {
 		//data.transition = ctx.getMap().transitionScreen(self.hitbox);
+		data.stopHitSwitch = true;
 		data.nextPos = if self.idle {
 			self.position + self.velocity
 		} else {self.position};
@@ -365,6 +394,7 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 		self.position = data.nextPos;
 		self.updatePositionsPO(po);
 
+		self.hitSwitchLastFrame = !data.stopHitSwitch;
 
 		if self.idle{match self.direction {
 			Direction::Up => {self.animations.changeAnimation(ANIMATION_IDX::UpFloat as usize);},

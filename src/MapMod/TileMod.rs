@@ -72,6 +72,7 @@ pub enum CollisionType {
     Hit, //Hurt the player
 	Burn, //Burn the player
 	ClearTiles((u16, u16, u16, u16)),
+	SwitchToggleGate((u16, u16, u16, u16)),
 	OOB, //Represent tiles with oob coordinates
 }
 
@@ -125,7 +126,7 @@ impl TileBuilder {
             7 => self.createLocationTile((
                 "Click where the gate begins",
                 "Click where the gate ends",
-            ), |(x, y), (xx, yy)| CollisionType::SwitchToggleGate((x, y, xx, yy)),
+            ), |(x, y), (xx, yy)| CollisionType::SwitchToggleGate((x, y, xx, yy))),
             _ => TileBuilderSignals::InvalidId,
         }
 	}
