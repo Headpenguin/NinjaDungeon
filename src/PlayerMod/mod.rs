@@ -136,6 +136,7 @@ impl PlayerData {
 					self.nextPos += eject;
 					tmp.reposition(self.nextPos + Vector(2f32, 2f32));
 				},
+                CollisionType::SwitchToggleGate(location) => 
 				CollisionType::SpawnGate(location) => po.spawnTiles(Tile::gate(), (location.0, location.1), (location.2, location.3)),
 				CollisionType::ClearTiles(location) => po.spawnTiles(Tile::default(), (location.0, location.1), (location.2, location.3)),
 				_ => (),

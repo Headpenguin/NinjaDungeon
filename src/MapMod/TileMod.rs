@@ -83,6 +83,7 @@ pub const COLLISION_NAMES: &'static [&'static str] = &[
     "Burn",
     "ClearTiles",
     "SpawnGate",
+    "SwitchToggleGate",
     "OOB",
 ];
 
@@ -121,6 +122,10 @@ impl TileBuilder {
                 "Click where the gate begins",
                 "Click where the gate ends",
             ), |(x, y), (xx, yy)| CollisionType::SpawnGate((x, y, xx, yy))),
+            7 => self.createLocationTile((
+                "Click where the gate begins",
+                "Click where the gate ends",
+            ), |(x, y), (xx, yy)| CollisionType::SwitchToggleGate((x, y, xx, yy)),
             _ => TileBuilderSignals::InvalidId,
         }
 	}
@@ -143,8 +148,8 @@ impl TileBuilder {
 	}
 	pub fn addLocation(&mut self, location: (u16, u16)) {
 		match self.collisionType {
-			5..=6 if None == self.location => self.location = Some(location),
-			5..=6 => self.locationEnd = Some(location),
+			5..=7 if None == self.location => self.location = Some(location),
+			5..=7 => self.locationEnd = Some(location),
 			_ => (),
 		};
 	}
@@ -213,7 +218,6 @@ pub fn blockCollide(location: (u16, u16), hitbox: Rect, map: &Map) -> Vector {
 }
 
 pub fn spawnTiles(tile: Tile, location: (u16, u16), locationEnd: (u16, u16), map: &mut Map) {
-    println!("mjfd");
     for x in location.0..=locationEnd.0 {
         for y in location.1..=locationEnd.1 {
             map.changeTile((x, y), tile.clone());
@@ -221,5 +225,5 @@ pub fn spawnTiles(tile: Tile, location: (u16, u16), locationEnd: (u16, u16), map
     }
 }
 
-pub const MAX_TILE_IDX: u16 = 2;
+pub const MAX_TILE_IDX: u16 = 4;
 

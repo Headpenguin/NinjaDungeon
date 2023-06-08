@@ -225,5 +225,7 @@ const TILESETS: &'static [&'static [&'static str]] = &[
 		"Ground",
 		"Wall",
 		"Gate",
+        "SwitchOn",
+        "SwitchOff",
 	],
 ];
