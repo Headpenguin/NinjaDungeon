@@ -133,7 +133,7 @@ impl PlayerData {
 
 		while let Some((location, tile)) = map.collide(&mut iter) {
 			match tile.getCollisionType() {
-				CollisionType::Block => {
+				CollisionType::Block | CollisionType::SwitchToggleGate(..) => {
 					let eject = MapMod::blockCollide(location, tmp, map);
 					self.nextPos += eject;
 					tmp.reposition(self.nextPos + Vector(2f32, 2f32));

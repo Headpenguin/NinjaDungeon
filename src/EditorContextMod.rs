@@ -155,8 +155,8 @@ impl EditorContext {
 				(Event::MouseButtonDown {mouse_btn: MouseButton::Right, x, y, ..}, State::GetTile)
                 if (y as i64) < (self.screenRect.height() - 50) as i64 => {
 					let currentTilePosition = convertToTilePos(x + self.screenPos.x, y + self.screenPos.y);
-                    deps.ctx.getMapMut().changeTile(currentTilePosition, self.currentTile.clone());
-					self.state.pop();
+                    //deps.ctx.getMapMut().changeTile(currentTilePosition, self.currentTile.clone());
+					self.state.push(State::AttemptBuild(TileBuilder::fromTile(&self.currentTile, currentTilePosition)));
                     *deps.fontTexture = None;
                 },
 				(Event::KeyDown{scancode: Some(Scancode::Left), ..}, State::GetTile) => {
@@ -468,17 +468,17 @@ impl EditorContext {
 				*deps.fontTexture = Some(createText(&self.message, deps.textureCreator, deps.font));
 			},
 			TileBuilderSignals::Complete(tile, pos) => {
-				let tilebuilder = if let Some(State::AttemptBuild(builder)) = self.state.pop() {builder} else {panic!()};
 				self.currentTile = tile;
+				self.state.pop();
                 if let State::GetTile = self.state.last().unwrap() {
                     self.state.pop();
                     match self.state.last_mut().unwrap() {
-                        State::AttemptBuildEntity(ref mut builder) => builder.addTile(tilebuilder.cloneTile(&self.currentTile), pos),
-                        State::Idle => deps.ctx.getMapMut().changeTile(pos, tilebuilder.cloneTile(&self.currentTile)),
+                        State::AttemptBuildEntity(ref mut builder) => builder.addTile(self.currentTile.clone(), pos),
+                        State::Idle => deps.ctx.getMapMut().changeTile(pos, self.currentTile.clone()),
                         _ => unimplemented!(),
                     };
                 }
-                else {panic!()}
+                else {unreachable!()}
 			},
 			TileBuilderSignals::InvalidId => (),
 		}	

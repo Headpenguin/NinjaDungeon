@@ -21,6 +21,7 @@ pub struct TileBuilder {
 	mapId: Option<usize>,
 	location: Option<(u16, u16)>,
 	locationEnd: Option<(u16, u16)>,
+	complete: Option<Tile>,
 }
 
 pub enum TileBuilderSignals {
@@ -99,9 +100,25 @@ impl TileBuilder {
 			mapId: None,
 			location: None,
 			locationEnd: None,
+			complete: None,
 		}
 	}
+	pub fn fromTile(tile: &Tile, pos: (u16, u16)) -> TileBuilder {
+		TileBuilder {
+			id: 0,
+            collisionType: 0,
+			pos,
+			mapId: None,
+			location: None,
+			locationEnd: None,
+			complete: Some(tile.clone()),
+		}
+
+	}
 	pub fn build(&self) -> TileBuilderSignals {
+		if let Some(ref tile) = self.complete {
+			return TileBuilderSignals::Complete(tile.clone(), self.pos);
+		}
         match self.collisionType {
             0 => TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::None), self.pos),
             1 => TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::Block), self.pos),
@@ -154,11 +171,11 @@ impl TileBuilder {
 			_ => (),
 		};
 	}
-	pub fn cloneTile(&self, tile: &Tile) -> Tile {
+/*	pub fn cloneTile(&self, tile: &Tile) -> Tile {
 		match tile.0 {
 			_ => tile.clone()
 		}
-	}
+	}*/
 }
 
 fn determineCollidedSide(sides: (i32, i32, i32, i32)) -> Side {
