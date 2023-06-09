@@ -160,10 +160,8 @@ impl<'a> RegisterID for EntityGenerator<'a> {}
 
 impl<'a> Counter for Generator<'a> {
 	fn inc(&mut self, msg: Envelope<CounterMsg>, po: &PO) {
-		if self.cnt > 0 {
-			self.cnt = (self.cnt as i32 + msg.getMsg().0).clamp(0, u8::MAX as i32) as u8;
-		    self.activate(po);
-		}
+		self.cnt = (self.cnt as i32 + msg.getMsg().0).clamp(0, u8::MAX as i32) as u8;
+		self.activate(po);
 	}
 }
 impl<'a> Counter for EntityGenerator<'a> {
