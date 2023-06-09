@@ -16,7 +16,7 @@ use crate::SpriteLoader::{Animations, Sprites};
 use crate::{Direction, Map, CollisionType, Vector, GameContext, ID};
 use crate::Entities::Traits::{Collision, EntityTraitsWrappable, Entity, Counter, RegisterID};
 use crate::Entities::{BoxCode, RefCode, RefCodeMut, TypedID};
-use crate::EventProcessor::{CollisionMsg, Envelope, PO, Key};
+use crate::EventProcessor::{CollisionMsg, CounterMsg, Envelope, PO, Key};
 use crate::MapMod::{self, Tile};
 
 const SWORD_FRAMES: &'static[&'static str] = &[
@@ -133,7 +133,7 @@ impl PlayerData {
 
 		while let Some((location, tile)) = map.collide(&mut iter) {
 			match tile.getCollisionType() {
-				CollisionType::Block | CollisionType::SwitchToggleGate(..) => {
+				CollisionType::Block | CollisionType::SwitchToggleGate(..) | CollisionType::SwitchTriggerGen(..) => {
 					let eject = MapMod::blockCollide(location, tmp, map);
 					self.nextPos += eject;
 					tmp.reposition(self.nextPos + Vector(2f32, 2f32));
@@ -150,6 +150,7 @@ impl PlayerData {
 			while let Some((location, tile)) = map.collide(&mut iter) {
 				match tile.getCollisionType() {
 					CollisionType::SwitchToggleGate(..) if player.hitSwitchLastFrame => self.stopHitSwitch = false,
+					CollisionType::SwitchTriggerGen(..) if player.hitSwitchLastFrame => self.stopHitSwitch = false,
 					CollisionType::SwitchToggleGate(range) => {
 						let spawnedTile = if let CollisionType::Block = map.getScreen(map.getActiveScreenId()).unwrap().getTile((range.0, range.1)).getCollisionType() {Tile::default()}
 						else {Tile::gate()};
@@ -162,6 +163,16 @@ impl PlayerData {
 						po.spawnTile(Tile::new(id, tile.getCollisionType()), location);
 						self.stopHitSwitch = false;
 					},
+					CollisionType::SwitchTriggerGen(id) => {
+						po.sendCounterMsg(Envelope::new(CounterMsg(i32::MIN), id, player.id.getID()));
+						let id = match tile.getId() {
+							3 => 4,
+							4 => 3,
+							_ => tile.getId(),
+						};
+						po.spawnTile(Tile::new(id, tile.getCollisionType()), location);
+						self.stopHitSwitch = false;
+					}
 					_ => (),
 				}
 			}

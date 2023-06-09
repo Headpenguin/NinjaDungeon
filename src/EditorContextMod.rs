@@ -141,6 +141,10 @@ impl EditorContext {
 							if let Some(State::AttemptBuildEntity(ref mut builder)) = self.state.last_mut() {
 								builder.addLinkedID(id);
 							}
+							else if let Some(State::AttemptBuild(ref mut builder)) = self.state.last_mut() {
+								builder.addGenerator(id);
+								*deps.fontTexture = None;
+							}
 						}
 					}
 					break;
@@ -457,6 +461,10 @@ impl EditorContext {
 				self.state.push(State::GetCoordinate);
 				*deps.fontTexture = Some(createText(&tmpMessage, deps.textureCreator, deps.font));
 			}
+			TileBuilderSignals::GetEntity(tmpMessage) => {
+				self.state.push(State::GetEntityID);
+				*deps.fontTexture = Some(createText(&tmpMessage, deps.textureCreator, deps.font));
+			}
 			TileBuilderSignals::GetUserUsize(tmpMessage) => {
 				self.state.push(State::GetUserUsize);
 				self.textInput.start();
@@ -485,7 +493,10 @@ impl EditorContext {
 			EntityBuilderSignals::Complete(Ok(entity)) if self.globalEntities => {
 				if let Some(State::AttemptBuildEntity(builder)) = self.state.pop() {
                     match self.state.pop().unwrap() {
-    					State::EntityPlacement => builder.addEntityGlobal(deps.ctx, entity),
+    					State::EntityPlacement => {
+							self.state.push(State::EntityPlacement);
+							builder.addEntityGlobal(deps.ctx, entity)
+						},
                         State::MakeEntityInactive => {
 							let id = builder.addEntityInactive(deps.ctx, entity).unwrap();
                             if let Some(State::AttemptBuildEntity(mut builder)) = self.state.pop() {
@@ -500,7 +511,10 @@ impl EditorContext {
 			EntityBuilderSignals::Complete(Ok(entity)) => {
 				if let Some(State::AttemptBuildEntity(builder)) = self.state.pop() {
                     match self.state.pop().unwrap() {
-    					State::EntityPlacement => builder.addEntityActiveScreen(deps.ctx, entity),
+    					State::EntityPlacement => {
+							self.state.push(State::EntityPlacement);
+							builder.addEntityActiveScreen(deps.ctx, entity)
+						},
                         State::MakeEntityInactive => {
 							let id = builder.addEntityInactive(deps.ctx, entity).unwrap();
                             if let Some(State::AttemptBuildEntity(ref mut builder)) = self.state.last_mut() {

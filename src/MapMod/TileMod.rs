@@ -5,7 +5,7 @@ use serde::{Serialize, Deserialize};
 
 use sdl2::rect::Rect;
 
-use crate::Vector;
+use crate::{ID, Vector};
 
 use super::Map;
 
@@ -22,12 +22,14 @@ pub struct TileBuilder {
 	location: Option<(u16, u16)>,
 	locationEnd: Option<(u16, u16)>,
 	complete: Option<Tile>,
+	entity: Option<ID>,
 }
 
 pub enum TileBuilderSignals {
 	GetUserUsize(&'static str),
 	GetCoordinate(&'static str),
 	Complete(Tile, (u16, u16)),
+	GetEntity(&'static str),
 	InvalidId,
 }
 
@@ -74,6 +76,7 @@ pub enum CollisionType {
 	Burn, //Burn the player
 	ClearTiles((u16, u16, u16, u16)),
 	SwitchToggleGate((u16, u16, u16, u16)),
+	SwitchTriggerGen(ID),
 	OOB, //Represent tiles with oob coordinates
 }
 
@@ -86,6 +89,7 @@ pub const COLLISION_NAMES: &'static [&'static str] = &[
     "ClearTiles",
     "SpawnGate",
     "SwitchToggleGate",
+	"SwitchTriggerGen",
     "OOB",
 ];
 
@@ -101,6 +105,7 @@ impl TileBuilder {
 			location: None,
 			locationEnd: None,
 			complete: None,
+			entity: None,
 		}
 	}
 	pub fn fromTile(tile: &Tile, pos: (u16, u16)) -> TileBuilder {
@@ -112,6 +117,7 @@ impl TileBuilder {
 			location: None,
 			locationEnd: None,
 			complete: Some(tile.clone()),
+			entity: None,
 		}
 
 	}
@@ -144,6 +150,14 @@ impl TileBuilder {
                 "Click where the gate begins",
                 "Click where the gate ends",
             ), |(x, y), (xx, yy)| CollisionType::SwitchToggleGate((x, y, xx, yy))),
+			8 => {
+				if let Some(entity) = self.entity {
+					TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::SwitchTriggerGen(entity)), self.pos)
+				}
+				else {
+					TileBuilderSignals::GetEntity("Pick generator")
+				}
+			}
             _ => TileBuilderSignals::InvalidId,
         }
 	}
@@ -170,6 +184,9 @@ impl TileBuilder {
 			5..=7 => self.locationEnd = Some(location),
 			_ => (),
 		};
+	}
+	pub fn addGenerator(&mut self, entity: ID) {
+		self.entity = Some(entity);
 	}
 /*	pub fn cloneTile(&self, tile: &Tile) -> Tile {
 		match tile.0 {
