@@ -172,19 +172,7 @@ impl EditorContext {
                 (Event::KeyDown{scancode: Some(Scancode::Down), ..}, State::GetTile) => {
                     self.incCollision(-1);
                 },
-				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, State::GetTile | State::GetEntityID) => {
-					*deps.fontTexture = None;
-					self.state.pop();
-					if let Some(State::AttemptBuildEntity(ref mut builder)) = self.state.last_mut() {
-						builder.endList();
-					}
-					else if let Some(State::AttemptBuild(ref mut builder)) = self.state.last_mut() {
-						unimplemented!();
-					}
-					else {
-						unreachable!();
-					}
-				},
+				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, State::GetTile | State::GetEntityID) => self.endList(deps),
 				(Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..}, State::GetCoordinate) 
 					if (y as i32) < (self.screenRect.height() - 50) as i32 => {
 					self.state.pop();
@@ -295,7 +283,7 @@ impl EditorContext {
                 self.canvas.copy(&deps.collisionTextures[self.currentCollision], None, Some(Rect::new(self.previewRect.x() + 100, self.previewRect.y(), q.width, q.height)));
 			},
 		}
-		if let State::EntityPlacement | State::GetEntityID = self.state.last().unwrap() {
+		if let State::EntityPlacement | State::GetEntityID | State::MakeEntityInactive = self.state.last().unwrap() {
 			if self.globalEntities {
 				unsafe {self.scheduler.drawGlobal(&deps.ctx, &mut self.canvas);}
 			}
@@ -458,6 +446,8 @@ impl EditorContext {
     fn doRestrictedEntityPlacementEvents(&mut self, event: Event, deps: &mut EditorContextDeps) {
         match event {
             Event::KeyDown{scancode: Some(Scancode::E|Scancode::S|Scancode::A|Scancode::D|Scancode::M|Scancode::X), ..} => (),
+			Event::KeyDown {scancode: Some(Scancode::Return), ..} => self.endList(deps),
+            Event::MouseButtonDown {mouse_btn: MouseButton::Right, ..} => (),
             _ => self.doEntityPlacementEvents(event, deps),
         }
     }
@@ -497,9 +487,9 @@ impl EditorContext {
                     match self.state.pop().unwrap() {
     					State::EntityPlacement => builder.addEntityGlobal(deps.ctx, entity),
                         State::MakeEntityInactive => {
-                            if let Some(State::AttemptBuildEntity(builder)) = self.state.pop() {
-                                ctx.
-                                builder.addInactiveEntity(entity, self.globalEntities);
+							let id = builder.addEntityInactive(deps.ctx, entity).unwrap();
+                            if let Some(State::AttemptBuildEntity(mut builder)) = self.state.pop() {
+                                builder.addInactiveEntity(id, self.globalEntities);
                             }
                             else {unreachable!()}
                         },
@@ -512,8 +502,9 @@ impl EditorContext {
                     match self.state.pop().unwrap() {
     					State::EntityPlacement => builder.addEntityActiveScreen(deps.ctx, entity),
                         State::MakeEntityInactive => {
-                            if let Some(State::AttemptBuildEntity(builder)) = self.state.pop() {
-                                builder.addInactiveEntity(entity, self.globalEntities);
+							let id = builder.addEntityInactive(deps.ctx, entity).unwrap();
+                            if let Some(State::AttemptBuildEntity(ref mut builder)) = self.state.last_mut() {
+                                builder.addInactiveEntity(id, self.globalEntities);
                             }
                             else {unreachable!()}
                         },
@@ -532,7 +523,7 @@ impl EditorContext {
 			}
             EntityBuilderSignals::MakeEntityInactive(msg) => {
                 *deps.fontTexture = Some(createText(msg, deps.textureCreator, deps.font));
-                self.state.push(State::GetEntityID);
+                self.state.push(State::MakeEntityInactive);
             }
 			EntityBuilderSignals::InvalidId => eprintln!("Entity could not be placed because of invalid entity id produced by editor"),
 		}
@@ -601,6 +592,19 @@ impl EditorContext {
             self.currentEntityId = (self.currentEntityId as i32 + amt) as u16;
         }
     }
+	fn endList(&mut self, deps: &mut EditorContextDeps) {
+		*deps.fontTexture = None;
+		self.state.pop();
+		if let Some(State::AttemptBuildEntity(ref mut builder)) = self.state.last_mut() {
+			builder.endList();
+		}
+		else if let Some(State::AttemptBuild(ref mut builder)) = self.state.last_mut() {
+			unimplemented!();
+		}
+		else {
+			unreachable!();
+		}
+	}
 }
 
 fn convertToTilePos(x: i32, y: i32) -> (u16, u16) {

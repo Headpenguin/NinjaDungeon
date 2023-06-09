@@ -14,7 +14,7 @@ const ENTITY_SPRITES: &'static [&'static str] = &[
 	"Resources/Images/Ninja_float_0__half.png",
 	"Resources/Images/Skeleton_top__half.png",
     "Resources/Images/Generator.png",
-    "Resources/Images/Generator.png",
+    "Resources/Images/Generator2.png",
 ];
 
 pub struct EntityBuilder {
@@ -151,6 +151,34 @@ impl EntityBuilder {
 			MAX_ENTITY_IDX.. => unreachable!(),
 		};
 	}
+	pub fn addEntityInactive<'a>(&self, ctx: &mut GameContext<'a>, entity: BoxCode<'a>) -> Option<ID> {
+		if unsafe {match self.id {
+			0 => ctx.getHolderMut().add::<Player>(entity),
+			1 => ctx.getHolderMut().add::<Skeleton>(entity),
+            2 => {
+				let success = ctx.getHolderMut().add::<Generator>(entity);
+				if success {
+					let genID = ctx.getHolder().getCurrentID();
+					for id in self.linkedIDs.0.iter() {
+						ctx.getHolderMut().getMutSafe(*id).unwrap().register(IDRegistration::DeathCounter(genID));
+					}
+				}
+				success
+			},
+            3 => {
+                let success = ctx.getHolderMut().add::<EntityGenerator>(entity);
+                if success {
+					let genID = ctx.getHolder().getCurrentID();
+					for id in self.linkedIDs.0.iter() {
+						ctx.getHolderMut().getMutSafe(*id).unwrap().register(IDRegistration::DeathCounter(genID));
+					}
+                }
+				success
+            },
+			MAX_ENTITY_IDX.. => unreachable!(),
+		}} {Some(ctx.getHolder().getCurrentID())} else {None}
+	}
+
 	pub fn getEntityRect(&self) -> Rect {
 		let (w, h) = match self.id {
 			0 => (50, 50),
@@ -160,7 +188,7 @@ impl EntityBuilder {
 		};
 		Rect::new(self.position.0 as i32 * 50, self.position.1 as i32 * 50, w, h)
 	}
-    pub unsafe fn destroy(mut entity: BoxCode, ctx: &mut GameContext) -> Result<(), &'static str> {
+    pub unsafe fn destroy(entity: BoxCode, ctx: &mut GameContext) -> Result<(), &'static str> {
         match entity {
             BoxCode::EntityGenerator(mut e) => {
                 e.destroy(ctx)
