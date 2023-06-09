@@ -14,10 +14,10 @@ mod Builder;
 pub use Builder::*;
 
 pub use SkeletonMod::Skeleton;
-pub use GeneratorMod::Generator;
+pub use GeneratorMod::{EntityGenerator, Generator};
 
 use SkeletonMod::InnerSkeleton;
-use GeneratorMod::InnerGenerator;
+use GeneratorMod::{InnerGenerator, InnerEntityGenerator};
 
 use Traits::{Entity, EntityDyn, EntityTraits, EntityTraitsWrappable};
 use std::collections::HashMap;
@@ -130,7 +130,7 @@ pub enum InnerCode {
 	Player(InnerPlayer),
 	Skeleton(InnerSkeleton),
 	Generator(InnerGenerator),
-	EntityGenerator(InnerGenerator),
+	EntityGenerator(InnerEntityGenerator),
 }
 
 impl InnerCode {
@@ -147,7 +147,7 @@ impl InnerCode {
 			BoxCode::Player(e) => InnerCode::Player(InnerPlayer::fromPlayer(e)),
 			BoxCode::Skeleton(e) => InnerCode::Skeleton(InnerSkeleton::fromSkeleton(e)),
 			BoxCode::Generator(e) => InnerCode::Generator(InnerGenerator::fromGenerator(e)),
-			BoxCode::EntityGenerator(e) => InnerCode::EntityGenerator(InnerEntityGenerator::fromInnerGenerator(e)),
+			BoxCode::EntityGenerator(e) => InnerCode::EntityGenerator(InnerEntityGenerator::fromEntityGenerator(e)),
 		}
 	}
 }

@@ -6,9 +6,9 @@ use serde::{Serialize, Deserialize};
 
 use std::io;
 
-use crate::{Tile, ID};
+use crate::{Tile, ID, GameContext};
 use crate::EventProcessor::{Envelope, CollisionMsg, CounterMsg, PO, Key};
-use crate::Entities::{TypedID, BoxCode, RefCode, RefCodeMut};
+use crate::Entities::{TypedID, BoxCode, RefCode, RefCodeMut, EntityBuilder};
 use crate::Entities::Traits::{Collision, RegisterID, EntityTraitsWrappable, Entity, Counter};
 use crate::SpriteLoader::Sprites;
 
@@ -36,14 +36,14 @@ impl InnerGenerator {
 		}
     }
 	pub fn fromGenerator(gen: &Generator) -> InnerGenerator {
-	    fromGeneratorInt(gen)
+	    Self::fromGeneratorInt(gen)
     }
 }
 impl InnerEntityGenerator {
 	pub fn fromEntityGenerator(EntityGenerator { gen, entities }: &EntityGenerator) -> InnerEntityGenerator {
         InnerEntityGenerator {
             gen: InnerGenerator::fromGeneratorInt(gen),
-            entities,
+            entities: entities.clone(),
         }
 	}
 }
@@ -81,12 +81,12 @@ impl<'a> Generator<'a> {
 		))
 	}
 	pub fn fromInnerInt(InnerGenerator { renderRect, tiles, cnt }: InnerGenerator, creator: &'a TextureCreator<WindowContext>) -> io::Result<Self> {
-        Self::newInt(creator, renderRect.top_left(), tiles, cnt)
+        Self::newInt(creator, (renderRect.0, renderRect.1), tiles, cnt)
     }
 	pub fn fromInner(InnerGenerator { renderRect, tiles, cnt }: InnerGenerator, creator: &'a TextureCreator<WindowContext>) -> io::Result<BoxCode<'a>> {
 		Ok(BoxCode::Generator(
 			Entity::new(
-                Self::newInt(creator, renderRect.top_left(), tiles, cnt)?,
+                Self::newInt(creator, (renderRect.0, renderRect.1), tiles, cnt)?,
 				()
 			)
 		))
@@ -105,20 +105,21 @@ impl<'a> Generator<'a> {
 
 impl<'a> EntityGenerator<'a> {
 	pub fn new(creator: &'a TextureCreator<WindowContext>, pos: (i32, i32), tiles: Vec<(Tile, (u16, u16))>, entities: Vec<(ID, bool)>, cnt: u8) -> io::Result<BoxCode<'a>> {
-		Ok(BoxCode::Generator(
+		Ok(BoxCode::EntityGenerator(
 			Entity::new(
-                gen: Generator::newInt(creator, pos, tiles, cnt)?,
-                entities,
+                EntityGenerator {
+                    gen: Generator::newInt(creator, pos, tiles, cnt)?,
+                    entities,
 				},
 				()
 			)
 		))
 	}
-	pub fn fromInner(InnerEntityGenerator {gen, entities}, creator: &'a TextureCreator<WindowContext>) -> io::Result<BoxCode<'a>> {
-		Ok(BoxCode::Generator(
+	pub fn fromInner(InnerEntityGenerator {gen, entities}: InnerEntityGenerator, creator: &'a TextureCreator<WindowContext>) -> io::Result<BoxCode<'a>> {
+		Ok(BoxCode::EntityGenerator(
 			Entity::new(
 				EntityGenerator {
-                    gen: Generator::fromInnerInt(gen)?,
+                    gen: Generator::fromInnerInt(gen, creator)?,
                     entities,
 				},
 				()
@@ -129,11 +130,21 @@ impl<'a> EntityGenerator<'a> {
 		self.gen.renderRect.has_intersection(hitbox)
 	}
     fn activate(&mut self, po: &PO) {
-        if self.cnt == 0 {
+        if self.gen.cnt == 0 {
             for (entity, global) in self.entities.drain(..) {
                 po.activateEntity(entity, global);
             }
         }
+    }
+    pub unsafe fn destroy(&mut self, ctx: &mut GameContext) -> Result<(), &'static str> {
+        for (entity, _) in self.entities.drain(..) {
+            match ctx.removeEntity(entity) {
+                Ok(..) => {return Err("Entities are already activated but should not be");},
+                Err((Some(e), _)) => EntityBuilder::destroy(e, ctx)?,
+                _ => {return Err("Entity does not exist");},
+            };
+        }
+        Ok(())
     }
 }
 
@@ -203,13 +214,13 @@ impl<'a> EntityTraitsWrappable<'a> for EntityGenerator<'a> {
 	}
 	fn getData(&self, data: &mut Self::Data, po: &PO, key: Key) -> Key {key}
 	fn update(&mut self, data: &Self::Data, po: &mut PO) {
-		self.editor = false;
+		self.gen.update(data, po)
 	}
-	fn needsExecution(&self) -> bool {self.editor}
+	fn needsExecution(&self) -> bool {self.gen.needsExecution()}
 	fn tick(&mut self) {}
 	fn draw(&self, canvas: &mut Canvas<Window>) {
-		if self.editor {
-			self.sprite.getSprite(0).draw(canvas, self.renderRect, false, false);
+		if self.gen.editor {
+			self.gen.sprite.getSprite(0).draw(canvas, self.gen.renderRect, false, false);
 		}
 	}
 	fn setID(&mut self, id: TypedID<'a, Self>) {}

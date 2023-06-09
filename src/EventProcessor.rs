@@ -1,7 +1,7 @@
 use std::cell::UnsafeCell;
 
 use crate::{ID, CollisionType};
-use crate::Entities::Traits::EntityTraits;
+use crate::Entities::Traits::{EntityTraits, Entity};
 use crate::Entities::Holder;
 use crate::GameContext;
 use crate::Scheduling::Scheduler;
@@ -22,7 +22,7 @@ impl Key {
 enum Commands {
 	PlaceTile(Tile, (u16, u16)),
 	PlaceTiles(Tile, (u16, u16), (u16, u16)),
-    ActivateEntity(Entity, bool),
+    ActivateEntity(ID, bool),
 }
 
 pub struct PO<'a> {
@@ -105,7 +105,7 @@ impl<'a> PO<'a> {
 	pub fn spawnTiles(&self, tile: Tile, locationBegin: (u16, u16), locationEnd: (u16, u16)) {
 		unsafe {&mut *self.commands.get()}.push(Commands::PlaceTiles(tile, locationBegin, locationEnd));
 	}
-    pub fn activateEntity(&self, entity: Entity, global: bool) {
+    pub fn activateEntity(&self, entity: ID, global: bool) {
         unsafe {&mut *self.commands.get()}.push(Commands::ActivateEntity(entity, global));
     }
 	pub fn updatePosition(&mut self, id: ID, hitbox: Rect, prevHitbox: Rect) {

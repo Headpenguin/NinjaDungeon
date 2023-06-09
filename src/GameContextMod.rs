@@ -112,6 +112,12 @@ impl<'a> GameContext<'a> {
 			}
 		}
 	}
+    pub unsafe fn activateEntityGlobal(&mut self, id: ID) {
+        self.globalEntities.insert(id.getID());
+    }
+    pub unsafe fn activateEntityActiveScreen(&mut self, id: ID) {
+        self.map.addEntityActiveScreen(id);
+    }
 	pub unsafe fn removeEntity(&mut self, id: ID) -> Result<BoxCode<'a>, (Option<BoxCode<'a>>, &'static str)> {
 		let res = self.holder.remove(id);
 		if self.globalEntities.remove(&id.getID()) {

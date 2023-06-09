@@ -2,7 +2,7 @@ use sdl2::render::{TextureCreator, Canvas};
 use sdl2::video::{WindowContext, Window};
 use sdl2::rect::Rect;
 
-use super::{Skeleton, Generator};
+use super::{Skeleton, Generator, EntityGenerator};
 use crate::{Player, Tile};
 use super::BoxCode;
 use super::Traits::IDRegistration;
@@ -83,8 +83,8 @@ impl EntityBuilder {
 	pub fn addLinkedID(&mut self, id: ID) {
 		self.linkedIDs.0.push(id);
 	}
-    pub fn addInactiveEntity(&mut self, id: ID) {
-        self.inactiveEntities.0.push(id);
+    pub fn addInactiveEntity(&mut self, id: ID, global: bool) {
+        self.inactiveEntities.0.push((id, global));
     }
 	pub fn endList(&mut self) {
 		match self.id {
@@ -94,7 +94,7 @@ impl EntityBuilder {
 				else if !self.linkedIDs.1 {self.linkedIDs.1 = true;}
 			},
             3 => {
-                if !self.locations.1 {self.location.1 = true;}
+                if !self.locations.1 {self.locations.1 = true;}
                 else if !self.linkedIDs.1 {self.linkedIDs.1 = true;}
                 else if !self.inactiveEntities.1 {self.inactiveEntities.1 = true;}
             }
@@ -160,6 +160,14 @@ impl EntityBuilder {
 		};
 		Rect::new(self.position.0 as i32 * 50, self.position.1 as i32 * 50, w, h)
 	}
+    pub unsafe fn destroy(mut entity: BoxCode, ctx: &mut GameContext) -> Result<(), &'static str> {
+        match entity {
+            BoxCode::EntityGenerator(mut e) => {
+                e.destroy(ctx)
+            },
+            _ => Ok(()),
+        }
+    }
 }
 
 pub struct EntityRenderer<'a> {

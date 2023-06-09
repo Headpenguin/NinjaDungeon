@@ -126,6 +126,7 @@ impl EditorContext {
 			State::ViewMap => self.doViewMapEvents(event, deps),
             State::MoveScreen => self.doMoveScreenEvents(event, deps),
             State::EntityPlacement => self.doEntityPlacementEvents(event, deps),
+            State::MakeEntityInactive => self.doRestrictedEntityPlacementEvents(event, deps),
             _ => match (event, self.state.last().unwrap()) {
 				(Event::Quit {..}, _) => self.quit = true,
 				(Event::MouseButtonDown {mouse_btn: MouseButton::Left, x, y, ..}, State::GetEntityID)
@@ -454,6 +455,12 @@ impl EditorContext {
 
         }
     }
+    fn doRestrictedEntityPlacementEvents(&mut self, event: Event, deps: &mut EditorContextDeps) {
+        match event {
+            Event::KeyDown{scancode: Some(Scancode::E|Scancode::S|Scancode::A|Scancode::D|Scancode::M|Scancode::X), ..} => (),
+            _ => self.doEntityPlacementEvents(event, deps),
+        }
+    }
 	fn build<'a>(&mut self, signal: TileBuilderSignals, deps: &mut EditorContextDeps) {
 		match signal {
 			TileBuilderSignals::GetCoordinate(tmpMessage) => {
@@ -487,12 +494,31 @@ impl EditorContext {
 		match signal {
 			EntityBuilderSignals::Complete(Ok(entity)) if self.globalEntities => {
 				if let Some(State::AttemptBuildEntity(builder)) = self.state.pop() {
-					builder.addEntityGlobal(deps.ctx, entity);
+                    match self.state.pop().unwrap() {
+    					State::EntityPlacement => builder.addEntityGlobal(deps.ctx, entity),
+                        State::MakeEntityInactive => {
+                            if let Some(State::AttemptBuildEntity(builder)) = self.state.pop() {
+                                ctx.
+                                builder.addInactiveEntity(entity, self.globalEntities);
+                            }
+                            else {unreachable!()}
+                        },
+                        _ => unreachable!(),
+                    }
                 }
 			},
 			EntityBuilderSignals::Complete(Ok(entity)) => {
 				if let Some(State::AttemptBuildEntity(builder)) = self.state.pop() {
-    				builder.addEntityActiveScreen(deps.ctx, entity);
+                    match self.state.pop().unwrap() {
+    					State::EntityPlacement => builder.addEntityActiveScreen(deps.ctx, entity),
+                        State::MakeEntityInactive => {
+                            if let Some(State::AttemptBuildEntity(builder)) = self.state.pop() {
+                                builder.addInactiveEntity(entity, self.globalEntities);
+                            }
+                            else {unreachable!()}
+                        },
+                        _ => unreachable!(),
+                    }
                 }
             },
 			EntityBuilderSignals::Complete(Err(e)) => eprintln!("Entity could not be placed because of error (details below)\n{}", e),
@@ -504,6 +530,10 @@ impl EditorContext {
 				*deps.fontTexture = Some(createText(msg, deps.textureCreator, deps.font));
 				self.state.push(State::GetEntityID);
 			}
+            EntityBuilderSignals::MakeEntityInactive(msg) => {
+                *deps.fontTexture = Some(createText(msg, deps.textureCreator, deps.font));
+                self.state.push(State::GetEntityID);
+            }
 			EntityBuilderSignals::InvalidId => eprintln!("Entity could not be placed because of invalid entity id produced by editor"),
 		}
 	}
@@ -588,6 +618,7 @@ enum State {
 	GetCoordinate,
     GetTile,
 	GetEntityID,
+    MakeEntityInactive,
 	UserConfirmDelete,
 	ViewMap,
 	NewScreen,
