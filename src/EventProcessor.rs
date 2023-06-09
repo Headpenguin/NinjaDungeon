@@ -22,6 +22,7 @@ impl Key {
 enum Commands {
 	PlaceTile(Tile, (u16, u16)),
 	PlaceTiles(Tile, (u16, u16), (u16, u16)),
+    ActivateEntity(Entity, bool),
 }
 
 pub struct PO<'a> {
@@ -104,6 +105,9 @@ impl<'a> PO<'a> {
 	pub fn spawnTiles(&self, tile: Tile, locationBegin: (u16, u16), locationEnd: (u16, u16)) {
 		unsafe {&mut *self.commands.get()}.push(Commands::PlaceTiles(tile, locationBegin, locationEnd));
 	}
+    pub fn activateEntity(&self, entity: Entity, global: bool) {
+        unsafe {&mut *self.commands.get()}.push(Commands::ActivateEntity(entity, global));
+    }
 	pub fn updatePosition(&mut self, id: ID, hitbox: Rect, prevHitbox: Rect) {
 		self.ctx.updatePosition(id, hitbox, prevHitbox);
 	}
@@ -124,6 +128,14 @@ impl<'a> PO<'a> {
 			match command {
 				Commands::PlaceTile(tile, location) => self.ctx.getMapMut().changeTile(location, tile),
 				Commands::PlaceTiles(tile, locationBegin, locationEnd) => MapMod::spawnTiles(tile, locationBegin, locationEnd, self.ctx.getMapMut()),
+                Commands::ActivateEntity(entity, global) => {
+                    if global {
+                        self.ctx.activateEntityGlobal(entity);
+                    }
+                    else {
+                        self.ctx.activateEntityActiveScreen(entity);
+                    }
+                }
 			}
 		}
 	}

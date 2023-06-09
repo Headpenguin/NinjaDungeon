@@ -56,18 +56,21 @@ pub enum BoxCode<'a> {
 	Player(Entity<'a, Player<'a>>),
 	Skeleton(Entity<'a, Skeleton<'a>>),
 	Generator(Entity<'a, Generator<'a>>),
+    EntityGenerator(Entity<'a, EntityGenerator<'a>>),
 }
 
 pub enum RefCodeMut<'a, 'b> {
 	Player(&'b mut Entity<'a, Player<'a>>),
 	Skeleton(&'b mut Entity<'a, Skeleton<'a>>),
 	Generator(&'b mut Entity<'a, Generator<'a>>),
+    EntityGenerator(&'b mut Entity<'a, EntityGenerator<'a>>),
 }
 
 pub enum RefCode<'a, 'b> {
 	Player(&'b Entity<'a, Player<'a>>),
 	Skeleton(&'b Entity<'a, Skeleton<'a>>),
 	Generator(&'b Entity<'a, Generator<'a>>),
+    EntityGenerator(&'b Entity<'a, EntityGenerator<'a>>),
 }
 
 impl<'a, 'b> RefCode<'a, 'b> {
@@ -76,6 +79,7 @@ impl<'a, 'b> RefCode<'a, 'b> {
 			RefCode::Player(e) => e.collidesStatic(hitbox),
 			RefCode::Skeleton(e) => e.collidesStatic(hitbox),
 			RefCode::Generator(e) => e.collidesStatic(hitbox),
+			RefCode::EntityGenerator(e) => e.collidesStatic(hitbox),
 		}
 	}
 }
@@ -86,6 +90,7 @@ impl<'a> BoxCode<'a> {
 			BoxCode::Player(ref mut e) => RefCodeMut::Player(e),
 			BoxCode::Skeleton(ref mut e) => RefCodeMut::Skeleton(e),
 			BoxCode::Generator(ref mut e) => RefCodeMut::Generator(e),
+			BoxCode::EntityGenerator(ref mut e) => RefCodeMut::EntityGenerator(e),
 		}
 	}
 	pub fn refcode<'b>(&'b self) -> RefCode<'a, 'b> {
@@ -93,6 +98,7 @@ impl<'a> BoxCode<'a> {
 			BoxCode::Player(ref e) => RefCode::Player(e),
 			BoxCode::Skeleton(ref e) => RefCode::Skeleton(e),
 			BoxCode::Generator(ref e) => RefCode::Generator(e),
+			BoxCode::EntityGenerator(ref e) => RefCode::EntityGenerator(e),
 		}
 	}
 }
@@ -104,6 +110,7 @@ impl<'a> Deref for BoxCode<'a> {
 			Self::Player(e) => e as &Entity<Player> as &dyn EntityDyn,
 			Self::Skeleton(e) => e as &Entity<Skeleton> as &dyn EntityDyn,
 			Self::Generator(e) => e as &Entity<Generator> as &dyn EntityDyn,
+			Self::EntityGenerator(e) => e as &Entity<EntityGenerator> as &dyn EntityDyn,
 		}
 	}
 }
@@ -113,6 +120,7 @@ impl<'a> DerefMut for BoxCode<'a> {
 			Self::Player(e) => e as &mut Entity<Player> as &mut (dyn EntityDyn + 'a),
 			Self::Skeleton(e) => e as &mut Entity<Skeleton> as &mut (dyn EntityDyn + 'a),
 			Self::Generator(e) => e as &mut Entity<Generator> as &mut (dyn EntityDyn + 'a),
+			Self::EntityGenerator(e) => e as &mut Entity<EntityGenerator> as &mut (dyn EntityDyn + 'a),
 		}
 	}
 }
@@ -122,6 +130,7 @@ pub enum InnerCode {
 	Player(InnerPlayer),
 	Skeleton(InnerSkeleton),
 	Generator(InnerGenerator),
+	EntityGenerator(InnerGenerator),
 }
 
 impl InnerCode {
@@ -130,6 +139,7 @@ impl InnerCode {
 			InnerCode::Player(e) => Player::fromInner(e, creator),
 			InnerCode::Skeleton(e) => Skeleton::fromInner(e, creator),
 			InnerCode::Generator(e) => Generator::fromInner(e, creator),
+			InnerCode::EntityGenerator(e) => EntityGenerator::fromInner(e, creator),
 		}
 	}
 	pub fn fromBoxCode(code: &BoxCode) -> InnerCode {
@@ -137,6 +147,7 @@ impl InnerCode {
 			BoxCode::Player(e) => InnerCode::Player(InnerPlayer::fromPlayer(e)),
 			BoxCode::Skeleton(e) => InnerCode::Skeleton(InnerSkeleton::fromSkeleton(e)),
 			BoxCode::Generator(e) => InnerCode::Generator(InnerGenerator::fromGenerator(e)),
+			BoxCode::EntityGenerator(e) => InnerCode::EntityGenerator(InnerEntityGenerator::fromInnerGenerator(e)),
 		}
 	}
 }

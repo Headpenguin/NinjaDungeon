@@ -28,12 +28,23 @@ pub struct InnerEntityGenerator {
 }
 
 impl InnerGenerator {
-	pub fn fromGenerator(Generator { renderRect, tiles, cnt, .. }: &Generator) -> InnerGenerator {
+	pub fn fromGeneratorInt(Generator { renderRect, tiles, cnt, .. }: &Generator) -> InnerGenerator {
 		InnerGenerator {
 			renderRect: (*renderRect).into(),
 			tiles: tiles.clone(),
 			cnt: *cnt,
 		}
+    }
+	pub fn fromGenerator(gen: &Generator) -> InnerGenerator {
+	    fromGeneratorInt(gen)
+    }
+}
+impl InnerEntityGenerator {
+	pub fn fromEntityGenerator(EntityGenerator { gen, entities }: &EntityGenerator) -> InnerEntityGenerator {
+        InnerEntityGenerator {
+            gen: InnerGenerator::fromGeneratorInt(gen),
+            entities,
+        }
 	}
 }
 #[derive(Debug)]
@@ -120,12 +131,7 @@ impl<'a> EntityGenerator<'a> {
     fn activate(&mut self, po: &PO) {
         if self.cnt == 0 {
             for (entity, global) in self.entities.drain(..) {
-                if global {
-                    po.addEntityGlobal(entity);
-                }
-                else {
-                    po.addEntityActiveScreen(entity);
-                }
+                po.activateEntity(entity, global);
             }
         }
     }

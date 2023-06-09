@@ -14,6 +14,7 @@ const ENTITY_SPRITES: &'static [&'static str] = &[
 	"Resources/Images/Ninja_float_0__half.png",
 	"Resources/Images/Skeleton_top__half.png",
     "Resources/Images/Generator.png",
+    "Resources/Images/Generator.png",
 ];
 
 pub struct EntityBuilder {
@@ -21,12 +22,14 @@ pub struct EntityBuilder {
 	position: (u16, u16),
 	locations: (Vec<(Tile, (u16, u16))>, bool),
 	linkedIDs: (Vec<ID>, bool),
+    inactiveEntities: (Vec<(ID, bool)>, bool),
 }
 
 pub enum EntityBuilderSignals<'a> {
 	Complete(io::Result<BoxCode<'a>>),
     GetTile(&'static str),
 	GetEntity(&'static str),
+    MakeEntityInactive(&'static str),
 	InvalidId,
 }
 
@@ -37,6 +40,7 @@ impl EntityBuilder {
 			position,
 		    locations: (vec![], false),
 			linkedIDs: (vec![], false),
+            inactiveEntities: (vec![], false),
         }
 	}
 	pub fn build<'a>(&self, creator: &'a TextureCreator<WindowContext>) -> EntityBuilderSignals<'a> {
@@ -54,6 +58,21 @@ impl EntityBuilder {
                     EntityBuilderSignals::GetTile("Pick the next tile")
                 }
 			},
+            3 => {
+                if self.locations.1 && self.linkedIDs.1 && self.inactiveEntities.1 {
+                    EntityBuilderSignals::Complete(EntityGenerator::new(creator, (self.position.0 as i32 * 50, self.position.1 as i32 * 50), self.locations.0.clone(), self.inactiveEntities.0.clone(), self.linkedIDs.0.len() as u8))
+                    
+                }
+                else if self.locations.1 && self.linkedIDs.1 {
+                    EntityBuilderSignals::MakeEntityInactive("Place the entity to spawn")
+                }
+				else if self.locations.1 {
+					EntityBuilderSignals::GetEntity("Pick entities to link")
+				}
+                else {
+                    EntityBuilderSignals::GetTile("Pick the next tile")
+                }
+            },
 			MAX_ENTITY_IDX.. => EntityBuilderSignals::InvalidId,
 		}
 	}
@@ -64,6 +83,9 @@ impl EntityBuilder {
 	pub fn addLinkedID(&mut self, id: ID) {
 		self.linkedIDs.0.push(id);
 	}
+    pub fn addInactiveEntity(&mut self, id: ID) {
+        self.inactiveEntities.0.push(id);
+    }
 	pub fn endList(&mut self) {
 		match self.id {
 			0..=1 => (),
@@ -71,6 +93,11 @@ impl EntityBuilder {
 				if !self.locations.1 {self.locations.1 = true;}
 				else if !self.linkedIDs.1 {self.linkedIDs.1 = true;}
 			},
+            3 => {
+                if !self.locations.1 {self.location.1 = true;}
+                else if !self.linkedIDs.1 {self.linkedIDs.1 = true;}
+                else if !self.inactiveEntities.1 {self.inactiveEntities.1 = true;}
+            }
 			MAX_ENTITY_IDX.. => unreachable!(),
 		};
 	}
@@ -87,6 +114,15 @@ impl EntityBuilder {
 				}
 				genID
 			},
+            3 => {
+                let genID = ctx.addEntityGlobal::<EntityGenerator>(entity);
+                if let Some(genID) = genID {
+					for id in self.linkedIDs.0.iter() {
+						ctx.getHolderMut().getMutSafe(*id).unwrap().register(IDRegistration::DeathCounter(genID));
+					}
+                }
+                genID
+            },
             MAX_ENTITY_IDX.. => unreachable!(),
 		};
 	}
@@ -103,6 +139,15 @@ impl EntityBuilder {
 				}
 				genID
 			},
+            3 => {
+                let genID = ctx.addEntityActiveScreen::<EntityGenerator>(entity);
+                if let Some(genID) = genID {
+					for id in self.linkedIDs.0.iter() {
+						ctx.getHolderMut().getMutSafe(*id).unwrap().register(IDRegistration::DeathCounter(genID));
+					}
+                }
+                genID
+            },
 			MAX_ENTITY_IDX.. => unreachable!(),
 		};
 	}
@@ -110,7 +155,7 @@ impl EntityBuilder {
 		let (w, h) = match self.id {
 			0 => (50, 50),
 			1 => (50, 100),
-            2 => (50, 50),
+            2|3 => (50, 50),
 			MAX_ENTITY_IDX.. => unreachable!(),
 		};
 		Rect::new(self.position.0 as i32 * 50, self.position.1 as i32 * 50, w, h)
@@ -132,5 +177,5 @@ impl<'a> EntityRenderer<'a> {
 	}
 }
 
-pub const MAX_ENTITY_IDX: u16 = 2;
+pub const MAX_ENTITY_IDX: u16 = 3;
 
