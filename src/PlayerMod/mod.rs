@@ -2,7 +2,7 @@ extern crate sdl2;
 
 use sdl2::render::{TextureCreator, Canvas};
 use sdl2::video::{Window, WindowContext};
-use sdl2::rect::Rect;
+use sdl2::rect::{Rect, Point};
 
 use serde::{Serialize, Deserialize};
 
@@ -54,6 +54,8 @@ const NAMES: &'static[&'static str] = &[
 	"Ninja right attack",
 	"Ninja left attack",
 	"Ninja up attack",
+	"Ninja sink",
+	"Ninja burn",
 ];
 
 fn relTupleToRect(tuple: (i32, i32, u32, u32), position: (i32, i32)) -> Rect {
@@ -74,6 +76,8 @@ enum ANIMATION_IDX {
 	RightAttack,
 	LeftAttack,
 	UpAttack,
+	NinjaSink,
+	NinjaBurn,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -118,6 +122,9 @@ pub struct Player<'a> {
 	healthSprites: Sprites<'a>,
 	hitSwitchLastFrame: bool,
 	keys: u8,
+	abyss: u16,
+	burn: u16,
+	respawn: Vector,
 }
 #[derive(Debug)]
 pub struct PlayerData {
@@ -126,6 +133,8 @@ pub struct PlayerData {
 	stopHitSwitch: bool,
 	dmg: i32,
 	keys: u8,
+	burn: bool,
+	abyss: bool,
 }
 
 impl PlayerData {
@@ -147,6 +156,22 @@ impl PlayerData {
 				},
 				CollisionType::Hit(dmg) => {
 					self.dmg = dmg;
+				}
+				CollisionType::Abyss => {
+					let (x, y) = tmp.center().into();
+					if ((x / 50) as u16, (y / 50) as u16) == location {
+						self.abyss = true;
+						tmp.reposition((location.0 as i32 * 50 + 2, location.1 as i32 * 50 + 2));
+						self.nextPos = Vector::from(<Point as Into<(i32, i32)>>::into(tmp.top_left())) - Vector(2f32, 2f32);
+					}
+				}
+				CollisionType::Burn => {
+					let (x, y) = tmp.center().into();
+					if ((x / 50) as u16, (y / 50) as u16) == location {
+						self.burn = true;
+						tmp.reposition((location.0 as i32 * 50 + 2, location.1 as i32 * 50 + 2));
+						self.nextPos = Vector::from(<Point as Into<(i32, i32)>>::into(tmp.top_left())) - Vector(2f32, 2f32);
+					}
 				}
 				CollisionType::Key => {
 					po.spawnTile(Tile::default(), location);
@@ -213,7 +238,7 @@ impl PlayerData {
 
 impl<'a> Player<'a> {
     pub fn new(creator: &'a TextureCreator<WindowContext>, positionX: f32, positionY: f32) -> io::Result<BoxCode<'a>> {
-        let (direction, velocity, position, timer, idle, attackTimer, attacking, health, iframes, hitSwitchLastFrame, keys) = (
+        let (direction, velocity, position, timer, idle, attackTimer, attacking, health, iframes, hitSwitchLastFrame, keys, abyss, respawn, burn) = (
             Direction::Down, 
             Vector(0f32, 0f32), 
             Vector(positionX, positionY),
@@ -225,6 +250,9 @@ impl<'a> Player<'a> {
 			0,
 			false,
 			0,
+			0,
+			Vector(0f32, 0f32),
+			0,
         );
 		let animations = Animations::new("Resources/Images/Ninja.anim", NAMES, creator)?;
 		let sword = Sprites::new(creator, SWORD_FRAMES)?;
@@ -235,12 +263,14 @@ impl<'a> Player<'a> {
         Ok(
 			BoxCode::Player(
 				Entity::new(
-					Player {id: TypedID::new(ID::empty()), animations, direction, velocity, position, timer, idle, hitbox, renderPosition, attackTimer, sword, attacking, health, iframes, healthSprites, hitSwitchLastFrame, keys},
+					Player {id: TypedID::new(ID::empty()), animations, direction, velocity, position, timer, idle, hitbox, renderPosition, attackTimer, sword, attacking, health, iframes, healthSprites, hitSwitchLastFrame, keys, abyss, respawn, burn},
 					PlayerData {
 						keys,
 						nextPos: position,
 						stopHitSwitch: true,
 						dmg: 0,
+						abyss: false,
+						burn: false,
 					},
 				)
 			)
@@ -267,12 +297,17 @@ impl<'a> Player<'a> {
 					attacking: inner.attacking,
 					hitSwitchLastFrame: false,
 					keys: 0,
+					abyss: 0,
+					respawn: Vector(0f32, 0f32),
+					burn: 0,
 				},
 				PlayerData {
 					keys: 0,
 					nextPos: inner.position,
 					stopHitSwitch: true,
 					dmg: 0,
+					abyss: false,
+					burn: false,
 				}
 			)
 		))
@@ -290,7 +325,8 @@ impl<'a> Player<'a> {
 		}
 	}
 
-	pub fn updatePositionsPO(&mut self, po: &mut PO) {		
+	pub fn updatePositionsPO(&mut self, po: &mut PO) {
+		if self.abyss == 0 && self.burn <= 360 {self.respawn = self.position;}
 		self.renderPosition.reposition(self.position);
 		let prevHitbox = self.hitbox;
 		self.hitbox.reposition(self.position + Vector(2f32, 2f32));
@@ -302,6 +338,7 @@ impl<'a> Player<'a> {
 	}
 
 	pub fn updatePositionsCtx(&mut self, ctx: &mut GameContext) {
+		if self.abyss == 0 && self.burn <= 360 {self.respawn = self.position;}
 		self.renderPosition.reposition(self.position);
 		let prevHitbox = self.hitbox;
 		self.hitbox.reposition(self.position + Vector(2f32, 2f32));
@@ -414,6 +451,9 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 	}
 	fn getData(&self, data: &mut Self::Data, po: &PO, key: Key) -> Key {
 		//data.transition = ctx.getMap().transitionScreen(self.hitbox);
+		data.abyss = false;
+		data.burn = false;
+		if self.abyss > 0 || self.burn > 360 {return key;}
 		data.keys = self.keys;
 		data.stopHitSwitch = true;
 		data.dmg = 0;
@@ -424,8 +464,48 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 		data.doEntityCollision(self, po, key)
 	}
 	fn update(&mut self, data: &Self::Data, po: &mut PO) {
+		if data.abyss {
+			self.abyss = 31;
+			self.health -= 5;
+		}
+		if data.burn {
+			self.burn = 391;
+			self.health -= 5;
+			self.animations.changeAnimation(ANIMATION_IDX::NinjaSink as usize);
+		}
 		self.position = data.nextPos;
 		self.updatePositionsPO(po);
+		if self.abyss > 0 {
+			self.abyss -= 1;
+			if self.abyss == 0 {
+				self.position = self.respawn;
+				self.updatePositionsPO(po);
+			}
+			return;
+		}
+		if self.burn > 0 {
+			self.burn -= 1;
+			if self.burn == 360 {
+				self.position = self.respawn;
+				self.updatePositionsPO(po);
+				self.animations.changeAnimation(ANIMATION_IDX::NinjaBurn as usize);
+			}
+			if self.burn < 360 && self.burn % 10 == 0 {
+				self.animations.update();
+			}
+		}
+		if self.burn > 360 {
+			if self.burn > 363 && self.burn % 7 == 6 {
+				println!("{}", self.burn);
+				self.animations.update();
+			}
+			return;
+		}
+
+		if self.burn % 120 == 1 {
+			self.health -= 5;
+		}
+	
 
 		self.hitSwitchLastFrame = !data.stopHitSwitch;
 
@@ -438,14 +518,14 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 
 		self.keys = data.keys;
 
-		if self.idle{match self.direction {
+		if self.idle && self.burn == 0 {match self.direction {
 			Direction::Up => {self.animations.changeAnimation(ANIMATION_IDX::UpFloat as usize);},
 			Direction::Down => {self.animations.changeAnimation(ANIMATION_IDX::DownFloat as usize);},
 			Direction::Left => {self.animations.changeAnimation(ANIMATION_IDX::LeftFloat as usize);},
 			Direction::Right => {self.animations.changeAnimation(ANIMATION_IDX::RightFloat as usize);},
 		}}
 
-		self.timer += 1;
+		if self.burn == 0 {self.timer += 1;}
 		if self.timer > 20 {
 			self.timer = 0;
 			self.animations.update();
@@ -453,7 +533,7 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 		if self.attackTimer > 0 {
 			self.attackTimer -= 1;
 		}	
-		if self.attackTimer > 0 || self.attacking {
+		if self.burn == 0 && (self.attackTimer > 0 || self.attacking) {
 			match self.direction {
 				Direction::Up => {self.animations.changeAnimation(ANIMATION_IDX::UpAttack as usize);},
 				Direction::Down => {self.animations.changeAnimation(ANIMATION_IDX::DownAttack as usize);},
@@ -473,7 +553,7 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 	fn draw(&self, canvas: &mut Canvas<Window>) {
 		let mut health = self.health;
 		let mut healthRect = Rect::new(15, 15, 15, 15);
-		for i in 0..5 {
+		for _ in 0..5 {
 			if health >= 10 {
 				health -= 10;
 				self.healthSprites.getSprite(HEALTH_IDX::Full as usize)
@@ -488,6 +568,19 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 			healthRect.reposition((healthRect.x() + 15, healthRect.y()));
 		}
 		if (self.iframes / 10) % 2 == 1 {return;}
+		if self.abyss > 0 {
+			let mut tmp = self.renderPosition;
+			tmp.resize(50 * self.abyss as u32 / 30, 50 * self.abyss as u32 / 30);
+			tmp.center_on(self.renderPosition.center());
+			self.animations.drawNextFrame(canvas, tmp);
+			return;
+		}
+		if self.burn > 360 {
+			if self.burn > 370 {
+				self.animations.drawNextFrame(canvas, self.renderPosition);
+			}
+			return;
+		}
 		if self.attacking || self.attackTimer > 0 {match self.direction {
 			Direction::Up => {
 				self.sword.getSprite(0).draw(canvas, Rect::new (

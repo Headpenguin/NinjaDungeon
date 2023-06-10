@@ -38,3 +38,17 @@ Ninja right attack:
 Ninja left attack:
 	&Ninja right attack
 ;
+
+Ninja sink:
+	"Resources/Images/PlayerLavaSink_0.png"
+	"Resources/Images/PlayerLavaSink_1.png"
+	"Resources/Images/PlayerLavaSink_2.png"
+;
+
+Ninja burn:
+	"Resources/Images/Fire_0.png"
+	"Resources/Images/Fire_1.png"
+	"Resources/Images/Fire_2.png"
+	"Resources/Images/Fire_1.png"
+	"Resources/Images/Fire_0.png"
+;

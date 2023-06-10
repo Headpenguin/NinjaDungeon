@@ -68,3 +68,11 @@ KeyObj:
 	"Resources/Images/Key.png"
 ;
 
+Lava:
+	"Resources/Images/Lava.png"
+;
+
+Abyss:
+	"Resources/Images/Abyss.png"
+;
+

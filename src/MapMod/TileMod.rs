@@ -79,6 +79,7 @@ pub enum CollisionType {
 	SwitchTriggerGen(ID),
 	Key,
 	KeyBlock,
+	Abyss,
 	OOB, //Represent tiles with oob coordinates
 }
 
@@ -94,6 +95,7 @@ pub const COLLISION_NAMES: &'static [&'static str] = &[
 	"SwitchTriggerGen",
 	"Key",
 	"KeyBlock",
+	"Abyss",
     "OOB",
 ];
 
@@ -165,6 +167,7 @@ impl TileBuilder {
 			},
 			9 => {TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::Key), self.pos)},
 			10 => {TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::KeyBlock), self.pos)},
+			11 => {TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::Abyss), self.pos)},
             _ => TileBuilderSignals::InvalidId,
         }
 	}
@@ -267,5 +270,5 @@ pub fn spawnTiles(tile: Tile, location: (u16, u16), locationEnd: (u16, u16), map
     }
 }
 
-pub const MAX_TILE_IDX: u16 = 16;
+pub const MAX_TILE_IDX: u16 = 18;
 
