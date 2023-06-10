@@ -77,6 +77,8 @@ pub enum CollisionType {
 	ClearTiles((u16, u16, u16, u16)),
 	SwitchToggleGate((u16, u16, u16, u16)),
 	SwitchTriggerGen(ID),
+	Key,
+	KeyBlock,
 	OOB, //Represent tiles with oob coordinates
 }
 
@@ -90,6 +92,8 @@ pub const COLLISION_NAMES: &'static [&'static str] = &[
     "SpawnGate",
     "SwitchToggleGate",
 	"SwitchTriggerGen",
+	"Key",
+	"KeyBlock",
     "OOB",
 ];
 
@@ -138,6 +142,7 @@ impl TileBuilder {
 			},
             3 => TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::Hit(0)), self.pos),
             4 => TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::Burn), self.pos),
+
             5 => self.createLocationTile((
                 "Click where to begin clearing",
                 "Click where to stop clearing",
@@ -157,7 +162,9 @@ impl TileBuilder {
 				else {
 					TileBuilderSignals::GetEntity("Pick generator")
 				}
-			}
+			},
+			9 => {TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::Key), self.pos)},
+			10 => {TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::KeyBlock), self.pos)},
             _ => TileBuilderSignals::InvalidId,
         }
 	}
@@ -260,5 +267,5 @@ pub fn spawnTiles(tile: Tile, location: (u16, u16), locationEnd: (u16, u16), map
     }
 }
 
-pub const MAX_TILE_IDX: u16 = 14;
+pub const MAX_TILE_IDX: u16 = 16;
 

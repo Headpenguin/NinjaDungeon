@@ -59,3 +59,12 @@ SnakeBodyLeftDown:
 SnakeBodyLeftUp:
 	"Resources/Images/SnakeBodyLeftUp.png"
 ;
+
+KeyBlock:
+	"Resources/Images/Keyhole.png"
+;
+
+KeyObj:
+	"Resources/Images/Key.png"
+;
+

@@ -237,5 +237,7 @@ const TILESETS: &'static [&'static [&'static str]] = &[
 		"SnakeBodyRightDown",
 		"SnakeBodyLeftUp",
 		"SnakeBodyLeftDown",
+		"KeyObj",
+		"KeyBlock",
 	],
 ];
