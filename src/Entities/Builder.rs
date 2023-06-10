@@ -2,12 +2,12 @@ use sdl2::render::{TextureCreator, Canvas};
 use sdl2::video::{WindowContext, Window};
 use sdl2::rect::Rect;
 
-use super::{Skeleton, Generator, EntityGenerator};
+use super::{Skeleton, Generator, Snake, EntityGenerator};
 use crate::{Player, Tile};
 use super::BoxCode;
 use super::Traits::IDRegistration;
 use crate::SpriteLoader::Sprites;
-use crate::{GameContext, ID};
+use crate::{GameContext, ID, Direction};
 use std::io;
 
 const ENTITY_SPRITES: &'static [&'static str] = &[
@@ -15,6 +15,7 @@ const ENTITY_SPRITES: &'static [&'static str] = &[
 	"Resources/Images/Skeleton_top__half.png",
     "Resources/Images/Generator.png",
     "Resources/Images/Generator2.png",
+	"Resources/Images/SnakeHead.png",
 ];
 
 pub struct EntityBuilder {
@@ -24,6 +25,7 @@ pub struct EntityBuilder {
 	linkedIDs: (Vec<ID>, bool),
     inactiveEntities: (Vec<(ID, bool)>, bool),
 	global: Option<bool>,
+	dir: Option<Direction>,
 }
 
 pub enum EntityBuilderSignals<'a> {
@@ -31,6 +33,7 @@ pub enum EntityBuilderSignals<'a> {
     GetTile(&'static str),
 	GetEntity(&'static str),
     MakeEntityInactive(&'static str),
+	GetDirection(&'static str),
 	IsGlobal,
 	InvalidId,
 }
@@ -44,6 +47,7 @@ impl EntityBuilder {
 			linkedIDs: (vec![], false),
             inactiveEntities: (vec![], false),
 			global: None,
+			dir: None,
         }
 	}
 	pub fn build<'a>(&self, creator: &'a TextureCreator<WindowContext>) -> EntityBuilderSignals<'a> {
@@ -83,6 +87,14 @@ impl EntityBuilder {
                     EntityBuilderSignals::GetTile("Pick the next tile")
                 }
             },
+			4 => {
+				if let Some(dir) = self.dir {
+					EntityBuilderSignals::Complete(Snake::new(creator, self.position, dir))
+				}
+				else {
+					EntityBuilderSignals::GetDirection("Type initial direction for snake to face: ")
+				}
+			},
 			MAX_ENTITY_IDX.. => EntityBuilderSignals::InvalidId,
 		}
 	}
@@ -99,9 +111,12 @@ impl EntityBuilder {
 	pub fn setGlobal(&mut self, global: bool) {
 		self.global = Some(global);
 	}
+	pub fn addDir(&mut self, direction: Direction) {
+		self.dir = Some(direction);
+	}
 	pub fn endList(&mut self) {
 		match self.id {
-			0..=1 => (),
+			0..=1 | 4 => (),
 			2 => {
 				if !self.locations.1 {self.locations.1 = true;}
 				else if !self.linkedIDs.1 {self.linkedIDs.1 = true;}
@@ -110,7 +125,7 @@ impl EntityBuilder {
                 if !self.locations.1 {self.locations.1 = true;}
                 else if !self.linkedIDs.1 {self.linkedIDs.1 = true;}
                 else if !self.inactiveEntities.1 {self.inactiveEntities.1 = true;}
-            }
+            },
 			MAX_ENTITY_IDX.. => unreachable!(),
 		};
 	}
@@ -136,6 +151,7 @@ impl EntityBuilder {
                 }
                 genID
             },
+			4 => ctx.addEntityGlobal::<Snake>(entity),
             MAX_ENTITY_IDX.. => unreachable!(),
 		};
 	}
@@ -161,6 +177,7 @@ impl EntityBuilder {
                 }
                 genID
             },
+			4 => ctx.addEntityActiveScreen::<Snake>(entity),
 			MAX_ENTITY_IDX.. => unreachable!(),
 		};
 	}
@@ -188,16 +205,16 @@ impl EntityBuilder {
                 }
 				success
             },
+			4 => ctx.getHolderMut().add::<Snake>(entity),
 			MAX_ENTITY_IDX.. => unreachable!(),
 		}} {Some(ctx.getHolder().getCurrentID())} else {None}
 	}
 
 	pub fn getEntityRect(&self) -> Rect {
 		let (w, h) = match self.id {
-			0 => (50, 50),
 			1 => (50, 100),
-            2|3 => (50, 50),
-			MAX_ENTITY_IDX.. => unreachable!(),
+            0..=MAX_ENTITY_IDX => (50, 50),
+			_ => unreachable!(),
 		};
 		Rect::new(self.position.0 as i32 * 50, self.position.1 as i32 * 50, w, h)
 	}
@@ -226,5 +243,5 @@ impl<'a> EntityRenderer<'a> {
 	}
 }
 
-pub const MAX_ENTITY_IDX: u16 = 3;
+pub const MAX_ENTITY_IDX: u16 = 4;
 

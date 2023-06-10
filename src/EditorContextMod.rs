@@ -20,7 +20,7 @@ use std::str::FromStr;
 use crate::Scheduling::Scheduler;
 
 use crate::MapMod::{TileBuilder, TileBuilderSignals, Tile, Map, self};
-use crate::{GameContext, MAX_TILE_IDX, MAX_COLLISION_IDX, InnerGameContext};
+use crate::{GameContext, MAX_TILE_IDX, MAX_COLLISION_IDX, InnerGameContext, Direction};
 use crate::Entities::{EntityBuilder, EntityBuilderSignals, EntityRenderer, MAX_ENTITY_IDX};
 
 pub struct EditorContext {
@@ -211,6 +211,28 @@ impl EditorContext {
                             State::AttemptBuildEntity(ref mut builder) => unimplemented!(),
                             _ => unreachable!(),
                         }
+					}
+					else {
+						self.message.truncate(self.messageLen);
+						*deps.fontTexture = Some(createText(&self.message, deps.textureCreator, deps.font));
+					}
+				},
+				(Event::KeyDown {scancode: Some(Scancode::Return), ..}, State::GetDirection) => {
+					if let Some(dir) = match self.message[self.messageLen..].trim() {
+						"Up" => Some(Direction::Up),
+						"Down" => Some(Direction::Down),
+						"Left" => Some(Direction::Left),
+						"Right" => Some(Direction::Right),
+						_ => None,
+					} {
+						self.textInput.stop();
+						*deps.fontTexture = None;
+						self.state.pop();
+						match self.state.last_mut().unwrap() {
+							State::AttemptBuildEntity(ref mut builder) => builder.addDir(dir),
+							State::AttemptBuild(ref mut builder) => unimplemented!(),
+							_ => unreachable!(),
+						}
 					}
 					else {
 						self.message.truncate(self.messageLen);
@@ -547,6 +569,13 @@ impl EditorContext {
 					unreachable!();
 				}
 			}
+			EntityBuilderSignals::GetDirection(msg) => {
+				*deps.fontTexture = Some(createText(msg, deps.textureCreator, deps.font));
+				self.textInput.start();
+				self.message = String::from(msg);
+				self.messageLen = msg.len() - 1;
+				self.state.push(State::GetDirection);
+			}
 			EntityBuilderSignals::InvalidId => eprintln!("Entity could not be placed because of invalid entity id produced by editor"),
 		}
 	}
@@ -641,6 +670,7 @@ pub fn createText<'a>(message: &str, textureCreator: &'a TextureCreator<WindowCo
 
 enum State {
 	GetUserUsize,
+	GetDirection,
 	GetCoordinate,
     GetTile,
 	GetEntityID,

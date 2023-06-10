@@ -51,15 +51,15 @@ impl<'a> Snake<'a> {
 			id: TypedID::new(ID::empty()),
 			dir,
 			pos,
-			editorRender: Rect::new(pos.0 as i32, pos.1 as i32, 50, 50),
+			editorRender: Rect::new(pos.0 as i32 * 50, pos.1 as i32 * 50, 50, 50),
 			editorSprite: Sprites::new(creator, NAMES)?,
 			timer: u16::MAX,
 		})
 	}
-	pub fn new(creator: &'a TextureCreator<WindowContext>, pos: (f32, f32), dir: Direction) -> io::Result<BoxCode<'a>> {
+	pub fn new(creator: &'a TextureCreator<WindowContext>, pos: (u16, u16), dir: Direction) -> io::Result<BoxCode<'a>> {
 		Ok(BoxCode::Snake(
 			Entity::new(
-				Self::newInt(creator, (pos.0 as u16, pos.1 as u16), dir)?,
+				Self::newInt(creator, pos, dir)?,
 				SnakeData {},
 			)
 		))
@@ -123,7 +123,7 @@ impl<'a> EntityTraitsWrappable<'a> for Snake<'a> {
 				Direction::Up => 2,
 				Direction::Down => 3,
 			};
-			self.editorSprite.getSprite(0).draw(canvas, self.editorRender, false, false);
+			self.editorSprite.getSprite(idx).draw(canvas, self.editorRender, false, false);
 		}
 	}
 	fn setID(&mut self, id: TypedID<'a, Self>) {self.id = id;}
