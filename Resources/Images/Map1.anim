@@ -17,3 +17,45 @@ SwitchOn:
 SwitchOff:
 	"Resources/Images/Switch_off__half.png"
 ;
+
+SnakeHead:
+	"Resources/Images/SnakeHead.png"
+;
+
+SnakeHeadLeft:
+	"Resources/Images/SnakeHeadLeft.png"
+;
+
+SnakeHeadUp:
+	"Resources/Images/SnakeHeadUp.png"
+;
+
+SnakeHeadDown:
+	"Resources/Images/SnakeHeadDown.png"
+;
+
+SnakeBodyHoriz:
+	"Resources/Images/SnakeBodyHoriz.png"
+;
+
+SnakeBodyVert:
+	"Resources/Images/SnakeBodyVert.png"
+;
+
+SnakeBodyRightUp:
+	"Resources/Images/SnakeBodyRightUp.png"
+;
+
+SnakeBodyRightDown:
+	"Resources/Images/SnakeBodyRightDown.png"
+;
+
+
+SnakeBodyLeftDown:
+	"Resources/Images/SnakeBodyLeftDown.png"
+;
+
+
+SnakeBodyLeftUp:
+	"Resources/Images/SnakeBodyLeftUp.png"
+;

@@ -260,5 +260,5 @@ pub fn spawnTiles(tile: Tile, location: (u16, u16), locationEnd: (u16, u16), map
     }
 }
 
-pub const MAX_TILE_IDX: u16 = 4;
+pub const MAX_TILE_IDX: u16 = 14;
 
