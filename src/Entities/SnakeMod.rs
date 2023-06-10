@@ -157,28 +157,33 @@ impl<'a> EntityTraitsWrappable<'a> for Snake<'a> {
 	fn getData(&self, data: &mut Self::Data, po: &PO, key: Key) -> Key {
 		data.pos = self.pos;
 		data.dir = self.dir;
-		let playerPos = po.getCtx().getHolder().getTyped(po.getCtx().getPlayerID()).unwrap().getPosition();
-		let pos = Vector(self.pos.0 as f32 * 50f32, self.pos.1 as f32 * 50f32);
-		let toPlayer = playerPos - pos;
-		let dir = Self::determineMovementDirection(toPlayer, self.pos, po);
-		if let Some(dir) = dir {
-			data.pos = Self::nextPos(self.pos, dir);
-			po.spawnTile(Self::snakeTile(self.dir, dir), self.pos);
-			po.spawnTile(Self::snakeHeadTile(dir), data.pos);
-			data.dir = dir;
+		if self.timer == u16::MAX {
+			po.spawnTile(Self::snakeHeadTile(self.dir), self.pos);
+		}
+		else {
+			let playerPos = po.getCtx().getHolder().getTyped(po.getCtx().getPlayerID()).unwrap().getPosition();
+			let pos = Vector(self.pos.0 as f32 * 50f32, self.pos.1 as f32 * 50f32);
+			let toPlayer = playerPos - pos;
+			let dir = Self::determineMovementDirection(toPlayer, self.pos, po);
+			if let Some(dir) = dir {
+				data.pos = Self::nextPos(self.pos, dir);
+				po.spawnTile(Self::snakeTile(self.dir, dir), self.pos);
+				po.spawnTile(Self::snakeHeadTile(dir), data.pos);
+				data.dir = dir;
+			}
 		}
 		key
 	}
 	fn update(&mut self, data: &Self::Data, po: &mut PO) {
 		self.dir = data.dir;
 		self.pos = data.pos;
+		if self.timer == u16::MAX {self.timer = 0;}
 	}
 	fn needsExecution(&self) -> bool {
-		self.timer == 59
+		self.timer == 59 || self.timer == u16::MAX
 	}
 	fn tick(&mut self) {
-		if self.timer == u16::MAX {self.timer = 0}
-		else {
+		if self.timer != u16::MAX {
 			self.timer += 1;
 			if self.timer == 60 {self.timer = 0;}
 		}
