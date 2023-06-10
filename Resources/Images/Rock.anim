@@ -1,0 +1,11 @@
+Walk:
+	"Resources/Images/WalkingRock_0.png"
+	"Resources/Images/WalkingRock_1.png"
+	"Resources/Images/WalkingRock_2.png"
+	"Resources/Images/WalkingRock_1.png"
+	"Resources/Images/WalkingRock_0.png"
+;
+
+WalkLeft:
+	&Walk
+;
