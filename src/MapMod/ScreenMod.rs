@@ -161,13 +161,11 @@ impl Screen {
 		Some((location, self.getTile(location)))
 	}
 	fn getPosition(&self, topLeft: (u32, u32), center: Point, direction: Direction) -> Point {
-		let (x, y) = topLeft;
-		let v = Vector::fromPoints((self.position.0 as f32, self.position.1 as f32), (x as f32, y as f32)) * 50f32;
 		match direction {
-			Direction::Up => {Point::new(center.x() + v.0 as i32, self.height as i32 * 50 - 3)},
-			Direction::Down => {Point::new(center.x() + v.0 as i32, 0)},
-			Direction::Left => {Point::new(self.width as i32 * 50 - 3, center.y() + v.1 as i32)},
-			Direction::Right => {Point::new(0, center.y() + v.1 as i32)},
+			Direction::Up => {Point::new(center.x(), self.height as i32 * 50 - 3)},
+			Direction::Down => {Point::new(center.x(), 0)},
+			Direction::Left => {Point::new(self.width as i32 * 50 - 3, center.y())},
+			Direction::Right => {Point::new(0, center.y())},
 		}
 	}
     pub fn getScreen(&self, center: Point, map: &InnerMap) -> Option<(usize, Point)> {
