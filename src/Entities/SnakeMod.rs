@@ -100,13 +100,13 @@ impl<'a> Snake<'a> {
 			(true, false, false) => [Direction::Left, Direction::Down, Direction::Up, Direction::Right],
 			(false, true, true) => [Direction::Down, Direction::Right, Direction::Left, Direction::Up],
 			(false, true, false) => [Direction::Up, Direction::Right, Direction::Left, Direction::Down],
-			(false, false, true) => [Direction::Up, Direction::Left, Direction::Right, Direction::Down],
-			(false, false, false) => [Direction::Down, Direction::Left, Direction::Right, Direction::Up],
+			(false, false, true) => [Direction::Down, Direction::Left, Direction::Right, Direction::Up],
+			(false, false, false) => [Direction::Up, Direction::Left, Direction::Right, Direction::Down],
 		};
 		for direction in order {
 			let tile = po.getCtx().getMap().getScreen(po.getCtx().getMap().getActiveScreenId()).unwrap().getTile(Self::nextPos(pos, direction));
 			match tile.getCollisionType() {
-				CollisionType::Block => continue,
+				CollisionType::Block | CollisionType::Hit(..) => continue,
 				_ => return Some(direction),
 			}
 		}
@@ -121,7 +121,7 @@ impl<'a> Snake<'a> {
 			(Direction::Left, Direction::Up) | (Direction::Down, Direction::Right) => 4,
 			(Direction::Left, Direction::Down) | (Direction::Up, Direction::Right) => 5,
 		};
-		Tile::new(9 + offset, CollisionType::Hit)
+		Tile::new(9 + offset, CollisionType::Hit(-12))
 	}
 	fn snakeHeadTile(dir: Direction) -> Tile {
 		let offset = match dir {
@@ -130,7 +130,7 @@ impl<'a> Snake<'a> {
 			Direction::Up => 2,
 			Direction::Down => 3,
 		};
-		Tile::new(5 + offset, CollisionType::Hit)
+		Tile::new(5 + offset, CollisionType::Hit(-12))
 	}
 }
 

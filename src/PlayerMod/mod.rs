@@ -123,6 +123,7 @@ pub struct PlayerData {
 	//transition: Option<Rect>,
 	nextPos: Vector,
 	stopHitSwitch: bool,
+	dmg: i32,
 }
 
 impl PlayerData {
@@ -138,6 +139,9 @@ impl PlayerData {
 					self.nextPos += eject;
 					tmp.reposition(self.nextPos + Vector(2f32, 2f32));
 				},
+				CollisionType::Hit(dmg) => {
+					self.dmg = dmg;
+				}
 				CollisionType::SpawnGate(location) => po.spawnTiles(Tile::gate(), (location.0, location.1), (location.2, location.3)),
 				CollisionType::ClearTiles(location) => po.spawnTiles(Tile::default(), (location.0, location.1), (location.2, location.3)),
 				_ => (),
@@ -224,6 +228,7 @@ impl<'a> Player<'a> {
 					PlayerData {
 						nextPos: position,
 						stopHitSwitch: true,
+						dmg: 0,
 					},
 				)
 			)
@@ -253,6 +258,7 @@ impl<'a> Player<'a> {
 				PlayerData {
 					nextPos: inner.position,
 					stopHitSwitch: true,
+					dmg: 0,
 				}
 			)
 		))
@@ -395,6 +401,7 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 	fn getData(&self, data: &mut Self::Data, po: &PO, key: Key) -> Key {
 		//data.transition = ctx.getMap().transitionScreen(self.hitbox);
 		data.stopHitSwitch = true;
+		data.dmg = 0;
 		data.nextPos = if self.idle {
 			self.position + self.velocity
 		} else {self.position};
@@ -406,6 +413,13 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 		self.updatePositionsPO(po);
 
 		self.hitSwitchLastFrame = !data.stopHitSwitch;
+
+		if self.iframes == 0 {
+			self.health += data.dmg;
+			if data.dmg < 0 {
+				self.iframes = 90;
+			}
+		}
 
 		if self.idle{match self.direction {
 			Direction::Up => {self.animations.changeAnimation(ANIMATION_IDX::UpFloat as usize);},

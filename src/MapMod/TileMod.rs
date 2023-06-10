@@ -72,7 +72,7 @@ pub enum CollisionType {
 	Block, //Block the player
 	Transition(usize),
 	SpawnGate((u16, u16, u16, u16)),
-    Hit, //Hurt the player
+    Hit(i32), //Hurt the player
 	Burn, //Burn the player
 	ClearTiles((u16, u16, u16, u16)),
 	SwitchToggleGate((u16, u16, u16, u16)),
@@ -136,7 +136,7 @@ impl TileBuilder {
 					TileBuilderSignals::GetUserUsize("Enter the map id to transition to: ")
 				}
 			},
-            3 => TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::Hit), self.pos),
+            3 => TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::Hit(0)), self.pos),
             4 => TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::Burn), self.pos),
             5 => self.createLocationTile((
                 "Click where to begin clearing",
