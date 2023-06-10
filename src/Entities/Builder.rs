@@ -23,6 +23,7 @@ pub struct EntityBuilder {
 	locations: (Vec<(Tile, (u16, u16))>, bool),
 	linkedIDs: (Vec<ID>, bool),
     inactiveEntities: (Vec<(ID, bool)>, bool),
+	global: Option<bool>,
 }
 
 pub enum EntityBuilderSignals<'a> {
@@ -30,6 +31,7 @@ pub enum EntityBuilderSignals<'a> {
     GetTile(&'static str),
 	GetEntity(&'static str),
     MakeEntityInactive(&'static str),
+	IsGlobal,
 	InvalidId,
 }
 
@@ -41,12 +43,20 @@ impl EntityBuilder {
 		    locations: (vec![], false),
 			linkedIDs: (vec![], false),
             inactiveEntities: (vec![], false),
+			global: None,
         }
 	}
 	pub fn build<'a>(&self, creator: &'a TextureCreator<WindowContext>) -> EntityBuilderSignals<'a> {
 		match self.id {
 			0 => EntityBuilderSignals::Complete(Player::new(creator, self.position.0 as f32 * 50f32, self.position.1 as f32 * 50f32)),
-			1 => EntityBuilderSignals::Complete(Skeleton::new(creator, (self.position.0 as f32 * 50f32, self.position.1 as f32 * 50f32))),
+			1 => {
+				if let Some(global) = self.global {
+					EntityBuilderSignals::Complete(Skeleton::new(creator, (self.position.0 as f32 * 50f32, self.position.1 as f32 * 50f32), global))
+				}
+				else {
+					EntityBuilderSignals::IsGlobal
+				}
+			},
 			2 => {
 			    if self.locations.1 && self.linkedIDs.1 {
                     EntityBuilderSignals::Complete(Generator::new(creator, (self.position.0 as i32 * 50, self.position.1 as i32 * 50), self.locations.0.clone(), self.linkedIDs.0.len() as u8))
@@ -86,6 +96,9 @@ impl EntityBuilder {
     pub fn addInactiveEntity(&mut self, id: ID, global: bool) {
         self.inactiveEntities.0.push((id, global));
     }
+	pub fn setGlobal(&mut self, global: bool) {
+		self.global = Some(global);
+	}
 	pub fn endList(&mut self) {
 		match self.id {
 			0..=1 => (),

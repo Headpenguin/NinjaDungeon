@@ -85,7 +85,6 @@ impl<'a> GameContext<'a> {
 		};
 		ctx.addEntityGlobal::<Player>(Player::new(creator, 50f32, 50f32).unwrap());
 		ctx.player = TypedID::new(ctx.holder.getCurrentID());
-		ctx.addEntityActiveScreen::<Skeleton>(Skeleton::new(creator, (50f32, 50f32)).unwrap());
 		ctx
 	}
 	pub fn addEntityActiveScreen<T: EntityTraitsWrappable<'a> + 'a>(&mut self, entity: BoxCode<'a>) -> Option<ID> {

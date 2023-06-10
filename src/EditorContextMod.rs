@@ -499,7 +499,7 @@ impl EditorContext {
 						},
                         State::MakeEntityInactive => {
 							let id = builder.addEntityInactive(deps.ctx, entity).unwrap();
-                            if let Some(State::AttemptBuildEntity(mut builder)) = self.state.pop() {
+                            if let Some(State::AttemptBuildEntity(ref mut builder)) = self.state.last_mut() {
                                 builder.addInactiveEntity(id, self.globalEntities);
                             }
                             else {unreachable!()}
@@ -539,6 +539,14 @@ impl EditorContext {
                 *deps.fontTexture = Some(createText(msg, deps.textureCreator, deps.font));
                 self.state.push(State::MakeEntityInactive);
             }
+			EntityBuilderSignals::IsGlobal => {
+				if let Some(State::AttemptBuildEntity(ref mut builder)) = self.state.last_mut() {
+					builder.setGlobal(self.globalEntities);
+				}
+				else {
+					unreachable!();
+				}
+			}
 			EntityBuilderSignals::InvalidId => eprintln!("Entity could not be placed because of invalid entity id produced by editor"),
 		}
 	}

@@ -48,12 +48,13 @@ pub struct InnerSkeleton {
 	iframeCounter: u32,
 	health: i32,
 	deathCounter: Option<DeathCounter>,
+	global: bool,
 }
 
 impl InnerSkeleton {
 	pub fn fromSkeleton(skeleton: &Skeleton) -> InnerSkeleton {
-		let &Skeleton {id, timer, renderPositionTop, renderPositionBottom, position, idle, hitbox, iframeCounter, health, deathCounter, ..} = skeleton;
-		InnerSkeleton {id:id.getID(), timer, renderPositionTop:renderPositionTop.into(), renderPositionBottom: renderPositionBottom.into(), position, idle, hitbox:hitbox.into(), iframeCounter, health, deathCounter}
+		let &Skeleton {id, timer, renderPositionTop, renderPositionBottom, position, idle, hitbox, iframeCounter, health, deathCounter, global, ..} = skeleton;
+		InnerSkeleton {id:id.getID(), timer, renderPositionTop:renderPositionTop.into(), renderPositionBottom: renderPositionBottom.into(), position, idle, hitbox:hitbox.into(), iframeCounter, health, deathCounter, global}
 	}
 }
 
@@ -71,6 +72,7 @@ pub struct Skeleton<'a> {
 	iframeCounter: u32,
 	health: i32,
 	deathCounter: Option<DeathCounter>,
+	global: bool,
 }
 #[derive(Debug)]
 pub struct SkeletonData {
@@ -96,7 +98,7 @@ impl SkeletonData {
 }
 
 impl<'a> Skeleton<'a> {
-	pub fn new(creator: &'a TextureCreator<WindowContext>, position: (f32, f32)) -> io::Result<BoxCode<'a>> {
+	pub fn new(creator: &'a TextureCreator<WindowContext>, position: (f32, f32), global: bool) -> io::Result<BoxCode<'a>> {
 		let (timer, position, idle, iframeCounter, health, deathCounter) = (
 			0u32,
 			Vector(position.0, position.1),
@@ -113,7 +115,7 @@ impl<'a> Skeleton<'a> {
 		let hitbox = Rect::new(position.0.round() as i32, position.1.round() as i32, 50, 100);
 		Ok(BoxCode::Skeleton(
 			Entity::new(
-				Skeleton {id: TypedID::new(ID::empty()), animationsTop, animationsBottom, timer, renderPositionTop, renderPositionBottom, position, idle, hitbox, iframeCounter, health,deathCounter,},
+				Skeleton {id: TypedID::new(ID::empty()), animationsTop, animationsBottom, timer, renderPositionTop, renderPositionBottom, position, idle, hitbox, iframeCounter, health,deathCounter, global},
 				SkeletonData{
 					nextPos: Vector(0f32, 0f32),
 				},
@@ -136,6 +138,7 @@ impl<'a> Skeleton<'a> {
 					iframeCounter: inner.iframeCounter,
 					health: inner.health,
 					deathCounter: inner.deathCounter,
+					global: inner.global,
 				},
 				SkeletonData {
 					nextPos: Vector(0f32, 0f32),
@@ -152,7 +155,6 @@ impl<'a> Skeleton<'a> {
 		let prevHitbox = self.hitbox;
 		self.hitbox.reposition(self.position);
 		po.updatePosition(self.id.getID(), self.hitbox, prevHitbox);
-	//	println!("Skeleton: {:?}", self.hitbox);
 	}
 }
 
@@ -201,10 +203,25 @@ impl<'a> EntityTraitsWrappable<'a> for Skeleton<'a> {
 		else {None}
 	}
 	fn getData(&self, data: &mut Self::Data, po: &PO, key: Key) -> Key {
+		data.nextPos = self.position;
 		if !self.idle {
 			let player = po.getCtx().getHolder().getTyped(po.getCtx().getPlayerID()).unwrap();
-			let playerDirection = Vector::fromPoints(self.position, player.getPosition());
-			data.nextPos = self.position + playerDirection.normalizeOrZero() * 3.5f32;
+			let playerPos = player.getPosition();
+			let playerDirection = Vector::fromPoints(self.position, playerPos);
+			if self.global {
+				let quadrant = (self.position.0 >= 17f32 * 25f32, self.position.1 >= 12f32 * 25f32);
+				let playerQuadrant = (playerPos.0 >= 17f32 * 25f32, playerPos.1 >= 12f32 * 25f32);
+				if quadrant == playerQuadrant {
+					data.nextPos = self.position + playerDirection.normalizeOrZero() * 3.5f32;
+					let dataQuadrant = (data.nextPos.0 >= 17f32 * 25f32, data.nextPos.1 >= 12f32*25f32);
+					if dataQuadrant != quadrant {
+						data.nextPos = self.position;
+					}
+				}
+			}
+			else{
+				data.nextPos = self.position + playerDirection.normalizeOrZero() * 3.5f32;
+			}
 			data.doCollision(self, po.getCtx());
 		}
 		else {
