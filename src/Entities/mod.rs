@@ -7,6 +7,7 @@ use serde::{Serialize, Deserialize};
 pub mod Traits;
 pub mod SkeletonMod;
 pub mod GeneratorMod;
+pub mod SnakeMod;
 pub mod Common;
 mod Builder;
 
@@ -15,9 +16,11 @@ pub use Builder::*;
 
 pub use SkeletonMod::Skeleton;
 pub use GeneratorMod::{EntityGenerator, Generator};
+pub use SnakeMod::Snake;
 
 use SkeletonMod::InnerSkeleton;
 use GeneratorMod::{InnerGenerator, InnerEntityGenerator};
+use SnakeMod::InnerSnake;
 
 use Traits::{Entity, EntityDyn, EntityTraits, EntityTraitsWrappable};
 use std::collections::HashMap;
@@ -57,6 +60,7 @@ pub enum BoxCode<'a> {
 	Skeleton(Entity<'a, Skeleton<'a>>),
 	Generator(Entity<'a, Generator<'a>>),
     EntityGenerator(Entity<'a, EntityGenerator<'a>>),
+	Snake(Entity<'a, Snake<'a>>),
 }
 
 pub enum RefCodeMut<'a, 'b> {
@@ -64,6 +68,7 @@ pub enum RefCodeMut<'a, 'b> {
 	Skeleton(&'b mut Entity<'a, Skeleton<'a>>),
 	Generator(&'b mut Entity<'a, Generator<'a>>),
     EntityGenerator(&'b mut Entity<'a, EntityGenerator<'a>>),
+	Snake(&'b mut Entity<'a, Snake<'a>>),
 }
 
 pub enum RefCode<'a, 'b> {
@@ -71,6 +76,7 @@ pub enum RefCode<'a, 'b> {
 	Skeleton(&'b Entity<'a, Skeleton<'a>>),
 	Generator(&'b Entity<'a, Generator<'a>>),
     EntityGenerator(&'b Entity<'a, EntityGenerator<'a>>),
+	Snake(&'b Entity<'a, Snake<'a>>),
 }
 
 impl<'a, 'b> RefCode<'a, 'b> {
@@ -80,6 +86,7 @@ impl<'a, 'b> RefCode<'a, 'b> {
 			RefCode::Skeleton(e) => e.collidesStatic(hitbox),
 			RefCode::Generator(e) => e.collidesStatic(hitbox),
 			RefCode::EntityGenerator(e) => e.collidesStatic(hitbox),
+			RefCode::Snake(e) => e.collidesStatic(hitbox),
 		}
 	}
 }
@@ -91,6 +98,7 @@ impl<'a> BoxCode<'a> {
 			BoxCode::Skeleton(ref mut e) => RefCodeMut::Skeleton(e),
 			BoxCode::Generator(ref mut e) => RefCodeMut::Generator(e),
 			BoxCode::EntityGenerator(ref mut e) => RefCodeMut::EntityGenerator(e),
+			BoxCode::Snake(ref mut e) => RefCodeMut::Snake(e),
 		}
 	}
 	pub fn refcode<'b>(&'b self) -> RefCode<'a, 'b> {
@@ -99,6 +107,7 @@ impl<'a> BoxCode<'a> {
 			BoxCode::Skeleton(ref e) => RefCode::Skeleton(e),
 			BoxCode::Generator(ref e) => RefCode::Generator(e),
 			BoxCode::EntityGenerator(ref e) => RefCode::EntityGenerator(e),
+			BoxCode::Snake(ref e) => RefCode::Snake(e),
 		}
 	}
 }
@@ -111,6 +120,7 @@ impl<'a> Deref for BoxCode<'a> {
 			Self::Skeleton(e) => e as &Entity<Skeleton> as &dyn EntityDyn,
 			Self::Generator(e) => e as &Entity<Generator> as &dyn EntityDyn,
 			Self::EntityGenerator(e) => e as &Entity<EntityGenerator> as &dyn EntityDyn,
+			Self::Snake(e) => e as &Entity<Snake> as &dyn EntityDyn,
 		}
 	}
 }
@@ -121,6 +131,7 @@ impl<'a> DerefMut for BoxCode<'a> {
 			Self::Skeleton(e) => e as &mut Entity<Skeleton> as &mut (dyn EntityDyn + 'a),
 			Self::Generator(e) => e as &mut Entity<Generator> as &mut (dyn EntityDyn + 'a),
 			Self::EntityGenerator(e) => e as &mut Entity<EntityGenerator> as &mut (dyn EntityDyn + 'a),
+			Self::Snake(e) => e as &mut Entity<Snake> as &mut (dyn EntityDyn + 'a),
 		}
 	}
 }
@@ -131,6 +142,7 @@ pub enum InnerCode {
 	Skeleton(InnerSkeleton),
 	Generator(InnerGenerator),
 	EntityGenerator(InnerEntityGenerator),
+	Snake(InnerSnake),
 }
 
 impl InnerCode {
@@ -140,6 +152,7 @@ impl InnerCode {
 			InnerCode::Skeleton(e) => Skeleton::fromInner(e, creator),
 			InnerCode::Generator(e) => Generator::fromInner(e, creator),
 			InnerCode::EntityGenerator(e) => EntityGenerator::fromInner(e, creator),
+			InnerCode::Snake(e) => Snake::fromInner(e, creator),
 		}
 	}
 	pub fn fromBoxCode(code: &BoxCode) -> InnerCode {
@@ -148,6 +161,7 @@ impl InnerCode {
 			BoxCode::Skeleton(e) => InnerCode::Skeleton(InnerSkeleton::fromSkeleton(e)),
 			BoxCode::Generator(e) => InnerCode::Generator(InnerGenerator::fromGenerator(e)),
 			BoxCode::EntityGenerator(e) => InnerCode::EntityGenerator(InnerEntityGenerator::fromEntityGenerator(e)),
+			BoxCode::Snake(e) => InnerCode::Snake(InnerSnake::fromSnake(e)),
 		}
 	}
 }
