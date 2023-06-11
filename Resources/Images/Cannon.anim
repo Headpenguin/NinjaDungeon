@@ -1,0 +1,18 @@
+CannonWalkDown:
+	"Resources/Images/CannonWalkDown_0.png"
+	"Resources/Images/CannonWalkDown_1.png"
+;
+
+CannonWalkLeft:
+	"Resources/Images/CannonWalkLeft_0.png"
+	"Resources/Images/CannonWalkLeft_1.png"
+;
+
+CannonWalkRight:
+	&CannonWalkLeft
+;
+
+CannonWalkUp:
+	"Resources/Images/CannonWalkUp_0.png"
+	"Resources/Images/CannonWalkUp_1.png"
+;
