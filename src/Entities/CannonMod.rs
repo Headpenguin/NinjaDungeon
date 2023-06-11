@@ -5,12 +5,12 @@ use sdl2::render::{Canvas, TextureCreator};
 use sdl2::video::{Window, WindowContext};
 
 use std::io;
-use std::cmp::Ordering;
 
 use super::Traits::{Collision, EntityTraitsWrappable, Entity, Counter, RegisterID, IDRegistration};
 use super::{BoxCode, RefCode, RefCodeMut, TypedID};
-use super::Common::DeathCounter;
+use super::Common::{DeathCounter, self};
 use crate::SpriteLoader::Animations;
+use crate::SpriteLoader::Sprites;
 use crate::{Vector, ID, Direction};
 use crate::EventProcessor::{CollisionMsg, Envelope, PO, Key};
 use crate::CollisionType;
@@ -22,6 +22,8 @@ const NAMES: &'static [&'static str] = &[
 	"CannonWalkRight",
 	"CannonWalkUp",
 ];
+
+const CANNONBALL: &'static [&'static str] = &["Resources/Images/CannonBall.png"];
 
 enum ANIMATIONS_IDX {
 	WalkDown = 0,
@@ -45,9 +47,41 @@ impl InnerCannon {
 }
 
 #[derive(Debug)]
+struct CannonBall {
+	pos: Vector,
+	hitbox: Rect,
+	velocity: Vector,
+	renderPosition: Rect,
+	die: bool,
+	timer: u16,
+}
+
+impl CannonBall {
+	fn new(pos: Vector, velocity: Vector) -> CannonBall {
+		CannonBall {
+			pos,
+			hitbox: Rect::new(pos.0 as i32, pos.1 as i32, 15, 15),
+			velocity,
+			renderPosition: Rect::new(pos.0 as i32, pos.1 as i32, 15, 15),
+			die: false,
+			timer: 600,
+		}
+	}
+	fn update(&mut self) {
+		self.pos += self.velocity * 2f32;
+		self.hitbox = Rect::new(self.pos.0 as i32, self.pos.1 as i32, 15, 15);
+		self.renderPosition = self.hitbox;
+		self.timer -= 1;
+		if self.timer == 0 {self.die = true;}
+	}
+}
+
+#[derive(Debug)]
 pub struct Cannon<'a> {
 	id: TypedID<'a, Self>,
 	animations: Animations<'a>,
+	cannonballSprites: Sprites<'a>,
+	cannonsBalls: [Option<CannonBall>; 3],
 	pos: Vector,
 	hitbox: Rect,
 	renderPosition: Rect,
@@ -58,7 +92,7 @@ pub struct Cannon<'a> {
 
 #[derive(Debug, Default)]
 pub struct CannonData {
-
+	spawnBall: Option<Vector>,
 }
 
 impl<'a> Cannon<'a> {
@@ -66,6 +100,8 @@ impl<'a> Cannon<'a> {
 		Ok(Cannon {
 			id: TypedID::new(ID::empty()),
 			animations: Animations::new("Resources/Images/Cannon.anim", NAMES, creator)?,
+			cannonballSprites: Sprites::new(creator, CANNONBALL)?,
+			cannonsBalls: [None, None, None],
 			pos,
 			hitbox: Rect::new(pos.0 as i32, pos.1 as i32, 50, 50),
 			renderPosition: Rect::new(pos.0 as i32, pos.1 as i32, 50, 50),
@@ -95,51 +131,24 @@ impl<'a> Cannon<'a> {
 	pub fn collidesStatic(&self, hitbox: Rect) -> bool {
 		self.hitbox.has_intersection(hitbox)
 	}
-	fn checkLineOfSight(pos: Vector, line: Vector, po: &PO) -> bool {
-		let m = line.1 / line.0;
-		let (startx, endx) = if line.0 > 0f32 {
-			(pos.0, line.0 + pos.0)
-		} else {
-			(line.0 + pos.0, pos.0)
-		};
-		let (starty, endy) = if line.0 > 0f32 {
-			(pos.1, pos.1 + line.1)
-		} else {
-			(pos.1 + line.1, pos.1)
-		};
-		for x in ((startx as i32 / 50) as u16)..=((endx as i32 / 50) as u16) {
-			let (y0, y1) = {
-				let x = x as f32 * 50f32;
-				let x1 = x as f32 + 50f32;
-				let y = (x - startx) * m + starty;
-				let y1 = (x1 - startx) * m + starty;
-				(y, y1)
-			};
-			let (y0, y1) = if y0 > y1 {(y1, y0)} else {(y0, y1)};
-			let (starty, endy) = if starty > endy {(endy, starty)} else {(starty, endy)};
-			let (y0, y1) = ((std::cmp::max_by(y0, starty, |a, b| a.partial_cmp(b).unwrap_or(Ordering::Less)) / 50f32) as u16, (std::cmp::min_by(y1, endy, |a, b| a.partial_cmp(b).unwrap_or(Ordering::Greater)) / 50f32) as u16);
-			for y in y0..=y1 {
-				match po.getCtx().getMap().getScreen(po.getCtx().getMap().getActiveScreenId()).unwrap().getTile((x, y)).getCollisionType() {
-					CollisionType::Block => {
-						println!("{:?}", pos);
-						return false;
-					}
-					CollisionType::OOB => {},
-					_ => ()
-				};
-			}
-			
-		}
-		true
-	}
 }
 
 impl<'a> Collision for Cannon<'a> {
 	fn collide(&mut self, msg: Envelope<CollisionMsg>, po: &PO) {
-		unimplemented!()
+		let i = msg.getReciever().getSubID();
+		if i != 0 {
+			if let CollisionMsg::Damage(_) = msg.getMsg() {
+				self.cannonsBalls[i as usize - 1].as_mut().unwrap().die = true;
+			}
+		}
 	}
-	fn collideWith(&self, other: ID, po: &PO, key: Key) -> (Option<Envelope<CollisionMsg>>, Key) {
-		unimplemented!()
+	fn collideWith(&self, id: ID, other: ID, po: &PO, key: Key) -> (Option<Envelope<CollisionMsg>>, Key) {
+		let i = id.getSubID();
+		if i == 0 {(None, key)}
+		else {
+			po.sendCollisionMsg(Envelope::new(CollisionMsg::Damage(-1), id, self.id.getID()));
+			(Some(Envelope::new(CollisionMsg::Damage(3), other, id)), key)
+		}
 	}
 }
 
@@ -166,12 +175,32 @@ impl<'a> EntityTraitsWrappable<'a> for Cannon<'a> {
 		else {None}
 	}
 	fn getData(&self, data: &mut Self::Data, po: &PO, key: Key) -> Key {
+		data.spawnBall = None;
 		let playerPos = po.getCtx().getHolder().getTyped(po.getCtx().getPlayerID()).unwrap().getCenter();
-		if Self::checkLineOfSight(self.pos, playerPos - self.pos, po) {
+		if Common::checkLineOfSight(self.pos, playerPos - self.pos, po) {
+			data.spawnBall = Some(Vector::fromPoints(self.pos, playerPos).normalizeOrZero());
 		}
 		key
 	}
 	fn update(&mut self, data: &Self::Data, po: &mut PO) {
+		if let Some(velocity) = data.spawnBall {
+			if let Some((i, _)) = self.cannonsBalls.iter().enumerate().filter(|b| b.1.is_none()).next() {
+				self.cannonsBalls[i] = Some(CannonBall::new(self.pos, velocity));
+			}
+		}
+		for (i, ball) in self.cannonsBalls.iter_mut().enumerate().filter_map(|(i, e)| e.as_mut().map(|e| (i, e))) {
+			let oldHitbox = ball.hitbox;
+			ball.update();
+			po.updatePosition(self.id.getID().sub(i as u8 + 1), ball.hitbox, oldHitbox);
+		}
+		for (i, ball) in self.cannonsBalls.iter_mut().enumerate() {
+			if let Some(ref mut ballInner) = ball {
+				if ballInner.die {
+					po.removeCollision(self.id.getID().sub(i as u8 + 1), ballInner.hitbox);
+					*ball = None;
+				}
+			}
+		}
 		self.timer += 1;
 		if self.timer > 30 {
 			self.timer = 0;
@@ -182,6 +211,9 @@ impl<'a> EntityTraitsWrappable<'a> for Cannon<'a> {
 	fn tick(&mut self) {}
 	fn draw(&self, canvas: &mut Canvas<Window>) {
 		self.animations.drawNextFrame(canvas, self.renderPosition);
+		for ball in self.cannonsBalls.iter().filter_map(|e| e.as_ref()) {
+			self.cannonballSprites.getSprite(0).draw(canvas, ball.renderPosition, false, false);
+		}
 	}
 }
 

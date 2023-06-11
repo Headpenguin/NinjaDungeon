@@ -116,7 +116,7 @@ impl<'a> Rock<'a> {
 }
 
 impl<'a> Collision for Rock<'a> {
-	fn collideWith(&self, other: ID, po: &PO, key: Key) -> (Option<Envelope<CollisionMsg>>, Key) {
+	fn collideWith(&self, _id: ID, other: ID, po: &PO, key: Key) -> (Option<Envelope<CollisionMsg>>, Key) {
 		(Some(Envelope::new(CollisionMsg::Ground(self.hitbox, self.position - self.lastPos), other, self.id.getID())), key)
 	}
 }

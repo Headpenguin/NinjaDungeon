@@ -58,6 +58,7 @@ impl<T> Envelope<T> {
 	}
 	pub fn getMsg(&self) -> &T {return &self.letter;}
 	pub fn getSender(&self) -> ID {return self.sender;}
+	pub fn getReciever(&self) -> ID {return self.recv;}
 }
 impl Envelope<CollisionMsg> {
 	pub fn send(self, recv: &mut dyn EntityTraits, po: &PO) {recv.collide(self, po);}

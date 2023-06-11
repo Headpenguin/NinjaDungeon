@@ -149,10 +149,10 @@ impl<'a> EntityGenerator<'a> {
 }
 
 impl<'a> Collision for Generator<'a> {
-	fn collideWith(&self, _other: ID, _po: &PO, key: Key) -> (Option<Envelope<CollisionMsg>>, Key) {(None, key)}
+	fn collideWith(&self, _id: ID, _other: ID, _po: &PO, key: Key) -> (Option<Envelope<CollisionMsg>>, Key) {(None, key)}
 }
 impl<'a> Collision for EntityGenerator<'a> {
-	fn collideWith(&self, _other: ID, _po: &PO, key: Key) -> (Option<Envelope<CollisionMsg>>, Key) {(None, key)}
+	fn collideWith(&self, _id: ID, _other: ID, _po: &PO, key: Key) -> (Option<Envelope<CollisionMsg>>, Key) {(None, key)}
 }
 
 impl<'a> RegisterID for Generator<'a> {}

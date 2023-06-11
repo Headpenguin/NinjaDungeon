@@ -21,7 +21,7 @@ pub trait RegisterID {
 
 pub trait Collision {
 	fn collide(&mut self, _msg: Envelope<CollisionMsg>, _po: &PO) {}
-	fn collideWith(&self, other: ID, po: &PO, key: Key) -> (Option<Envelope<CollisionMsg>>, Key) {(None, key)}
+	fn collideWith(&self, id: ID, other: ID, po: &PO, key: Key) -> (Option<Envelope<CollisionMsg>>, Key) {(None, key)}
 }
 
 pub trait EntityTraits : Collision + Counter + RegisterID {}

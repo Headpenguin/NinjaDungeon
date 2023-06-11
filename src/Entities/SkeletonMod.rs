@@ -176,7 +176,7 @@ impl<'a> Collision for Skeleton<'a> {
 			}
 		}
 	}
-	fn collideWith(&self, other: ID, po: &PO, key: Key) -> (Option<Envelope<CollisionMsg>>, Key) {
+	fn collideWith(&self, id: ID, other: ID, po: &PO, key: Key) -> (Option<Envelope<CollisionMsg>>, Key) {
 		if other == po.getCtx().getPlayerID().getID() {
 			(Some(Envelope::new(CollisionMsg::Damage(8), other, self.id.getID())), key)
 		}

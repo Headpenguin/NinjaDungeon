@@ -228,7 +228,7 @@ impl PlayerData {
 			let res = po.getEntity(id.mask(), key);
 			key = res.1;
 			let entity = if let Some(entity) = res.0 {entity} else {panic!("{:?}", id)};
-			let res = entity.collideWith(player.id.getID(), po, key);
+			let res = entity.collideWith(id, player.id.getID(), po, key);
 			key = res.1;
 			if let Some(msg) = res.0 {
 				if let None = po.getCtx().getHolder().getTyped(TypedID::<Rock>::new(msg.getSender())) {
@@ -452,7 +452,7 @@ impl<'a> Collision for Player<'a> {
 			}
 		};
 	}
-	fn collideWith(&self, other: ID, po: &PO, key: Key) -> (Option<Envelope<CollisionMsg>>, Key) {
+	fn collideWith(&self, id: ID, other: ID, po: &PO, key: Key) -> (Option<Envelope<CollisionMsg>>, Key) {
 		(None, key)
 	}
 }
