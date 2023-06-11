@@ -37,7 +37,7 @@ pub struct Rock<'a> {
 	animations: Animations<'a>,
 	timer: u16,
 	position: Vector,
-	dp: Vector,
+	lastPos: Vector,
 	hitbox: Rect,
 	renderPosition: Rect,
 	path: Vec<(u16, u16)>,
@@ -50,13 +50,12 @@ impl<'a> Rock<'a> {
 		let position = path[0];
 		let position = Vector(position.0 as f32, position.1 as f32);
 		let dir = Self::determineDirection(&path, 0);
-		let dp = Self::getDp(&path, 0);
 		Ok(Rock {
 			id: TypedID::new(ID::empty()),
 			animations: Animations::new("Resources/Images/Rock.anim", NAMES, creator)?,
 			timer: 0,
 			position,
-			dp,
+			lastPos: position,
 			hitbox: Rect::new(position.0 as i32 * 50, position.1 as i32 * 50, 50, 50),
 			renderPosition: Rect::new(position.0 as i32 * 50, position.1 as i32 * 50, 50, 50),
 			path,
@@ -83,13 +82,6 @@ impl<'a> Rock<'a> {
 				()
 			)
 		))
-	}
-	fn getDp(path: &[(u16, u16)], currPath: usize) -> Vector {
-		let (x1, y1) = path[currPath];
-		let (x2, y2) = path[(currPath + 1) % path.len()];
-		let pos1 = (x1 as i32 * 50, y1 as i32 * 50);
-		let pos2 = (x2 as i32 * 50, y2 as i32 * 50);
-		Vector::fromPoints(pos1, pos2) / 20f32
 	}
 	fn determineDirection(path: &[(u16, u16)], currPath: usize) -> Direction {
 		let (x1, y1) = path[currPath];
@@ -119,14 +111,13 @@ impl<'a> Rock<'a> {
 		let oldPos = self.hitbox;
 		self.hitbox = Rect::new(self.position.0 as i32, self.position.1 as i32, 50, 50);
 		self.renderPosition = self.hitbox;
-		self.dp = Self::getDp(&self.path, self.currentPath);
-		po.updatePosition(self.id.getID(), oldPos, self.hitbox);
+		po.updatePosition(self.id.getID(), self.hitbox, oldPos);
 	}
 }
 
 impl<'a> Collision for Rock<'a> {
 	fn collideWith(&self, other: ID, po: &PO, key: Key) -> (Option<Envelope<CollisionMsg>>, Key) {
-		(Some(Envelope::new(CollisionMsg::Ground(self.hitbox, Self::getDp(&self.path, self.currentPath)), other, self.id.getID())), key)
+		(Some(Envelope::new(CollisionMsg::Ground(self.hitbox, self.position - self.lastPos), other, self.id.getID())), key)
 	}
 }
 
@@ -148,11 +139,12 @@ impl<'a> EntityTraitsWrappable<'a> for Rock<'a> {
 	}
 	fn getData(&self, _data: &mut Self::Data, po: &PO, key: Key) -> Key {
 		for entity in po.getCtx().getCollisionList(self.id.getID()) {
-			po.sendCollisionMsg(Envelope::new(CollisionMsg::Ground(self.hitbox, self.dp), entity, self.id.getID()));
+			po.sendCollisionMsg(Envelope::new(CollisionMsg::Ground(self.hitbox, self.position - self.lastPos), entity, self.id.getID()));
 		}
 		key
 	}
 	fn update(&mut self, data: &Self::Data, po: &mut PO) {
+		self.lastPos = self.position;
 		let (x1, y1) = self.path[self.currentPath];
 		let (x2, y2) = self.path[(self.currentPath + 1) % self.path.len()];
 		self.position = Vector::fromPoints((x1 as i32, y1 as i32), (x2 as i32, y2 as i32)) * 50f32 * self.timer as f32 / 20f32 + Vector::from((x1 as i32, y1 as i32)) * 50f32;
