@@ -2,7 +2,7 @@ use serde::{Serialize, Deserialize};
 
 use std::ops::{Add, AddAssign, Sub, SubAssign, Mul, MulAssign, Div, DivAssign};
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, Default)]
 pub struct Vector(pub f32, pub f32);
 
 impl Vector {

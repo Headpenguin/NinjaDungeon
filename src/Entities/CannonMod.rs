@@ -4,6 +4,8 @@ use sdl2::rect::Rect;
 use sdl2::render::{Canvas, TextureCreator};
 use sdl2::video::{Window, WindowContext};
 
+use rand::prelude::*;
+
 use std::io;
 
 use super::Traits::{Collision, EntityTraitsWrappable, Entity, Counter, RegisterID, IDRegistration};
@@ -88,11 +90,15 @@ pub struct Cannon<'a> {
 	timer: u16,
 	variant: u8,
 	deathEvent: Option<DeathCounter>,
+	idle: bool,
+	stateTimer: u16,
+	dir: Direction,
 }
 
 #[derive(Debug, Default)]
 pub struct CannonData {
 	spawnBall: Option<Vector>,
+	pos: Vector,
 }
 
 impl<'a> Cannon<'a> {
@@ -108,6 +114,9 @@ impl<'a> Cannon<'a> {
 			variant,
 			deathEvent,
 			timer: 0,
+			idle: false,
+			dir: Direction::Down,
+			stateTimer: 10,
 		})
 	}
 	pub fn new(creator: &'a TextureCreator<WindowContext>, pos: Vector) -> io::Result<BoxCode<'a>> {
@@ -130,6 +139,21 @@ impl<'a> Cannon<'a> {
 	}
 	pub fn collidesStatic(&self, hitbox: Rect) -> bool {
 		self.hitbox.has_intersection(hitbox)
+	}
+	fn playerIsInDirection(&self, playerPos: Vector) -> bool {
+		let info = (playerPos.0 > self.pos.0, playerPos.1 > self.pos.1);
+		match self.dir {
+			Direction::Up => !info.1,
+			Direction::Down => info.1,
+			Direction::Left => !info.0,
+			Direction::Right => info.0,
+		}
+	}
+	fn updatePositions(&mut self, po: &mut PO) {
+		let oldPos = self.hitbox;
+		self.hitbox.reposition(self.pos);
+		self.renderPosition.reposition(self.pos);
+		po.updatePosition(self.id.getID(), self.hitbox, oldPos);
 	}
 }
 
@@ -176,13 +200,40 @@ impl<'a> EntityTraitsWrappable<'a> for Cannon<'a> {
 	}
 	fn getData(&self, data: &mut Self::Data, po: &PO, key: Key) -> Key {
 		data.spawnBall = None;
+		data.pos = Vector(0f32, 0f32);
 		let playerPos = po.getCtx().getHolder().getTyped(po.getCtx().getPlayerID()).unwrap().getCenter();
-		if Common::checkLineOfSight(self.pos, playerPos - self.pos, po) {
+		if self.stateTimer == 1 && self.playerIsInDirection(playerPos) && Common::checkLineOfSight(self.pos, playerPos - self.pos, po) {
 			data.spawnBall = Some(Vector::fromPoints(self.pos, playerPos).normalizeOrZero());
 		}
+		if !self.idle {
+			let mut tmp = self.hitbox;
+			data.pos = match self.dir {
+				Direction::Up => Vector(0f32, -1.5f32),
+				Direction::Down => Vector(0f32, 1.5f32),
+				Direction::Left => Vector(-1.5f32, 0f32),
+				Direction::Right => Vector(1.5f32, 0f32),
+			};
+			tmp.reposition(self.pos + data.pos);
+
+			let map = po.getCtx().getMap();
+			let mut iter = map.calculateCollisionBounds(tmp);
+			
+			while let Some((location, tile)) = map.collide(&mut iter) {
+				match tile.getCollisionType() {
+					CollisionType::KeyBlock | CollisionType::Block | CollisionType::Burn | CollisionType::Abyss => {
+						data.pos = Vector(0f32, 0f32);
+						break;
+					}
+					_ => (),
+				}
+			}
+		}
+
 		key
 	}
 	fn update(&mut self, data: &Self::Data, po: &mut PO) {
+		self.pos += data.pos;
+		self.updatePositions(po);
 		if let Some(velocity) = data.spawnBall {
 			if let Some((i, _)) = self.cannonsBalls.iter().enumerate().filter(|b| b.1.is_none()).next() {
 				self.cannonsBalls[i] = Some(CannonBall::new(self.pos, velocity));
@@ -205,6 +256,28 @@ impl<'a> EntityTraitsWrappable<'a> for Cannon<'a> {
 		if self.timer > 30 {
 			self.timer = 0;
 			self.animations.update();
+		}
+		self.stateTimer -= 1;
+		if !self.idle && self.stateTimer == 0 {
+			self.idle = true;
+			self.stateTimer = (rand::thread_rng().gen::<f32>() * 110f32 + 10f32) as u16;
+		}
+		if self.idle && self.stateTimer == 0 {
+			self.idle = false;
+			self.stateTimer = (rand::thread_rng().gen::<f32>() * 60f32 + 60f32) as u16;
+			self.dir = match (rand::thread_rng().gen::<f32>() * 4f32) as u8{
+				0 => Direction::Up,
+				1 => Direction::Down,
+				2 => Direction::Left,
+				3 => Direction::Right,
+				_ => unreachable!(),
+			};
+			match self.dir {
+				Direction::Up => self.animations.changeAnimation(ANIMATIONS_IDX::WalkUp as usize),
+				Direction::Down => self.animations.changeAnimation(ANIMATIONS_IDX::WalkDown as usize),
+				Direction::Left => self.animations.changeAnimation(ANIMATIONS_IDX::WalkLeft as usize),
+				Direction::Right => self.animations.changeAnimation(ANIMATIONS_IDX::WalkRight as usize),
+			};
 		}
 	}
 	fn needsExecution(&self) -> bool {true}

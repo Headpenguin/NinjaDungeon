@@ -20,6 +20,9 @@ features = ["derive"]
 [dependencies.serde_json]
 version = "^1.0"
 
+[dependencies.rand]
+version = "^0.8.5"
+
 #[dependencies.rlua]
 #version = "^0.19.1"
 

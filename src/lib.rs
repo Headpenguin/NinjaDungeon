@@ -2,6 +2,7 @@
 extern crate sdl2;
 extern crate serde;
 extern crate serde_json;
+extern crate rand;
 
 use sdl2::{Sdl, VideoSubsystem, EventPump};
 use sdl2::render::{Canvas, TextureCreator};
