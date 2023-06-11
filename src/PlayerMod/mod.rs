@@ -336,7 +336,11 @@ impl<'a> Player<'a> {
 	}
 
 	pub fn updatePositionsPO(&mut self, po: &mut PO) {
-		if self.abyss == 0 && self.burn <= 360 {self.respawn = self.position;}
+		if self.abyss == 0 
+			&& self.burn <= 360
+			&& !self.maybeBurn
+			&& !self.maybeAbyss
+			&& self.elevated == 0 {self.respawn = self.position;}
 		self.renderPosition.reposition(self.position);
 		let prevHitbox = self.hitbox;
 		self.hitbox.reposition(self.position + Vector(2f32, 2f32));
@@ -437,7 +441,7 @@ impl<'a> Collision for Player<'a> {
 				}
 			},
 			CollisionMsg::Ground(hitbox, dp) => {
-				if hitbox.contains_point(self.hitbox.center()) {
+				if hitbox.contains_point(self.hitbox.center()) && self.burn <= 360 && self.abyss == 0 {
 
 					self.elevated = 2;
 					self.position += *dp;
@@ -498,6 +502,8 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 			self.animations.changeAnimation(ANIMATION_IDX::NinjaSink as usize);
 			self.maybeBurn = false;
 		}
+		self.maybeAbyss = data.abyss;
+		self.maybeBurn = data.burn;
 		self.position += data.nextPos;
 		self.updatePositionsPO(po);
 		if self.abyss > 0 {
@@ -529,8 +535,6 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 		if self.burn % 120 == 1 {
 			self.health -= 5;
 		}
-		self.maybeAbyss = data.abyss;
-		self.maybeBurn = data.burn;
 
 		if self.elevated > 0 {self.elevated -= 1;}
 	
