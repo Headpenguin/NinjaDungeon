@@ -93,8 +93,8 @@ impl<'a> Rock<'a> {
 	}
 	fn determineDirection(path: &[(u16, u16)], currPath: usize) -> Direction {
 		let (x1, y1) = path[currPath];
-		let (x2, y2) = path[currPath + 1 % path.len()];
-		let info = (x2 - x1 > 0, y2 - y1 > 0, x2 - x1 > y2 - y1);
+		let (x2, y2) = path[(currPath + 1) % path.len()];
+		let info = (x2 as i32 - x1 as i32 > 0, y2 as i32 - y1 as i32 > 0, (x2 as i32 - x1 as i32).abs() > (y2 as i32 - y1 as i32).abs());
 		if info.2 {
 			if info.0 {
 				Direction::Right
@@ -114,6 +114,12 @@ impl<'a> Rock<'a> {
 	}
 	pub fn collidesStatic(&self, hitbox: Rect) -> bool {
 		self.hitbox.has_intersection(hitbox)
+	}
+	fn updatePositions(&mut self, po: &mut PO) {
+		let oldPos = self.hitbox;
+		self.hitbox = Rect::new(self.position.0 as i32, self.position.1 as i32, 50, 50);
+		self.renderPosition = self.hitbox;
+		po.updatePosition(self.id.getID(), oldPos, self.hitbox);
 	}
 }
 
@@ -140,10 +146,28 @@ impl<'a> EntityTraitsWrappable<'a> for Rock<'a> {
 		else {None}
 	}
 	fn getData(&self, _data: &mut Self::Data, _po: &PO, key: Key) -> Key {
+
 		key
 	}
 	fn update(&mut self, data: &Self::Data, po: &mut PO) {
-		
+		let (x1, y1) = self.path[self.currentPath];
+		let (x2, y2) = self.path[(self.currentPath + 1) % self.path.len()];
+		self.position = Vector::fromPoints((x1 as i32, y1 as i32), (x2 as i32, y2 as i32)) * 50f32 * self.timer as f32 / 20f32 + Vector::from((x1 as i32, y1 as i32)) * 50f32;
+		self.updatePositions(po);
+		self.timer += 1;
+		if self.timer > 20 {
+			self.currentPath += 1;
+			self.currentPath %= self.path.len();
+			self.dir = Self::determineDirection(&self.path, self.currentPath);
+			self.timer = 0;
+		}
+		if self.timer % 10 == 1 {
+			self.animations.update();
+		}
+		match self.dir {
+			Direction::Up | Direction::Right => self.animations.changeAnimation(0),
+			_ => self.animations.changeAnimation(1),
+		};
 	}
 	fn needsExecution(&self) -> bool {true}
 	fn tick(&mut self) {}
