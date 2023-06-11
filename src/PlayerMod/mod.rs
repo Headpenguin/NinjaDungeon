@@ -125,6 +125,7 @@ pub struct Player<'a> {
 	abyss: u16,
 	burn: u16,
 	respawn: Vector,
+	elevated: u8,
 }
 #[derive(Debug)]
 pub struct PlayerData {
@@ -157,7 +158,7 @@ impl PlayerData {
 				CollisionType::Hit(dmg) => {
 					self.dmg = dmg;
 				}
-				CollisionType::Abyss => {
+				CollisionType::Abyss if player.elevated == 0 => {
 					let (x, y) = tmp.center().into();
 					if ((x / 50) as u16, (y / 50) as u16) == location {
 						self.abyss = true;
@@ -165,7 +166,7 @@ impl PlayerData {
 						self.nextPos = Vector::from(<Point as Into<(i32, i32)>>::into(tmp.top_left())) - Vector(2f32, 2f32);
 					}
 				}
-				CollisionType::Burn => {
+				CollisionType::Burn if player.elevated == 0 => {
 					let (x, y) = tmp.center().into();
 					if ((x / 50) as u16, (y / 50) as u16) == location {
 						self.burn = true;
@@ -238,7 +239,7 @@ impl PlayerData {
 
 impl<'a> Player<'a> {
     pub fn new(creator: &'a TextureCreator<WindowContext>, positionX: f32, positionY: f32) -> io::Result<BoxCode<'a>> {
-        let (direction, velocity, position, timer, idle, attackTimer, attacking, health, iframes, hitSwitchLastFrame, keys, abyss, respawn, burn) = (
+        let (direction, velocity, position, timer, idle, attackTimer, attacking, health, iframes, hitSwitchLastFrame, keys, abyss, respawn, burn, elevated) = (
             Direction::Down, 
             Vector(0f32, 0f32), 
             Vector(positionX, positionY),
@@ -253,6 +254,7 @@ impl<'a> Player<'a> {
 			0,
 			Vector(0f32, 0f32),
 			0,
+			0,
         );
 		let animations = Animations::new("Resources/Images/Ninja.anim", NAMES, creator)?;
 		let sword = Sprites::new(creator, SWORD_FRAMES)?;
@@ -263,7 +265,7 @@ impl<'a> Player<'a> {
         Ok(
 			BoxCode::Player(
 				Entity::new(
-					Player {id: TypedID::new(ID::empty()), animations, direction, velocity, position, timer, idle, hitbox, renderPosition, attackTimer, sword, attacking, health, iframes, healthSprites, hitSwitchLastFrame, keys, abyss, respawn, burn},
+					Player {id: TypedID::new(ID::empty()), animations, direction, velocity, position, timer, idle, hitbox, renderPosition, attackTimer, sword, attacking, health, iframes, healthSprites, hitSwitchLastFrame, keys, abyss, respawn, burn, elevated},
 					PlayerData {
 						keys,
 						nextPos: position,
@@ -300,6 +302,7 @@ impl<'a> Player<'a> {
 					abyss: 0,
 					respawn: Vector(0f32, 0f32),
 					burn: 0,
+					elevated: 0,
 				},
 				PlayerData {
 					keys: 0,
@@ -426,6 +429,12 @@ impl<'a> Collision for Player<'a> {
 					self.iframes = 90;
 				}
 			},
+			CollisionMsg::Ground(hitbox, dp) => {
+				if hitbox.contains_point(self.hitbox.center()) {
+					self.elevated = 2;
+					self.position += *dp;
+				}
+			}
 		};
 	}
 	fn collideWith(&self, other: ID, po: &PO, key: Key) -> (Option<Envelope<CollisionMsg>>, Key) {
@@ -453,15 +462,21 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 		//data.transition = ctx.getMap().transitionScreen(self.hitbox);
 		data.abyss = false;
 		data.burn = false;
-		if self.abyss > 0 || self.burn > 360 {return key;}
+		if self.abyss > 0 || self.burn > 360 {
+			data.nextPos = Vector(0f32, 0f32);
+			return key;
+		}
 		data.keys = self.keys;
 		data.stopHitSwitch = true;
 		data.dmg = 0;
 		data.nextPos = if self.idle {
 			self.position + self.velocity
 		} else {self.position};
+		let origPosition = self.position;
 		data.doCollision(self, po.getCtx().getMap(), po);
-		data.doEntityCollision(self, po, key)
+		let key = data.doEntityCollision(self, po, key);
+		data.nextPos -= origPosition;
+		key
 	}
 	fn update(&mut self, data: &Self::Data, po: &mut PO) {
 		if data.abyss {
@@ -473,7 +488,7 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 			self.health -= 5;
 			self.animations.changeAnimation(ANIMATION_IDX::NinjaSink as usize);
 		}
-		self.position = data.nextPos;
+		self.position += data.nextPos;
 		self.updatePositionsPO(po);
 		if self.abyss > 0 {
 			self.abyss -= 1;
@@ -496,7 +511,6 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 		}
 		if self.burn > 360 {
 			if self.burn > 363 && self.burn % 7 == 6 {
-				println!("{}", self.burn);
 				self.animations.update();
 			}
 			return;
@@ -505,8 +519,9 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 		if self.burn % 120 == 1 {
 			self.health -= 5;
 		}
-	
 
+		if self.elevated > 0 {self.elevated -= 1;}
+	
 		self.hitSwitchLastFrame = !data.stopHitSwitch;
 
 		if self.iframes == 0 {

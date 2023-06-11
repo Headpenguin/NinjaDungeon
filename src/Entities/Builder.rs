@@ -2,7 +2,7 @@ use sdl2::render::{TextureCreator, Canvas};
 use sdl2::video::{WindowContext, Window};
 use sdl2::rect::Rect;
 
-use super::{Skeleton, Generator, Snake, EntityGenerator};
+use super::{Skeleton, Generator, Snake, Rock, EntityGenerator};
 use crate::{Player, Tile};
 use super::BoxCode;
 use super::Traits::IDRegistration;
@@ -16,6 +16,7 @@ const ENTITY_SPRITES: &'static [&'static str] = &[
     "Resources/Images/Generator.png",
     "Resources/Images/Generator2.png",
 	"Resources/Images/SnakeHead.png",
+	"Resources/Images/WalkingRock_0.png",
 ];
 
 pub struct EntityBuilder {
@@ -95,12 +96,20 @@ impl EntityBuilder {
 					EntityBuilderSignals::GetDirection("Type initial direction for snake to face: ")
 				}
 			},
+			5 => {
+				if self.locations.1 {
+					let locations: Vec<(u16, u16)> = self.locations.0.iter().map(|(_, location)| *location).collect();
+					EntityBuilderSignals::Complete(Rock::new(creator, locations))
+				}
+				else {
+					EntityBuilderSignals::GetTile("Pick next location in path (tile is ignored)")
+				}
+			}
 			MAX_ENTITY_IDX.. => EntityBuilderSignals::InvalidId,
 		}
 	}
     pub fn addTile(&mut self, tile: Tile, location: (u16, u16)) {
-        if location == self.position {self.locations.1 = true;}
-        else {self.locations.0.push((tile, location));}
+        self.locations.0.push((tile, location));
     }
 	pub fn addLinkedID(&mut self, id: ID) {
 		self.linkedIDs.0.push(id);
@@ -126,6 +135,9 @@ impl EntityBuilder {
                 else if !self.linkedIDs.1 {self.linkedIDs.1 = true;}
                 else if !self.inactiveEntities.1 {self.inactiveEntities.1 = true;}
             },
+			5 => {
+				if !self.locations.1 {self.locations.1 = true;}
+			},
 			MAX_ENTITY_IDX.. => unreachable!(),
 		};
 	}
@@ -152,6 +164,7 @@ impl EntityBuilder {
                 genID
             },
 			4 => ctx.addEntityGlobal::<Snake>(entity),
+			5 => ctx.addEntityGlobal::<Rock>(entity),
             MAX_ENTITY_IDX.. => unreachable!(),
 		};
 	}
@@ -178,6 +191,7 @@ impl EntityBuilder {
                 genID
             },
 			4 => ctx.addEntityActiveScreen::<Snake>(entity),
+			5 => ctx.addEntityActiveScreen::<Rock>(entity),
 			MAX_ENTITY_IDX.. => unreachable!(),
 		};
 	}
@@ -206,6 +220,7 @@ impl EntityBuilder {
 				success
             },
 			4 => ctx.getHolderMut().add::<Snake>(entity),
+			5 => ctx.getHolderMut().add::<Rock>(entity),
 			MAX_ENTITY_IDX.. => unreachable!(),
 		}} {Some(ctx.getHolder().getCurrentID())} else {None}
 	}
@@ -243,5 +258,5 @@ impl<'a> EntityRenderer<'a> {
 	}
 }
 
-pub const MAX_ENTITY_IDX: u16 = 4;
+pub const MAX_ENTITY_IDX: u16 = 5;
 

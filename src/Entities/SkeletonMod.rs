@@ -169,6 +169,11 @@ impl<'a> Collision for Skeleton<'a> {
 					self.idle = true;
 				}
 			},
+			CollisionMsg::Ground(hitbox, dp) => {
+				if hitbox.contains_point(self.hitbox.center()) {
+					self.position += *dp;
+				}
+			}
 		}
 	}
 	fn collideWith(&self, other: ID, po: &PO, key: Key) -> (Option<Envelope<CollisionMsg>>, Key) {

@@ -1,6 +1,6 @@
 use std::cell::UnsafeCell;
 
-use crate::{ID, CollisionType};
+use crate::{ID, CollisionType, Vector};
 use crate::Entities::Traits::{EntityTraits, Entity};
 use crate::Entities::Holder;
 use crate::GameContext;
@@ -35,6 +35,7 @@ struct Subscriber;
 
 pub enum CollisionMsg {
 	Damage(i32),
+	Ground(Rect, Vector),
 }
 
 pub struct CounterMsg(pub i32);
