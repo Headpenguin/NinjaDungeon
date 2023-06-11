@@ -15,7 +15,7 @@ pub use SignalsMod::{SignalsBuilder, Signals, Mapping};
 use crate::SpriteLoader::{Animations, Sprites};
 use crate::{Direction, Map, CollisionType, Vector, GameContext, ID};
 use crate::Entities::Traits::{Collision, EntityTraitsWrappable, Entity, Counter, RegisterID};
-use crate::Entities::{BoxCode, RefCode, RefCodeMut, TypedID};
+use crate::Entities::{BoxCode, RefCode, RefCodeMut, TypedID, Rock};
 use crate::EventProcessor::{CollisionMsg, CounterMsg, Envelope, PO, Key};
 use crate::MapMod::{self, Tile};
 
@@ -126,6 +126,8 @@ pub struct Player<'a> {
 	burn: u16,
 	respawn: Vector,
 	elevated: u8,
+	maybeBurn: bool,
+	maybeAbyss: bool,
 }
 #[derive(Debug)]
 pub struct PlayerData {
@@ -230,7 +232,9 @@ impl PlayerData {
 			let res = entity.collideWith(player.id.getID(), po, key);
 			key = res.1;
 			if let Some(msg) = res.0 {
-				po.sendCollisionMsg(msg);
+				if let None = po.getCtx().getHolder().getTyped(TypedID::<Rock>::new(msg.getSender())) {
+					po.sendCollisionMsg(msg);
+				}
 			}
 		}
 		key
@@ -239,7 +243,7 @@ impl PlayerData {
 
 impl<'a> Player<'a> {
     pub fn new(creator: &'a TextureCreator<WindowContext>, positionX: f32, positionY: f32) -> io::Result<BoxCode<'a>> {
-        let (direction, velocity, position, timer, idle, attackTimer, attacking, health, iframes, hitSwitchLastFrame, keys, abyss, respawn, burn, elevated) = (
+        let (direction, velocity, position, timer, idle, attackTimer, attacking, health, iframes, hitSwitchLastFrame, keys, abyss, respawn, burn, elevated, maybeBurn, maybeAbyss) = (
             Direction::Down, 
             Vector(0f32, 0f32), 
             Vector(positionX, positionY),
@@ -255,6 +259,8 @@ impl<'a> Player<'a> {
 			Vector(0f32, 0f32),
 			0,
 			0,
+			false, 
+			false,
         );
 		let animations = Animations::new("Resources/Images/Ninja.anim", NAMES, creator)?;
 		let sword = Sprites::new(creator, SWORD_FRAMES)?;
@@ -265,7 +271,7 @@ impl<'a> Player<'a> {
         Ok(
 			BoxCode::Player(
 				Entity::new(
-					Player {id: TypedID::new(ID::empty()), animations, direction, velocity, position, timer, idle, hitbox, renderPosition, attackTimer, sword, attacking, health, iframes, healthSprites, hitSwitchLastFrame, keys, abyss, respawn, burn, elevated},
+					Player {id: TypedID::new(ID::empty()), animations, direction, velocity, position, timer, idle, hitbox, renderPosition, attackTimer, sword, attacking, health, iframes, healthSprites, hitSwitchLastFrame, keys, abyss, respawn, burn, elevated, maybeAbyss, maybeBurn},
 					PlayerData {
 						keys,
 						nextPos: position,
@@ -303,6 +309,8 @@ impl<'a> Player<'a> {
 					respawn: Vector(0f32, 0f32),
 					burn: 0,
 					elevated: 0,
+					maybeAbyss: false,
+					maybeBurn: false,
 				},
 				PlayerData {
 					keys: 0,
@@ -479,11 +487,11 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 		key
 	}
 	fn update(&mut self, data: &Self::Data, po: &mut PO) {
-		if data.abyss {
+		if data.abyss && self.maybeAbyss {
 			self.abyss = 31;
 			self.health -= 5;
 		}
-		if data.burn {
+		if data.burn && self.maybeBurn {
 			self.burn = 391;
 			self.health -= 5;
 			self.animations.changeAnimation(ANIMATION_IDX::NinjaSink as usize);
@@ -518,6 +526,12 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 
 		if self.burn % 120 == 1 {
 			self.health -= 5;
+		}
+		if data.abyss {
+			self.maybeAbyss = true;
+		}
+		if data.burn {
+			self.maybeBurn = true;
 		}
 
 		if self.elevated > 0 {self.elevated -= 1;}
