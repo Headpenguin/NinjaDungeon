@@ -2,8 +2,8 @@ use sdl2::render::{TextureCreator, Canvas};
 use sdl2::video::{WindowContext, Window};
 use sdl2::rect::Rect;
 
-use super::{Skeleton, Generator, Snake, Rock, EntityGenerator};
-use crate::{Player, Tile};
+use super::{Skeleton, Generator, Snake, Rock, Cannon, EntityGenerator};
+use crate::{Player, Tile, Vector};
 use super::BoxCode;
 use super::Traits::IDRegistration;
 use crate::SpriteLoader::Sprites;
@@ -17,6 +17,7 @@ const ENTITY_SPRITES: &'static [&'static str] = &[
     "Resources/Images/Generator2.png",
 	"Resources/Images/SnakeHead.png",
 	"Resources/Images/WalkingRock_0.png",
+	"Resources/Images/CannonWalk_0.png",
 ];
 
 pub struct EntityBuilder {
@@ -104,7 +105,10 @@ impl EntityBuilder {
 				else {
 					EntityBuilderSignals::GetTile("Pick next location in path (tile is ignored)")
 				}
-			}
+			},
+			6 => {
+				EntityBuilderSignals::Complete(Cannon::new(creator, Vector(self.position.0 as f32 * 50f32, self.position.1 as f32 * 50f32)))
+			},
 			MAX_ENTITY_IDX.. => EntityBuilderSignals::InvalidId,
 		}
 	}
@@ -125,7 +129,7 @@ impl EntityBuilder {
 	}
 	pub fn endList(&mut self) {
 		match self.id {
-			0..=1 | 4 => (),
+			0..=1 | 4 | 6 => (),
 			2 => {
 				if !self.locations.1 {self.locations.1 = true;}
 				else if !self.linkedIDs.1 {self.linkedIDs.1 = true;}
@@ -165,6 +169,7 @@ impl EntityBuilder {
             },
 			4 => ctx.addEntityGlobal::<Snake>(entity),
 			5 => ctx.addEntityGlobal::<Rock>(entity),
+			6 => ctx.addEntityGlobal::<Cannon>(entity),
             MAX_ENTITY_IDX.. => unreachable!(),
 		};
 	}
@@ -192,6 +197,7 @@ impl EntityBuilder {
             },
 			4 => ctx.addEntityActiveScreen::<Snake>(entity),
 			5 => ctx.addEntityActiveScreen::<Rock>(entity),
+			6 => ctx.addEntityActiveScreen::<Cannon>(entity),
 			MAX_ENTITY_IDX.. => unreachable!(),
 		};
 	}
@@ -221,6 +227,7 @@ impl EntityBuilder {
             },
 			4 => ctx.getHolderMut().add::<Snake>(entity),
 			5 => ctx.getHolderMut().add::<Rock>(entity),
+			6 => ctx.getHolderMut().add::<Cannon>(entity),
 			MAX_ENTITY_IDX.. => unreachable!(),
 		}} {Some(ctx.getHolder().getCurrentID())} else {None}
 	}
@@ -258,5 +265,5 @@ impl<'a> EntityRenderer<'a> {
 	}
 }
 
-pub const MAX_ENTITY_IDX: u16 = 5;
+pub const MAX_ENTITY_IDX: u16 = 6;
 

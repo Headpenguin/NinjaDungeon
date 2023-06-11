@@ -429,6 +429,9 @@ impl<'a> Player<'a> {
 	pub fn getPosition(&self) -> Vector {
 		self.position
 	}
+	pub fn getCenter(&self) -> Vector {
+		Vector::from(<Point as Into<(i32, i32)>>::into(self.hitbox.center()))
+	}
 }
 
 impl<'a> Collision for Player<'a> {

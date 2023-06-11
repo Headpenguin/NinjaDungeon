@@ -9,7 +9,7 @@ use std::io;
 use super::Traits::{Collision, EntityTraitsWrappable, Entity, Counter, RegisterID};
 use super::{BoxCode, RefCode, RefCodeMut, TypedID};
 use crate::SpriteLoader::Animations;
-use crate::{GameContext, Vector, ID, Direction};
+use crate::{Vector, ID, Direction};
 use crate::EventProcessor::{CollisionMsg, Envelope, PO, Key};
 use crate::CollisionType;
 use crate::MapMod;
