@@ -76,3 +76,10 @@ Abyss:
 	"Resources/Images/Abyss.png"
 ;
 
+SnakeBossBody:
+	"Resources/Images/SnakeBossBodyTile.png"
+;
+
+SnakeKill:
+	"Resources/Images/SnakeDeathTile.png"
+;

@@ -11,6 +11,7 @@ pub mod SnakeMod;
 pub mod Common;
 pub mod RockMod;
 pub mod CannonMod;
+pub mod SnakeBossMod;
 mod Builder;
 
 
@@ -21,12 +22,14 @@ pub use GeneratorMod::{EntityGenerator, Generator};
 pub use SnakeMod::Snake;
 pub use RockMod::Rock;
 pub use CannonMod::Cannon;
+pub use SnakeBossMod::SnakeBoss;
 
 use SkeletonMod::InnerSkeleton;
 use GeneratorMod::{InnerGenerator, InnerEntityGenerator};
 use SnakeMod::InnerSnake;
 use RockMod::InnerRock;
 use CannonMod::InnerCannon;
+use SnakeBossMod::InnerSnakeBoss;
 
 use Traits::{Entity, EntityDyn, EntityTraits, EntityTraitsWrappable};
 use std::collections::HashMap;
@@ -69,6 +72,7 @@ pub enum BoxCode<'a> {
 	Snake(Entity<'a, Snake<'a>>),
 	Rock(Entity<'a, Rock<'a>>),
 	Cannon(Entity<'a, Cannon<'a>>),
+	SnakeBoss(Entity<'a, SnakeBoss<'a>>),
 }
 
 pub enum RefCodeMut<'a, 'b> {
@@ -79,6 +83,7 @@ pub enum RefCodeMut<'a, 'b> {
 	Snake(&'b mut Entity<'a, Snake<'a>>),
 	Rock(&'b mut Entity<'a, Rock<'a>>),
 	Cannon(&'b mut Entity<'a, Cannon<'a>>),
+	SnakeBoss(&'b mut Entity<'a, SnakeBoss<'a>>),
 }
 
 pub enum RefCode<'a, 'b> {
@@ -89,6 +94,7 @@ pub enum RefCode<'a, 'b> {
 	Snake(&'b Entity<'a, Snake<'a>>),
 	Rock(&'b Entity<'a, Rock<'a>>),
 	Cannon(&'b Entity<'a, Cannon<'a>>),
+	SnakeBoss(&'b Entity<'a, SnakeBoss<'a>>),
 }
 
 impl<'a, 'b> RefCode<'a, 'b> {
@@ -101,6 +107,7 @@ impl<'a, 'b> RefCode<'a, 'b> {
 			RefCode::Snake(e) => e.collidesStatic(hitbox),
 			RefCode::Rock(e) => e.collidesStatic(hitbox),
 			RefCode::Cannon(e) => e.collidesStatic(hitbox),
+			RefCode::SnakeBoss(e) => e.collidesStatic(hitbox),
 		}
 	}
 }
@@ -115,6 +122,7 @@ impl<'a> BoxCode<'a> {
 			BoxCode::Snake(ref mut e) => RefCodeMut::Snake(e),
 			BoxCode::Rock(ref mut e) => RefCodeMut::Rock(e),
 			BoxCode::Cannon(ref mut e) => RefCodeMut::Cannon(e),
+			BoxCode::SnakeBoss(ref mut e) => RefCodeMut::SnakeBoss(e),
 		}
 	}
 	pub fn refcode<'b>(&'b self) -> RefCode<'a, 'b> {
@@ -126,6 +134,7 @@ impl<'a> BoxCode<'a> {
 			BoxCode::Snake(ref e) => RefCode::Snake(e),
 			BoxCode::Rock(ref e) => RefCode::Rock(e),
 			BoxCode::Cannon(ref e) => RefCode::Cannon(e),
+			BoxCode::SnakeBoss(ref e) => RefCode::SnakeBoss(e),
 		}
 	}
 }
@@ -141,6 +150,7 @@ impl<'a> Deref for BoxCode<'a> {
 			Self::Snake(e) => e as &Entity<Snake> as &dyn EntityDyn,
 			Self::Rock(e) => e as &Entity<Rock> as &dyn EntityDyn,
 			Self::Cannon(e) => e as &Entity<Cannon> as &dyn EntityDyn,
+			Self::SnakeBoss(e) => e as &Entity<SnakeBoss> as &dyn EntityDyn,
 		}
 	}
 }
@@ -154,6 +164,7 @@ impl<'a> DerefMut for BoxCode<'a> {
 			Self::Snake(e) => e as &mut Entity<Snake> as &mut (dyn EntityDyn + 'a),
 			Self::Rock(e) => e as &mut Entity<Rock> as &mut (dyn EntityDyn + 'a),
 			Self::Cannon(e) => e as &mut Entity<Cannon> as &mut (dyn EntityDyn + 'a),
+			Self::SnakeBoss(e) => e as &mut Entity<SnakeBoss> as &mut (dyn EntityDyn + 'a),
 		}
 	}
 }
@@ -167,6 +178,7 @@ pub enum InnerCode {
 	Snake(InnerSnake),
 	Rock(InnerRock),
 	Cannon(InnerCannon),
+	SnakeBoss(InnerSnakeBoss),
 }
 
 impl InnerCode {
@@ -179,6 +191,7 @@ impl InnerCode {
 			InnerCode::Snake(e) => Snake::fromInner(e, creator),
 			InnerCode::Rock(e) => Rock::fromInner(e, creator),
 			InnerCode::Cannon(e) => Cannon::fromInner(e, creator),
+			InnerCode::SnakeBoss(e) => SnakeBoss::fromInner(e, creator),
 		}
 	}
 	pub fn fromBoxCode(code: &BoxCode) -> InnerCode {
@@ -190,6 +203,7 @@ impl InnerCode {
 			BoxCode::Snake(e) => InnerCode::Snake(InnerSnake::fromSnake(e)),
 			BoxCode::Rock(e) => InnerCode::Rock(InnerRock::fromRock(e)),
 			BoxCode::Cannon(e) => InnerCode::Cannon(InnerCannon::fromCannon(e)),
+			BoxCode::SnakeBoss(e) => InnerCode::SnakeBoss(InnerSnakeBoss::fromSnakeBoss(e)),
 		}
 	}
 }

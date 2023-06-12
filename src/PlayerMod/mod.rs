@@ -15,7 +15,7 @@ pub use SignalsMod::{SignalsBuilder, Signals, Mapping};
 use crate::SpriteLoader::{Animations, Sprites};
 use crate::{Direction, Map, CollisionType, Vector, GameContext, ID};
 use crate::Entities::Traits::{Collision, EntityTraitsWrappable, Entity, Counter, RegisterID};
-use crate::Entities::{BoxCode, RefCode, RefCodeMut, TypedID, Rock};
+use crate::Entities::{BoxCode, RefCode, RefCodeMut, TypedID, Rock, SnakeBoss};
 use crate::EventProcessor::{CollisionMsg, CounterMsg, Envelope, PO, Key};
 use crate::MapMod::{self, Tile};
 
@@ -128,6 +128,7 @@ pub struct Player<'a> {
 	elevated: u8,
 	maybeBurn: bool,
 	maybeAbyss: bool,
+	snakeBoss: Option<ID>,
 }
 #[derive(Debug)]
 pub struct PlayerData {
@@ -236,13 +237,21 @@ impl PlayerData {
 				}
 			}
 		}
+
+		if let Some(boss) = player.snakeBoss {
+			let snakeBoss = po.getCtx().getHolder().getTyped(TypedID::<SnakeBoss>::new(boss)).unwrap();
+			if snakeBoss.collides(self.nextPos + Vector(25f32, 25f32)) {
+				po.sendCollisionMsg(Envelope::new(CollisionMsg::Damage(20), player.id.getID(), boss));
+			}
+		}
+
 		key
 	}
 }
 
 impl<'a> Player<'a> {
     pub fn new(creator: &'a TextureCreator<WindowContext>, positionX: f32, positionY: f32) -> io::Result<BoxCode<'a>> {
-        let (direction, velocity, position, timer, idle, attackTimer, attacking, health, iframes, hitSwitchLastFrame, keys, abyss, respawn, burn, elevated, maybeBurn, maybeAbyss) = (
+        let (direction, velocity, position, timer, idle, attackTimer, attacking, health, iframes, hitSwitchLastFrame, keys, abyss, respawn, burn, elevated, maybeBurn, maybeAbyss, snakeBoss) = (
             Direction::Down, 
             Vector(0f32, 0f32), 
             Vector(positionX, positionY),
@@ -260,6 +269,7 @@ impl<'a> Player<'a> {
 			0,
 			false, 
 			false,
+			None,
         );
 		let animations = Animations::new("Resources/Images/Ninja.anim", NAMES, creator)?;
 		let sword = Sprites::new(creator, SWORD_FRAMES)?;
@@ -270,7 +280,7 @@ impl<'a> Player<'a> {
         Ok(
 			BoxCode::Player(
 				Entity::new(
-					Player {id: TypedID::new(ID::empty()), animations, direction, velocity, position, timer, idle, hitbox, renderPosition, attackTimer, sword, attacking, health, iframes, healthSprites, hitSwitchLastFrame, keys, abyss, respawn, burn, elevated, maybeAbyss, maybeBurn},
+					Player {id: TypedID::new(ID::empty()), animations, direction, velocity, position, timer, idle, hitbox, renderPosition, attackTimer, sword, attacking, health, iframes, healthSprites, hitSwitchLastFrame, keys, abyss, respawn, burn, elevated, maybeAbyss, maybeBurn, snakeBoss},
 					PlayerData {
 						keys,
 						nextPos: position,
@@ -310,6 +320,7 @@ impl<'a> Player<'a> {
 					elevated: 0,
 					maybeAbyss: false,
 					maybeBurn: false,
+					snakeBoss: None,
 				},
 				PlayerData {
 					keys: 0,
@@ -431,6 +442,15 @@ impl<'a> Player<'a> {
 	}
 	pub fn getCenter(&self) -> Vector {
 		Vector::from(<Point as Into<(i32, i32)>>::into(self.hitbox.center()))
+	}
+	pub fn informSnakeBoss(&mut self, id: ID) {
+		self.snakeBoss = Some(id);
+	}
+	pub fn informSnakeBossDeath(&mut self) {
+		self.snakeBoss = None;
+	}
+	pub fn isActivateSnakeBoss(&self) -> bool {
+		self.position.1 <= 500f32
 	}
 }
 

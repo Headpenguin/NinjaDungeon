@@ -23,6 +23,8 @@ enum Commands {
 	PlaceTile(Tile, (u16, u16)),
 	PlaceTiles(Tile, (u16, u16), (u16, u16)),
     ActivateEntity(ID, bool),
+	InformPlayerSnakeBoss(ID),
+	InformPlayerSnakeBossDeath,
 }
 
 pub struct PO<'a> {
@@ -110,6 +112,12 @@ impl<'a> PO<'a> {
     pub fn activateEntity(&self, entity: ID, global: bool) {
         unsafe {&mut *self.commands.get()}.push(Commands::ActivateEntity(entity, global));
     }
+	pub fn informPlayerSnakeBoss(&self, id: ID) {
+		unsafe {&mut *self.commands.get()}.push(Commands::InformPlayerSnakeBoss(id));
+	}
+	pub fn informPlayerSnakeBossDeath(&self) {
+		unsafe {&mut *self.commands.get()}.push(Commands::InformPlayerSnakeBossDeath);
+	}
 	pub fn updatePosition(&mut self, id: ID, hitbox: Rect, prevHitbox: Rect) {
 		self.ctx.updatePosition(id, hitbox, prevHitbox);
 	}
@@ -138,6 +146,12 @@ impl<'a> PO<'a> {
                         self.ctx.activateEntityActiveScreen(entity);
                     }
                 }
+				Commands::InformPlayerSnakeBoss(id) => {
+					self.ctx.getPlayerMut().informSnakeBoss(id);
+				}
+				Commands::InformPlayerSnakeBossDeath => {
+					self.ctx.getPlayerMut().informSnakeBossDeath();
+				}
 			}
 		}
 	}

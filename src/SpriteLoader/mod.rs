@@ -239,5 +239,8 @@ impl<'a> Sprite<'a> {
             canvas.copy_ex(&self.0, None, quad, 0f64, None, flipHorizontal, flipVertical);
         }
     }
+	pub fn drawRot(&self, canvas: &mut Canvas<Window>, quad: Rect, rot: f64) {
+		canvas.copy_ex(&self.0, None, quad, rot, None, false, false);
+	}
 }
 
