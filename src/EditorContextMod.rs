@@ -140,7 +140,6 @@ impl EditorContext {
 							self.state.pop();
 							if let Some(State::AttemptBuildEntity(ref mut builder)) = self.state.last_mut() {
 								builder.addLinkedID(id);
-								println!("{:?}", id);
 							}
 							else if let Some(State::AttemptBuild(ref mut builder)) = self.state.last_mut() {
 								builder.addGenerator(id);

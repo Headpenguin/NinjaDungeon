@@ -83,6 +83,7 @@ pub enum CollisionType {
 	SnakeKill,
 	SwitchImmune,
 	Health,
+	TriggerGen(ID),
 	OOB, //Represent tiles with oob coordinates
 }
 
@@ -102,6 +103,7 @@ pub const COLLISION_NAMES: &'static [&'static str] = &[
 	"SnakeKill",
 	"SwitchImmune",
 	"Health",
+	"TriggerGen",
     "OOB",
 ];
 
@@ -177,6 +179,14 @@ impl TileBuilder {
 			12 => {TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::SnakeKill), self.pos)},
 			13 => {TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::SwitchImmune), self.pos)},
 			14 => {TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::Health), self.pos)},
+			15 => {
+				if let Some(entity) = self.entity {
+					TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::TriggerGen(entity)), self.pos)
+				}
+				else {
+					TileBuilderSignals::GetEntity("Pick generator")
+				}
+			},
             _ => TileBuilderSignals::InvalidId,
         }
 	}

@@ -186,6 +186,9 @@ impl PlayerData {
 					self.dmg += 25;
 					po.spawnTile(Tile::default(), location);
 				},
+				CollisionType::TriggerGen(id) => {
+					po.sendCounterMsg(Envelope::new(CounterMsg(i32::MIN), id, player.id.getID()));
+				},
 				_ => (),
 			}
 		}

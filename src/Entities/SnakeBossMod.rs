@@ -193,13 +193,14 @@ impl<'a> EntityTraitsWrappable<'a> for SnakeBoss<'a> {
 		let (x, y): (i32, i32) = ((self.getPos(self.angleStart + 0.45) + SCREEN_CENTER) / 50.0).into();
 		for x in (x-1)..=(x+1) {
 			for y in (y-1)..=(y+1) {
-				match po.getCtx().getMap().getScreen(po.getCtx().getMap().getActiveScreenId()).unwrap().getTile((x as u16, y as u16)).getCollisionType() {
+				let tile = po.getCtx().getMap().getScreen(po.getCtx().getMap().getActiveScreenId()).unwrap().getTile((x as u16, y as u16));
+				match tile.getCollisionType() {
 					CollisionType::SnakeKill => { 
 						self.die(po);
 						return;
 					},
-					CollisionType::None => {
-						po.spawnTile(Tile::new(19, CollisionType::None), (x as u16, y as u16));
+					collision if tile.getId() == 0 => {
+						 po.spawnTile(Tile::new(19, collision), (x as u16, y as u16));
 					},
 					_ => (),
 				};
@@ -210,13 +211,14 @@ impl<'a> EntityTraitsWrappable<'a> for SnakeBoss<'a> {
 		
 		for x in (x-1)..=(x+1) {
 			for y in (y-1)..=(y+1) {
-				match po.getCtx().getMap().getScreen(po.getCtx().getMap().getActiveScreenId()).unwrap().getTile((x as u16, y as u16)).getCollisionType() {
+				let tile = po.getCtx().getMap().getScreen(po.getCtx().getMap().getActiveScreenId()).unwrap().getTile((x as u16, y as u16));
+				match tile.getCollisionType() {
 					CollisionType::SnakeKill => { 
 						self.die(po);
 						return;
 					},
-					CollisionType::None => {
-						po.spawnTile(Tile::new(0, CollisionType::None), (x as u16, y as u16));
+					collision if tile.getId() == 19 => {
+						po.spawnTile(Tile::new(0, collision), (x as u16, y as u16));
 					},
 					_ => (),
 				};
