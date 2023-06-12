@@ -1,6 +1,6 @@
 extern crate sdl2;
 
-use sdl2::rect::Rect;
+use sdl2::rect::{Rect, Point};
 use sdl2::render::{Canvas, Texture, TextureCreator};
 use sdl2::image::LoadTexture;
 use sdl2::video::{WindowContext, Window};
@@ -239,8 +239,8 @@ impl<'a> Sprite<'a> {
             canvas.copy_ex(&self.0, None, quad, 0f64, None, flipHorizontal, flipVertical);
         }
     }
-	pub fn drawRot(&self, canvas: &mut Canvas<Window>, quad: Rect, rot: f64) {
-		canvas.copy_ex(&self.0, None, quad, rot, None, false, false);
+	pub fn drawRot(&self, canvas: &mut Canvas<Window>, quad: Rect, rot: f64, center: Point) {
+		canvas.copy_ex(&self.0, None, quad, rot, Some(center), false, false);
 	}
 }
 

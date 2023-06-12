@@ -104,7 +104,6 @@ impl<'a> SnakeBoss<'a> {
 		if angle < 0.0 {
 			angle += consts::PI * 2.0;
 		}
-//		if angle < 0.1 {println!("{:?}", angle);}
 		let (_, mut angleStart) = self.calcDrawInfo(self.angleStart);
 		let (_, mut angleEnd) = self.calcDrawInfo(self.angleEnd);
 		angleStart += consts::PI / 2.0;
@@ -220,12 +219,16 @@ impl<'a> EntityTraitsWrappable<'a> for SnakeBoss<'a> {
 	fn needsExecution(&self) -> bool {true}
 	fn tick(&mut self) {}
 	fn draw(&self, canvas: &mut Canvas<Window>) {
-		let (render, mut angle) = self.calcDrawInfo(self.angleStart);
+		let (mut render, mut angle) = self.calcDrawInfo(self.angleStart);
 		angle *= 180.0 / consts::PI;
-		self.sprites.getSprite(0).drawRot(canvas, render, angle as f64);
-		let (render, mut angle) = self.calcDrawInfo(self.angleEnd);
+        let center = render.center();
+        render.resize(100, 100);
+		self.sprites.getSprite(0).drawRot(canvas, render, angle as f64, center);
+		let (mut render, mut angle) = self.calcDrawInfo(self.angleEnd);
 		angle *= 180.0 / consts::PI;
-		self.sprites.getSprite(1).drawRot(canvas, render, angle as f64);
+        let center = render.center();
+        render.resize(100, 100);
+		self.sprites.getSprite(1).drawRot(canvas, render, angle as f64, center);
 	}
 	fn setID(&mut self, id: TypedID<'a, Self>) {self.id = id;}
 }
