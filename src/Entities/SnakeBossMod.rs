@@ -1,6 +1,6 @@
 use sdl2::render::{TextureCreator, Canvas};
 use sdl2::video::{Window, WindowContext};
-use sdl2::rect::Rect;
+use sdl2::rect::{Rect, Point};
 
 use serde::{Serialize, Deserialize};
 
@@ -201,7 +201,7 @@ impl<'a> EntityTraitsWrappable<'a> for SnakeBoss<'a> {
 			}
 		}
 		
-		let (x, y): (i32, i32) = ((self.getPos(self.angleEnd + 0.3) + SCREEN_CENTER) / 50.0).into();
+		let (x, y): (i32, i32) = ((self.getPos(self.angleEnd + 0.1) + SCREEN_CENTER) / 50.0).into();
 		
 		for x in (x-1)..=(x+1) {
 			for y in (y-1)..=(y+1) {
@@ -221,14 +221,14 @@ impl<'a> EntityTraitsWrappable<'a> for SnakeBoss<'a> {
 	fn draw(&self, canvas: &mut Canvas<Window>) {
 		let (mut render, mut angle) = self.calcDrawInfo(self.angleStart);
 		angle *= 180.0 / consts::PI;
-        let center = render.center();
-        render.resize(100, 100);
-		self.sprites.getSprite(0).drawRot(canvas, render, angle as f64, center);
+        //let center = render.center();
+        render.resize(100, 250);
+		self.sprites.getSprite(0).drawRot(canvas, render, angle as f64, Point::new(25, 125));
 		let (mut render, mut angle) = self.calcDrawInfo(self.angleEnd);
 		angle *= 180.0 / consts::PI;
-        let center = render.center();
-        render.resize(100, 100);
-		self.sprites.getSprite(1).drawRot(canvas, render, angle as f64, center);
+        //let center = render.center();
+        render.resize(100, 250);
+		self.sprites.getSprite(1).drawRot(canvas, render, angle as f64, Point::new(75, 125));
 	}
 	fn setID(&mut self, id: TypedID<'a, Self>) {self.id = id;}
 }
