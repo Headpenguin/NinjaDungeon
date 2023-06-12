@@ -82,6 +82,7 @@ pub enum CollisionType {
 	Abyss,
 	SnakeKill,
 	SwitchImmune,
+	Health,
 	OOB, //Represent tiles with oob coordinates
 }
 
@@ -100,6 +101,7 @@ pub const COLLISION_NAMES: &'static [&'static str] = &[
 	"Abyss",
 	"SnakeKill",
 	"SwitchImmune",
+	"Health",
     "OOB",
 ];
 
@@ -174,6 +176,7 @@ impl TileBuilder {
 			11 => {TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::Abyss), self.pos)},
 			12 => {TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::SnakeKill), self.pos)},
 			13 => {TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::SwitchImmune), self.pos)},
+			14 => {TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::Health), self.pos)},
             _ => TileBuilderSignals::InvalidId,
         }
 	}
@@ -276,5 +279,5 @@ pub fn spawnTiles(tile: Tile, location: (u16, u16), locationEnd: (u16, u16), map
     }
 }
 
-pub const MAX_TILE_IDX: u16 = 20;
+pub const MAX_TILE_IDX: u16 = 21;
 

@@ -83,3 +83,7 @@ SnakeBossBody:
 SnakeKill:
 	"Resources/Images/SnakeDeathTile.png"
 ;
+
+Heart:
+	"Resources/Images/Heart.png"
+;

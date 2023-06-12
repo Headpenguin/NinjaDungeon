@@ -159,7 +159,7 @@ impl PlayerData {
 					tmp.reposition(self.nextPos + Vector(2f32, 2f32));
 				},
 				CollisionType::Hit(dmg) => {
-					self.dmg = dmg;
+					self.dmg += dmg;
 				}
 				CollisionType::Abyss if player.elevated == 0 => {
 					let (x, y) = tmp.center().into();
@@ -182,6 +182,10 @@ impl PlayerData {
 				}
 				CollisionType::SpawnGate(location) => po.spawnTiles(Tile::gate(), (location.0, location.1), (location.2, location.3)),
 				CollisionType::ClearTiles(location) => po.spawnTiles(Tile::default(), (location.0, location.1), (location.2, location.3)),
+				CollisionType::Health => {
+					self.dmg += 25;
+					po.spawnTile(Tile::default(), location);
+				},
 				_ => (),
 			}
 		}
@@ -577,6 +581,9 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 			self.health += data.dmg;
 			if data.dmg < 0 {
 				self.iframes = 90;
+			}
+			if self.health > 50 {
+				self.health = 50;
 			}
 		}
 
