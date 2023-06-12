@@ -196,9 +196,9 @@ impl PlayerData {
 					CollisionType::SwitchToggleGate(range) => {
                         for x in range.0..=range.2 {
                             for y in range.1..=range.3 {
-                                let spawnedTile = if let CollisionType::Block = map.getScreen(map.getActiveScreenId()).unwrap().getTile((range.0, range.1)).getCollisionType() {Tile::default()}
+                                let spawnedTile = if let CollisionType::Block = map.getScreen(map.getActiveScreenId()).unwrap().getTile((x, y)).getCollisionType() {Tile::default()}
                                 else {Tile::gate()};
-                                po.spawnTiles(spawnedTile, (range.0, range.1), (range.2, range.3));
+                                po.spawnTile(spawnedTile, (x, y));
 
                             }
                         }
