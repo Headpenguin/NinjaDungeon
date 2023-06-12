@@ -81,6 +81,7 @@ pub enum CollisionType {
 	KeyBlock,
 	Abyss,
 	SnakeKill,
+	SwitchImmune,
 	OOB, //Represent tiles with oob coordinates
 }
 
@@ -98,6 +99,7 @@ pub const COLLISION_NAMES: &'static [&'static str] = &[
 	"KeyBlock",
 	"Abyss",
 	"SnakeKill",
+	"SwitchImmune",
     "OOB",
 ];
 
@@ -171,6 +173,7 @@ impl TileBuilder {
 			10 => {TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::KeyBlock), self.pos)},
 			11 => {TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::Abyss), self.pos)},
 			12 => {TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::SnakeKill), self.pos)},
+			13 => {TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::SwitchImmune), self.pos)},
             _ => TileBuilderSignals::InvalidId,
         }
 	}

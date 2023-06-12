@@ -96,7 +96,7 @@ impl<'a> Generator<'a> {
 	}
     fn activate(&mut self, po: &PO) {
 		if self.cnt == 0 {
-			for (tile, location) in self.tiles.drain(..) {
+			for (tile, location) in self.tiles.iter().map(|(t, l)| (t.clone(), *l)) {
 				po.spawnTile(tile, location);
 			}
 		}

@@ -153,7 +153,7 @@ impl PlayerData {
 					po.spawnTile(Tile::default(), location);
 					self.keys -= 1;
 				}
-				CollisionType::Block | CollisionType::SwitchToggleGate(..) | CollisionType::SwitchTriggerGen(..) | CollisionType::KeyBlock => {
+				CollisionType::Block | CollisionType::SwitchToggleGate(..) | CollisionType::SwitchTriggerGen(..) | CollisionType::KeyBlock | CollisionType::SwitchImmune => {
 					let eject = MapMod::blockCollide(location, tmp, map);
 					self.nextPos += eject;
 					tmp.reposition(self.nextPos + Vector(2f32, 2f32));
@@ -196,9 +196,14 @@ impl PlayerData {
 					CollisionType::SwitchToggleGate(range) => {
                         for x in range.0..=range.2 {
                             for y in range.1..=range.3 {
-                                let spawnedTile = if let CollisionType::Block = map.getScreen(map.getActiveScreenId()).unwrap().getTile((x, y)).getCollisionType() {Tile::default()}
-                                else {Tile::gate()};
-                                po.spawnTile(spawnedTile, (x, y));
+                                let spawnedTile = match  map.getScreen(map.getActiveScreenId()).unwrap().getTile((x, y)).getCollisionType() {
+									CollisionType::Block => Some(Tile::default()),
+									CollisionType::SwitchImmune => None, 
+									_ => Some(Tile::gate()),
+								};
+								if let Some(tile) = spawnedTile {
+	                                po.spawnTile(tile, (x, y));
+								}
 
                             }
                         }
