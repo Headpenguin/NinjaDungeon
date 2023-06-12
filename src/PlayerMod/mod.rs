@@ -194,9 +194,14 @@ impl PlayerData {
 					CollisionType::SwitchToggleGate(..) if player.hitSwitchLastFrame => self.stopHitSwitch = false,
 					CollisionType::SwitchTriggerGen(..) if player.hitSwitchLastFrame => self.stopHitSwitch = false,
 					CollisionType::SwitchToggleGate(range) => {
-						let spawnedTile = if let CollisionType::Block = map.getScreen(map.getActiveScreenId()).unwrap().getTile((range.0, range.1)).getCollisionType() {Tile::default()}
-						else {Tile::gate()};
-						po.spawnTiles(spawnedTile, (range.0, range.1), (range.2, range.3));
+                        for x in range.0..=range.2 {
+                            for y in range.1..=range.3 {
+                                let spawnedTile = if let CollisionType::Block = map.getScreen(map.getActiveScreenId()).unwrap().getTile((range.0, range.1)).getCollisionType() {Tile::default()}
+                                else {Tile::gate()};
+                                po.spawnTiles(spawnedTile, (range.0, range.1), (range.2, range.3));
+
+                            }
+                        }
 						let id = match tile.getId() {
 							3 => 4,
 							4 => 3,
