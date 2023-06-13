@@ -97,11 +97,9 @@ impl<'a> Generator<'a> {
     fn activate(&mut self, po: &PO) {
 		if self.cnt == 0 {
 			for (tile, location) in self.tiles.iter().map(|(t, l)| (t.clone(), *l)) {
-				println!("{:?}", (&tile, location));
 				po.spawnTile(tile, location);
 			}
 		}
-		println!("{:?}", self.renderRect);
     }
 }
 
