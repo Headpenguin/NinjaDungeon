@@ -131,6 +131,7 @@ impl<'a> SnakeBoss<'a> {
 		}
 		po.spawnTile(Tile::new(0, CollisionType::None), (10, 5));
 		po.spawnTile(Tile::new(0, CollisionType::None), (10, 7));
+		po.spawnTile(Tile::new(0, CollisionType::None), (7, 7));
 		po.spawnTile(Tile::new(0, CollisionType::Transition(17)), (16, 7));
 		po.spawnTile(Tile::new(0, CollisionType::Transition(17)), (16, 6));
 		po.spawnTile(Tile::new(0, CollisionType::Transition(17)), (16, 8));
