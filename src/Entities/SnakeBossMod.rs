@@ -180,12 +180,12 @@ impl<'a> EntityTraitsWrappable<'a> for SnakeBoss<'a> {
 		}
 		if !self.activated {return;}
 		
-		self.angleStart -= 0.015;
+		self.angleStart -= 0.01;
 		if self.angleStart <= 0f32 {
 			self.angleStart += consts::PI * 2.0;
 		}
 		
-		self.angleEnd -= 0.015;
+		self.angleEnd -= 0.01;
 		if self.angleEnd <= 0f32 {
 			self.angleEnd += consts::PI * 2.0;
 		}
@@ -213,10 +213,6 @@ impl<'a> EntityTraitsWrappable<'a> for SnakeBoss<'a> {
 			for y in (y-1)..=(y+1) {
 				let tile = po.getCtx().getMap().getScreen(po.getCtx().getMap().getActiveScreenId()).unwrap().getTile((x as u16, y as u16));
 				match tile.getCollisionType() {
-					CollisionType::SnakeKill => { 
-						self.die(po);
-						return;
-					},
 					collision if tile.getId() == 19 => {
 						po.spawnTile(Tile::new(0, collision), (x as u16, y as u16));
 					},

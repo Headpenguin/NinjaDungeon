@@ -223,14 +223,14 @@ impl PlayerData {
 						self.stopHitSwitch = false;
 					},
 					CollisionType::SwitchTriggerGen(id) => {
-						po.sendCounterMsg(Envelope::new(CounterMsg(i32::MIN), id, player.id.getID()));
-						let id = match tile.getId() {
+						let tileId = match tile.getId() {
 							3 => 4,
 							4 => 3,
 							_ => tile.getId(),
 						};
-						po.spawnTile(Tile::new(id, tile.getCollisionType()), location);
+						po.spawnTile(Tile::new(tileId, tile.getCollisionType()), location);
 						self.stopHitSwitch = false;
+						po.sendCounterMsg(Envelope::new(CounterMsg(i32::MIN), id, player.id.getID()));
 					}
 					_ => (),
 				}
