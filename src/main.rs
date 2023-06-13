@@ -21,7 +21,7 @@ fn main()
 
 	let (mut manager, creator) = GameManager::initialize(NAME, WIDTH, HEIGHT, COLOR);
 	
-	let ctx = loadCtx("Resources/Map1.mp", &creator).unwrap();
+	let ctx = loadCtx("Resources/Map2.mp", &creator).unwrap();
 
 	let mut po = UnsafeCell::new(PO::new(ctx));
 

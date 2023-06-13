@@ -165,15 +165,19 @@ impl PlayerData {
 					let (x, y) = tmp.center().into();
 					if ((x / 50) as u16, (y / 50) as u16) == location {
 						self.abyss = true;
-						tmp.reposition((location.0 as i32 * 50 + 2, location.1 as i32 * 50 + 2));
-						self.nextPos = Vector::from(<Point as Into<(i32, i32)>>::into(tmp.top_left())) - Vector(2f32, 2f32);
+                        if player.elevated == 0 {
+    						tmp.reposition((location.0 as i32 * 50 + 2, location.1 as i32 * 50 + 2));
+                            self.nextPos = Vector::from(<Point as Into<(i32, i32)>>::into(tmp.top_left())) - Vector(2f32, 2f32);
+                        }
 					}
 				}
-				CollisionType::Burn if player.elevated == 0 => {
+				CollisionType::Burn => {
 					if Rect::new(location.0 as i32 * 50, location.1 as i32 * 50, 50, 50).contains_point(tmp.center()) {
 						self.burn = true;
-						tmp.reposition((location.0 as i32 * 50 + 2, location.1 as i32 * 50 + 2));
-						self.nextPos = Vector::from(<Point as Into<(i32, i32)>>::into(tmp.top_left())) - Vector(2f32, 2f32);
+                        if player.elevated == 0 {
+    						tmp.reposition((location.0 as i32 * 50 + 2, location.1 as i32 * 50 + 2));
+                            self.nextPos = Vector::from(<Point as Into<(i32, i32)>>::into(tmp.top_left())) - Vector(2f32, 2f32);
+                        }
 					}
 				}
 				CollisionType::Key => {
@@ -481,10 +485,14 @@ impl<'a> Collision for Player<'a> {
 				}
 			},
 			CollisionMsg::Ground(hitbox, dp) => {
-				if hitbox.contains_point(self.hitbox.center()) && self.burn <= 360 && self.abyss == 0 {
-
+				if hitbox.has_intersection(Rect::from_center(self.hitbox.center(), 25, 25)) && self.burn <= 360 && self.abyss == 0 {
+                    if self.elevated == 0 {
+                        self.position = Vector::from(<Point as Into<(i32, i32)>>::into(hitbox.top_left()));
+                    }
+                    else if self.maybeBurn || self.maybeAbyss || hitbox.contains_point(self.hitbox.center()) {
+                        self.position += *dp;
+                    }
 					self.elevated = 2;
-					self.position += *dp;
 				}
 			}
 		};
@@ -531,12 +539,12 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 		key
 	}
 	fn update(&mut self, data: &Self::Data, po: &mut PO) {
-		if data.abyss && self.maybeAbyss {
+		if data.abyss && self.maybeAbyss && self.elevated == 0 {
 			self.abyss = 31;
 			self.health -= 5;
 			self.maybeAbyss = false;
 		}
-		if data.burn && self.maybeBurn {
+		if data.burn && self.maybeBurn && self.elevated == 0 {
 			self.burn = 391;
 			self.health -= 5;
 			self.animations.changeAnimation(ANIMATION_IDX::NinjaSink as usize);
