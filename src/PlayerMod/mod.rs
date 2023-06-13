@@ -153,7 +153,12 @@ impl PlayerData {
 					po.spawnTile(Tile::default(), location);
 					self.keys -= 1;
 				}
-				CollisionType::Block | CollisionType::SwitchToggleGate(..) | CollisionType::SwitchTriggerGen(..) | CollisionType::KeyBlock | CollisionType::SwitchImmune => {
+				CollisionType::Block 
+					| CollisionType::SwitchToggleGate(..) 
+					| CollisionType::SwitchTriggerGen(..) 
+					| CollisionType::KeyBlock 
+					| CollisionType::SwitchImmune 
+					| CollisionType::SwitchToggleGateAbyss(..) => {
 					let eject = MapMod::blockCollide(location, tmp, map);
 					self.nextPos += eject;
 					tmp.reposition(self.nextPos + Vector(2f32, 2f32));
@@ -203,6 +208,7 @@ impl PlayerData {
 			while let Some((location, tile)) = map.collide(&mut iter) {
 				match tile.getCollisionType() {
 					CollisionType::SwitchToggleGate(..) if player.hitSwitchLastFrame => self.stopHitSwitch = false,
+					CollisionType::SwitchToggleGateAbyss(..) if player.hitSwitchLastFrame => self.stopHitSwitch = false,
 					CollisionType::SwitchTriggerGen(..) if player.hitSwitchLastFrame => self.stopHitSwitch = false,
 					CollisionType::SwitchToggleGate(range) => {
                         for x in range.0..=range.2 {
@@ -235,6 +241,28 @@ impl PlayerData {
 						po.spawnTile(Tile::new(tileId, tile.getCollisionType()), location);
 						self.stopHitSwitch = false;
 						po.sendCounterMsg(Envelope::new(CounterMsg(i32::MIN), id, player.id.getID()));
+					},
+					CollisionType::SwitchToggleGateAbyss(range) => {
+                        for x in range.0..=range.2 {
+                            for y in range.1..=range.3 {
+                                let spawnedTile = match  map.getScreen(map.getActiveScreenId()).unwrap().getTile((x, y)).getCollisionType() {
+									CollisionType::Block => Some(Tile::abyss()),
+									CollisionType::SwitchImmune => None, 
+									_ => Some(Tile::gate()),
+								};
+								if let Some(tile) = spawnedTile {
+	                                po.spawnTile(tile, (x, y));
+								}
+
+                            }
+                        }
+						let id = match tile.getId() {
+							3 => 4,
+							4 => 3,
+							_ => tile.getId(),
+						};
+						po.spawnTile(Tile::new(id, tile.getCollisionType()), location);
+						self.stopHitSwitch = false;
 					}
 					_ => (),
 				}

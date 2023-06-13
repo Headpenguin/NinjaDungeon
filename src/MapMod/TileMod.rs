@@ -52,6 +52,9 @@ impl Tile {
     pub fn gate() -> Tile {
         Tile::new(2, CollisionType::Block)
     }
+	pub fn abyss() -> Tile {
+		Tile::new(18, CollisionType::Abyss)
+	}
 }
 
 impl Default for Tile {
@@ -84,6 +87,7 @@ pub enum CollisionType {
 	SwitchImmune,
 	Health,
 	TriggerGen(ID),
+	SwitchToggleGateAbyss((u16, u16, u16, u16)),
 	OOB, //Represent tiles with oob coordinates
 }
 
@@ -104,6 +108,7 @@ pub const COLLISION_NAMES: &'static [&'static str] = &[
 	"SwitchImmune",
 	"Health",
 	"TriggerGen",
+	"SwitchToggleGateAbyss",
     "OOB",
 ];
 
@@ -187,6 +192,10 @@ impl TileBuilder {
 					TileBuilderSignals::GetEntity("Pick generator")
 				}
 			},
+			16 => self.createLocationTile((
+				"Click where the gate begins",
+				"Click where the gate ends",
+			), |(x, y), (xx, yy)| CollisionType::SwitchToggleGateAbyss((x, y, xx, yy))),
             _ => TileBuilderSignals::InvalidId,
         }
 	}
@@ -209,8 +218,8 @@ impl TileBuilder {
 	}
 	pub fn addLocation(&mut self, location: (u16, u16)) {
 		match self.collisionType {
-			5..=7 if None == self.location => self.location = Some(location),
-			5..=7 => self.locationEnd = Some(location),
+			5..=7 | 16 if None == self.location => self.location = Some(location),
+			5..=7 | 16 => self.locationEnd = Some(location),
 			_ => (),
 		};
 	}

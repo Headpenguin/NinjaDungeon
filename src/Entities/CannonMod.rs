@@ -220,7 +220,7 @@ impl<'a> EntityTraitsWrappable<'a> for Cannon<'a> {
 			
 			while let Some((location, tile)) = map.collide(&mut iter) {
 				match tile.getCollisionType() {
-					CollisionType::KeyBlock | CollisionType::Block | CollisionType::Burn | CollisionType::Abyss => {
+					CollisionType::KeyBlock | CollisionType::Block | CollisionType::Burn | CollisionType::Abyss | CollisionType::SwitchImmune => {
 						data.pos = Vector(0f32, 0f32);
 						break;
 					}
