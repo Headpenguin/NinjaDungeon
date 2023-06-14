@@ -212,6 +212,7 @@ impl PlayerData {
 					self.cannon = true;
 					po.spawnTile(Tile::default(), location);
 				},
+				CollisionType::Win => po.win(),
 				_ => (),
 			}
 		}
@@ -542,9 +543,7 @@ impl<'a> Collision for Player<'a> {
 		match msg.getMsg() {
 			CollisionMsg::Damage(dmg) => {
 				let recv = msg.getReciever();
-				println!("{:?}", recv);
 				if recv.getSubID() >= 2 && recv.getSubID() <= 4 {
-					println!("{:?}", recv);
 					self.cannonBalls[recv.getSubID() as usize - 2] = None;
 				}
 				else if self.iframes == 0 && recv.getSubID() == 0 {
@@ -607,6 +606,7 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 		key
 	}
 	fn update(&mut self, data: &Self::Data, po: &mut PO) {
+		if self.health <= 0 {po.die();}
 		if data.cannon {self.cannon = true;}
 		if data.abyss && self.maybeAbyss && self.elevated == 0 {
 			self.abyss = 31;
@@ -682,7 +682,7 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 			self.timer = 0;
 			self.animations.update();
 		}
-		if self.attackTimer == 21 {
+		if self.attackTimer == 21 && self.cannon {
 			if let Some((i, _)) = self.cannonBalls.iter().enumerate().filter(|b| b.1.is_none()).next() {
 				let velocity = match self.direction {
 					Direction::Up => Vector(0f32, -1f32),

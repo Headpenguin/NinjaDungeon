@@ -89,6 +89,7 @@ pub enum CollisionType {
 	TriggerGen(ID),
 	SwitchToggleGateAbyss((u16, u16, u16, u16)),
 	CannonSword,
+	Win,
 	OOB, //Represent tiles with oob coordinates
 }
 
@@ -111,6 +112,7 @@ pub const COLLISION_NAMES: &'static [&'static str] = &[
 	"TriggerGen",
 	"SwitchToggleGateAbyss",
 	"CannonSword",
+	"Win",
     "OOB",
 ];
 
@@ -199,6 +201,7 @@ impl TileBuilder {
 				"Click where the gate ends",
 			), |(x, y), (xx, yy)| CollisionType::SwitchToggleGateAbyss((x, y, xx, yy))),
 			17 => {TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::CannonSword), self.pos)},
+			18 => {TileBuilderSignals::Complete(Tile::new(self.id, CollisionType::Win), self.pos)},
             _ => TileBuilderSignals::InvalidId,
         }
 	}
@@ -301,5 +304,5 @@ pub fn spawnTiles(tile: Tile, location: (u16, u16), locationEnd: (u16, u16), map
     }
 }
 
-pub const MAX_TILE_IDX: u16 = 22;
+pub const MAX_TILE_IDX: u16 = 23;
 

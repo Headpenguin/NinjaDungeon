@@ -10,7 +10,8 @@ use sdl2::video::{WindowContext, Window};
 use sdl2::event::Event;
 use sdl2::hint;
 use sdl2::pixels::Color;
-use sdl2::rect::Point;
+use sdl2::rect::{Point, Rect};
+use sdl2::render::Texture;
 
 use serde::{Serialize, Deserialize};
 
@@ -83,6 +84,7 @@ pub struct GameManager {
 	screenPos: Point,
 	scheduler: Scheduler,
 	quit: bool,
+	pub advance: bool,
 }
 
 impl GameManager {
@@ -117,7 +119,7 @@ impl GameManager {
 		let quit = false;
 		let screenPos = Point::new(0, 0);
 
-		(GameManager {sdlContext, videoSubsystem, canvas, events, screenPos, quit, scheduler: Scheduler::new()}, textureCreator) 
+		(GameManager {sdlContext, videoSubsystem, canvas, events, screenPos, quit, scheduler: Scheduler::new(), advance: false}, textureCreator,) 
 	}
 	
 	#[inline(always)]
@@ -156,7 +158,17 @@ impl GameManager {
 		unsafe {
 			po.get_mut().getCtxMut().map.update();
 
-			po.get_mut().doCommands();
+			match po.get_mut().doCommands() {
+				1 => {
+					self.quit = true;
+					self.advance = true;
+				},
+				2 => {
+					self.quit = true;
+					self.advance = false;
+				},
+				_ => (),
+			}
 
 			po.get_mut().getCtxMut().map.draw(&mut self.canvas, self.screenPos);
 		}
@@ -166,6 +178,20 @@ impl GameManager {
 		self.canvas.present();
 		
 		!self.quit
+	}
+
+	pub fn conglaturate(&mut self, conglaturate: &Texture) -> bool {
+		self.quit = false;
+		self.canvas.clear();
+		for event in self.events.poll_iter() {
+			self.quit = Self::windowEvents(&event);
+		}
+		self.canvas.copy(conglaturate, None, Rect::new(0, 0, 250, 50));
+		
+		self.canvas.present();
+		
+		!self.quit
+		
 	}
 
 	fn windowEvents(event: &Event) -> bool {

@@ -91,3 +91,7 @@ Heart:
 CannonTile:
 	"Resources/Images/CannonTile.png"
 ;
+
+Win:
+	"Resources/Images/Win.png"
+;

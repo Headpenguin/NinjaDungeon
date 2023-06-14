@@ -221,7 +221,6 @@ impl<'a> Collision for Cannon<'a> {
 					let sender = msg.getSender();
 					if sender.mask() == po.getCtx().getPlayerID().getID().mask() && sender.getSubID() <= 4 && sender.getSubID() >= 2 {
 						self.health -= dmg;
-						println!("{:?}", sender.getSubID());
 						po.sendCollisionMsg(Envelope::new(CollisionMsg::Damage(1), sender, self.id.getID()));
 					}
 				},
@@ -369,6 +368,7 @@ impl<'a> EntityTraitsWrappable<'a> for Cannon<'a> {
 		for ball in self.cannonsBalls.iter().filter_map(|e| e.as_ref()) {
 			self.cannonballSprites.getSprite(0).draw(canvas, ball.renderPosition, false, false);
 		}
+		println!("{:?}", self.renderPosition);
 	}
 }
 

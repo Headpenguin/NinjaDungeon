@@ -80,14 +80,19 @@ pub struct SkeletonData {
 }
 
 impl SkeletonData {
-	fn doCollision(&mut self, skeleton: &Skeleton, ctx: &GameContext) {
+	fn doCollision(&mut self, skeleton: &Skeleton, ctx: &GameContext, po: &PO) {
+		for id in ctx.getCollisionList(skeleton.id.getID()).filter(|id| id.mask() != skeleton.id.getID().mask()) {
+			if let Some(skeleton2) = ctx.getHolder().getTyped(TypedID::<Skeleton>::new(id)) {
+				self.nextPos += skeleton2.push(skeleton);
+			}
+		}
 		let mut hitbox = skeleton.hitbox;
 		hitbox.reposition(self.nextPos);
 		let map = ctx.getMap();
 		let mut iter = map.calculateCollisionBounds(hitbox);
 		while let Some((location, tile)) = map.collide(&mut iter) {
 			match tile.getCollisionType() {
-				CollisionType::Block => {
+				CollisionType::Block | CollisionType::Abyss | CollisionType::Burn | CollisionType::KeyBlock | CollisionType::SwitchImmune => {
 					self.nextPos += MapMod::blockCollide(location, hitbox, map);
 					hitbox.reposition(self.nextPos);
 				},
@@ -98,6 +103,10 @@ impl SkeletonData {
 }
 
 impl<'a> Skeleton<'a> {
+	fn push(&self, other: &Skeleton) -> Vector {
+		let vec = other.position - self.position;
+		vec * 0.1
+	}
 	pub fn new(creator: &'a TextureCreator<WindowContext>, position: (f32, f32), global: bool) -> io::Result<BoxCode<'a>> {
 		let (timer, position, idle, iframeCounter, health, deathCounter) = (
 			0u32,
@@ -227,7 +236,7 @@ impl<'a> EntityTraitsWrappable<'a> for Skeleton<'a> {
 			else{
 				data.nextPos = self.position + playerDirection.normalizeOrZero() * 3.5f32;
 			}
-			data.doCollision(self, po.getCtx());
+			data.doCollision(self, po.getCtx(), po);
 		}
 		else {
 			data.nextPos = self.position;
