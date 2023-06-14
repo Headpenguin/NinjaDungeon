@@ -139,13 +139,16 @@ impl<'a> GameContext<'a> {
 			let tmp = self.collision.indexMut(location.1 as usize, location.0 as usize);
 			if !tmp.isEmpty() && Self::getCollisionListInternal(&self.collisionCandidates, id).find(|e| e.1.id == tmp.id).is_none() {
 				self.collisionCandidates.push((entry, *tmp));
-				let length = Self::getCollisionListInternal(&self.collisionCandidates, tmp.id).enumerate().last().map(|e| e.0 + 1).unwrap_or(0) + self.collisionCandidates.len();
+				let length = Self::getCollisionListInternal(&self.collisionCandidates, tmp.id).enumerate().last().map(|e| e.0 + 1).unwrap_or(0);
 				let prevLength = self.collisionCandidates.len();
-				self.collisionCandidates.resize(length, (EntityHitbox::empty(), EntityHitbox::empty()));
+				self.collisionCandidates.resize(length * 2 + prevLength, (EntityHitbox::empty(), EntityHitbox::empty()));
 				{
 					let (candidates, empty) = self.collisionCandidates.split_at_mut(prevLength);
+					let (empty1, empty2) = empty.split_at_mut(length);
 					let mut iter = Self::getCollisionListInternal(candidates, tmp.id).map(|e| (entry, e.1));
-					empty.fill_with(|| iter.next().unwrap());
+					let mut iter2 = Self::getCollisionListInternal(candidates, tmp.id).map(|e| (e.1, entry));
+					empty1.fill_with(|| iter.next().unwrap());
+					empty2.fill_with(|| iter2.next().unwrap());
 				}
 				//self.collisionCandidates.extend(Self::getCollisionListInternal(&self.collisionCandidates, tmp.id));
 

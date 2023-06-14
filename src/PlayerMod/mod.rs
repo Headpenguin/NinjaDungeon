@@ -111,6 +111,7 @@ pub struct Player<'a> {
 	timer: u32,
 	idle: bool,
 	velocity: Vector,
+	groundVelocity: Vector,
     position: Vector,
 	hitbox: Rect,
 	renderPosition: Rect,
@@ -300,7 +301,7 @@ impl PlayerData {
 
 impl<'a> Player<'a> {
     pub fn new(creator: &'a TextureCreator<WindowContext>, positionX: f32, positionY: f32) -> io::Result<BoxCode<'a>> {
-        let (direction, velocity, position, timer, idle, attackTimer, attacking, health, iframes, hitSwitchLastFrame, keys, abyss, respawn, burn, elevated, maybeBurn, maybeAbyss, snakeBoss) = (
+        let (direction, velocity, position, timer, idle, attackTimer, attacking, health, iframes, hitSwitchLastFrame, keys, abyss, respawn, burn, elevated, maybeBurn, maybeAbyss, snakeBoss, groundVelocity) = (
             Direction::Down, 
             Vector(0f32, 0f32), 
             Vector(positionX, positionY),
@@ -319,6 +320,7 @@ impl<'a> Player<'a> {
 			false, 
 			false,
 			None,
+			Vector(0f32, 0f32),
         );
 		let animations = Animations::new("Resources/Images/Ninja.anim", NAMES, creator)?;
 		let sword = Sprites::new(creator, SWORD_FRAMES)?;
@@ -329,7 +331,7 @@ impl<'a> Player<'a> {
         Ok(
 			BoxCode::Player(
 				Entity::new(
-					Player {id: TypedID::new(ID::empty()), animations, direction, velocity, position, timer, idle, hitbox, renderPosition, attackTimer, sword, attacking, health, iframes, healthSprites, hitSwitchLastFrame, keys, abyss, respawn, burn, elevated, maybeAbyss, maybeBurn, snakeBoss},
+					Player {id: TypedID::new(ID::empty()), animations, direction, velocity, position, timer, idle, hitbox, renderPosition, attackTimer, sword, attacking, health, iframes, healthSprites, hitSwitchLastFrame, keys, abyss, respawn, burn, elevated, maybeAbyss, maybeBurn, snakeBoss, groundVelocity},
 					PlayerData {
 						keys,
 						nextPos: position,
@@ -370,6 +372,7 @@ impl<'a> Player<'a> {
 					maybeAbyss: false,
 					maybeBurn: false,
 					snakeBoss: None,
+					groundVelocity: Vector(0f32, 0f32),
 				},
 				PlayerData {
 					keys: 0,
@@ -518,7 +521,7 @@ impl<'a> Collision for Player<'a> {
                         self.position = Vector::from(<Point as Into<(i32, i32)>>::into(hitbox.top_left()));
                     }
                     else if self.maybeBurn || self.maybeAbyss || hitbox.contains_point(self.hitbox.center()) {
-                        self.position += *dp;
+                        self.groundVelocity = *dp;
                     }
 					self.elevated = 2;
 				}
@@ -559,7 +562,7 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 		data.dmg = 0;
 		data.nextPos = if self.idle {
 			self.position + self.velocity
-		} else {self.position};
+		} else {self.position} + self.groundVelocity;
 		let origPosition = self.position;
 		data.doCollision(self, po.getCtx().getMap(), po);
 		let key = data.doEntityCollision(self, po, key);
@@ -657,6 +660,7 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 			self.idle = true;
 		}
 		if self.iframes > 0 {self.iframes -= 1;}
+		self.groundVelocity = Vector(0f32, 0f32);
 	}
 	fn needsExecution(&self) -> bool {true}
 	fn tick(&mut self) {}
