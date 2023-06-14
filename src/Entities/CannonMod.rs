@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-use sdl2::rect::Rect;
+use sdl2::rect::{Rect, Point};
 use sdl2::render::{Canvas, TextureCreator};
 use sdl2::video::{Window, WindowContext};
 
@@ -93,6 +93,8 @@ pub struct Cannon<'a> {
 	idle: bool,
 	stateTimer: u16,
 	dir: Direction,
+	groundVelocity: Vector,
+	elevated: u8,
 }
 
 #[derive(Debug, Default)]
@@ -117,6 +119,8 @@ impl<'a> Cannon<'a> {
 			idle: false,
 			dir: Direction::Down,
 			stateTimer: 10,
+			groundVelocity: Vector(0f32, 0f32),
+			elevated: 2,
 		})
 	}
 	pub fn new(creator: &'a TextureCreator<WindowContext>, pos: Vector) -> io::Result<BoxCode<'a>> {
@@ -164,6 +168,23 @@ impl<'a> Collision for Cannon<'a> {
 			if let CollisionMsg::Damage(_) = msg.getMsg() {
 				self.cannonsBalls[i as usize - 1].as_mut().unwrap().die = true;
 			}
+		}
+		else {
+			match msg.getMsg() {
+				CollisionMsg::Ground(hitbox, dp) => {
+					let displacement = hitbox.center() - self.hitbox.center();
+					if displacement.x.abs() <= 15 && displacement.y.abs() <= 15 {
+						if self.elevated == 0 {
+							self.pos = Vector::from(<Point as Into<(i32, i32)>>::into(hitbox.top_left()));
+						}
+						else {
+							self.groundVelocity = *dp;
+						}
+						self.elevated = 2;
+					}
+				}
+				CollisionMsg::Damage(dmg) => (),
+			};
 		}
 	}
 	fn collideWith(&self, id: ID, other: ID, po: &PO, key: Key) -> (Option<Envelope<CollisionMsg>>, Key) {
@@ -232,7 +253,7 @@ impl<'a> EntityTraitsWrappable<'a> for Cannon<'a> {
 		key
 	}
 	fn update(&mut self, data: &Self::Data, po: &mut PO) {
-		self.pos += data.pos;
+		self.pos += data.pos + self.groundVelocity;
 		self.updatePositions(po);
 		if let Some(velocity) = data.spawnBall {
 			if let Some((i, _)) = self.cannonsBalls.iter().enumerate().filter(|b| b.1.is_none()).next() {
@@ -279,6 +300,7 @@ impl<'a> EntityTraitsWrappable<'a> for Cannon<'a> {
 				Direction::Right => self.animations.changeAnimation(ANIMATIONS_IDX::WalkRight as usize),
 			};
 		}
+		self.groundVelocity = Vector(0f32, 0f32);
 	}
 	fn needsExecution(&self) -> bool {true}
 	fn tick(&mut self) {}
