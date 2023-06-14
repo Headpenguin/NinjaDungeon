@@ -44,8 +44,11 @@ impl Scheduler {
 		}
 	}
 	pub unsafe fn drawNonGlobal(&self, ctx: &GameContext, canvas: &mut Canvas<Window>) {
-		for id in ctx.activeScreenEntityIter() {
-			(&mut *ctx.getHolder().getEntityDyn(id).unwrap()).draw(canvas);
+		for entity in ctx.activeScreenEntityIter().map(|id| &mut *ctx.getHolder().getEntityDyn(id).unwrap()).filter(|e| e.drawPriority() == 0) {
+			entity.draw(canvas);
+		}
+		for entity in ctx.activeScreenEntityIter().map(|id| &mut *ctx.getHolder().getEntityDyn(id).unwrap()).filter(|e| e.drawPriority() == 1) {
+			entity.draw(canvas);
 		}
 	}
 }

@@ -37,6 +37,7 @@ pub trait EntityTraitsWrappable<'a> : EntityTraits where Self: Sized {
 	fn needsExecution(&self) -> bool;
 	fn tick(&mut self);
 	fn draw(&self, canvas: &mut Canvas<Window>);
+    fn drawPriority(&self) -> u8 {0}
 	fn setID(&mut self, id: TypedID<'a, Self>);
 }
 
@@ -76,6 +77,7 @@ pub trait EntityDyn<'a> {
 	fn needsExecution(&self) -> bool;
 	fn tick(&mut self);
 	fn draw(&self, canvas: &mut Canvas<Window>);
+    fn drawPriority(&self) -> u8;
 }
 
 impl<'a, T: EntityTraitsWrappable<'a> + 'a> EntityDyn<'a> for Entity<'a, T> {
@@ -100,5 +102,8 @@ impl<'a, T: EntityTraitsWrappable<'a> + 'a> EntityDyn<'a> for Entity<'a, T> {
 	fn draw(&self, canvas: &mut Canvas<Window>) {
 		self.entity.draw(canvas);
 	}
+    fn drawPriority(&self) -> u8 {
+        self.entity.drawPriority()
+    }
 }
 

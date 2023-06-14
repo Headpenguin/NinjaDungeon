@@ -25,7 +25,7 @@ const NAMES: &'static [&'static str] = &[
 	"CannonWalkUp",
 ];
 
-const CANNONBALL: &'static [&'static str] = &["Resources/Images/CannonBall.png"];
+pub const CANNONBALL: &'static [&'static str] = &["Resources/Images/CannonBall.png"];
 
 enum ANIMATIONS_IDX {
 	WalkDown = 0,
@@ -49,7 +49,7 @@ impl InnerCannon {
 }
 
 #[derive(Debug)]
-struct CannonBall {
+pub struct CannonBall {
 	pos: Vector,
 	hitbox: Rect,
 	velocity: Vector,
@@ -120,7 +120,7 @@ impl<'a> Cannon<'a> {
 			dir: Direction::Down,
 			stateTimer: 10,
 			groundVelocity: Vector(0f32, 0f32),
-			elevated: 2,
+			elevated: 0,
 		})
 	}
 	pub fn new(creator: &'a TextureCreator<WindowContext>, pos: Vector) -> io::Result<BoxCode<'a>> {
@@ -176,6 +176,7 @@ impl<'a> Collision for Cannon<'a> {
 					if displacement.x.abs() <= 15 && displacement.y.abs() <= 15 {
 						if self.elevated == 0 {
 							self.pos = Vector::from(<Point as Into<(i32, i32)>>::into(hitbox.top_left()));
+                            //println!("{:?}", (self.pos, hitbox));
 						}
 						else {
 							self.groundVelocity = *dp;
@@ -219,10 +220,14 @@ impl<'a> EntityTraitsWrappable<'a> for Cannon<'a> {
 		if let RefCode::Cannon(c) = code {Some(c as &Self)}
 		else {None}
 	}
+    fn drawPriority(&self) -> u8 {1}
 	fn getData(&self, data: &mut Self::Data, po: &PO, key: Key) -> Key {
 		data.spawnBall = None;
 		data.pos = Vector(0f32, 0f32);
-		let playerPos = po.getCtx().getHolder().getTyped(po.getCtx().getPlayerID()).unwrap().getCenter();
+		let (playerPos, playerVelocity) = {
+            let player = po.getCtx().getHolder().getTyped(po.getCtx().getPlayerID()).unwrap();
+            (player.getPosition(), player.getVelocity())
+        };
 		if self.stateTimer == 1 && self.playerIsInDirection(playerPos) && Common::checkLineOfSight(self.pos, playerPos - self.pos, po) {
 			data.spawnBall = Some(Vector::fromPoints(self.pos, playerPos).normalizeOrZero());
 		}
@@ -301,6 +306,9 @@ impl<'a> EntityTraitsWrappable<'a> for Cannon<'a> {
 			};
 		}
 		self.groundVelocity = Vector(0f32, 0f32);
+        if self.elevated > 0 {
+            self.elevated -= 1;
+        }
 	}
 	fn needsExecution(&self) -> bool {true}
 	fn tick(&mut self) {}

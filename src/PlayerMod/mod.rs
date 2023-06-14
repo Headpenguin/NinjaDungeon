@@ -16,11 +16,13 @@ use crate::SpriteLoader::{Animations, Sprites};
 use crate::{Direction, Map, CollisionType, Vector, GameContext, ID};
 use crate::Entities::Traits::{Collision, EntityTraitsWrappable, Entity, Counter, RegisterID};
 use crate::Entities::{BoxCode, RefCode, RefCodeMut, TypedID, Rock, SnakeBoss};
+use crate::Entities::CannonMod::{CannonBall, CANNONBALL};
 use crate::EventProcessor::{CollisionMsg, CounterMsg, Envelope, PO, Key};
 use crate::MapMod::{self, Tile};
 
 const SWORD_FRAMES: &'static[&'static str] = &[
 	"Resources/Images/Sword__half.png",
+    "Resources/Images/CannonSword__half.png",
 ];
 
 const HEALTH_FRAMES: &'static[&'static str] = &[
@@ -130,6 +132,9 @@ pub struct Player<'a> {
 	maybeBurn: bool,
 	maybeAbyss: bool,
 	snakeBoss: Option<ID>,
+    cannon: bool,
+	cannonballSprites: Sprites<'a>,
+	cannonBalls: [Option<CannonBall>; 3],
 }
 #[derive(Debug)]
 pub struct PlayerData {
@@ -301,7 +306,7 @@ impl PlayerData {
 
 impl<'a> Player<'a> {
     pub fn new(creator: &'a TextureCreator<WindowContext>, positionX: f32, positionY: f32) -> io::Result<BoxCode<'a>> {
-        let (direction, velocity, position, timer, idle, attackTimer, attacking, health, iframes, hitSwitchLastFrame, keys, abyss, respawn, burn, elevated, maybeBurn, maybeAbyss, snakeBoss, groundVelocity) = (
+        let (direction, velocity, position, timer, idle, attackTimer, attacking, health, iframes, hitSwitchLastFrame, keys, abyss, respawn, burn, elevated, maybeBurn, maybeAbyss, snakeBoss, groundVelocity, cannon, cannonBalls) = (
             Direction::Down, 
             Vector(0f32, 0f32), 
             Vector(positionX, positionY),
@@ -321,10 +326,13 @@ impl<'a> Player<'a> {
 			false,
 			None,
 			Vector(0f32, 0f32),
+            false,
+            [None, None, None],
         );
 		let animations = Animations::new("Resources/Images/Ninja.anim", NAMES, creator)?;
 		let sword = Sprites::new(creator, SWORD_FRAMES)?;
 		let healthSprites = Sprites::new(creator, HEALTH_FRAMES)?;
+        let cannonBallSprites = Sprites::new(creator, CANNONBALL)?;
 		let renderPosition = Rect::new(positionX.round() as i32, positionY.round() as i32, 50, 50);
 		let hitbox = Rect::new(positionX.round() as i32 + 2, positionY as i32 + 2, 46, 46);
 
@@ -504,6 +512,9 @@ impl<'a> Player<'a> {
 	pub fn isActivateSnakeBoss(&self) -> bool {
 		self.position.1 <= 500f32
 	}
+    pub fn getVelocity(&self) -> Vector {
+        self.velocity + self.groundVelocity
+    }
 }
 
 impl<'a> Collision for Player<'a> {
@@ -660,7 +671,7 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 			self.idle = true;
 		}
 		if self.iframes > 0 {self.iframes -= 1;}
-		self.groundVelocity = Vector(0f32, 0f32);
+		if self.elevated == 0 {self.groundVelocity = Vector(0f32, 0f32);}
 	}
 	fn needsExecution(&self) -> bool {true}
 	fn tick(&mut self) {}
