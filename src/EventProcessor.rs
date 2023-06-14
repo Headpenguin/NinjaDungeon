@@ -25,6 +25,7 @@ enum Commands {
     ActivateEntity(ID, bool),
 	InformPlayerSnakeBoss(ID),
 	InformPlayerSnakeBossDeath,
+	Win,
 }
 
 pub struct PO<'a> {
@@ -103,6 +104,9 @@ impl<'a> PO<'a> {
 			else {false}
 		}
 	}
+	pub fn win(&self) {
+		unsafe {&mut *self.commands.get()}.push(Commands::Win);
+	}
 	pub fn spawnTile(&self, tile: Tile, location: (u16, u16)) {
 		unsafe {&mut *self.commands.get()}.push(Commands::PlaceTile(tile, location));
 	}
@@ -133,7 +137,7 @@ impl<'a> PO<'a> {
 		}
 		self.purgeList.get_mut().clear();
 	}
-	pub unsafe fn doCommands(&mut self) {
+	pub unsafe fn doCommands(&mut self) -> bool {
 		for command in self.commands.get_mut().drain(..) {
 			match command {
 				Commands::PlaceTile(tile, location) => self.ctx.getMapMut().changeTile(location, tile),
@@ -152,8 +156,10 @@ impl<'a> PO<'a> {
 				Commands::InformPlayerSnakeBossDeath => {
 					self.ctx.getPlayerMut().informSnakeBossDeath();
 				}
+				Commands::Win => return false,
 			}
 		}
+		true
 	}
 	pub fn getEntity<'b>(&'b self, id: ID, key: Key) -> (Option<&'b (dyn EntityTraits + 'a)>, Key) {
 		unsafe { (self.ctx.getHolder().get(id), key) }

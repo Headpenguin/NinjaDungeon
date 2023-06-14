@@ -51,15 +51,15 @@ impl InnerCannon {
 #[derive(Debug)]
 pub struct CannonBall {
 	pos: Vector,
-	hitbox: Rect,
+	pub hitbox: Rect,
 	velocity: Vector,
-	renderPosition: Rect,
-	die: bool,
+	pub renderPosition: Rect,
+	pub die: bool,
 	timer: u16,
 }
 
 impl CannonBall {
-	fn new(pos: Vector, velocity: Vector) -> CannonBall {
+	pub fn new(pos: Vector, velocity: Vector) -> CannonBall {
 		CannonBall {
 			pos,
 			hitbox: Rect::new(pos.0 as i32, pos.1 as i32, 15, 15),
@@ -69,8 +69,8 @@ impl CannonBall {
 			timer: 600,
 		}
 	}
-	fn update(&mut self) {
-		self.pos += self.velocity * 2f32;
+	pub fn update(&mut self) {
+		self.pos += self.velocity * 4f32;
 		self.hitbox = Rect::new(self.pos.0 as i32, self.pos.1 as i32, 15, 15);
 		self.renderPosition = self.hitbox;
 		self.timer -= 1;
@@ -95,6 +95,7 @@ pub struct Cannon<'a> {
 	dir: Direction,
 	groundVelocity: Vector,
 	elevated: u8,
+	health: i32,
 }
 
 #[derive(Debug, Default)]
@@ -121,6 +122,7 @@ impl<'a> Cannon<'a> {
 			stateTimer: 10,
 			groundVelocity: Vector(0f32, 0f32),
 			elevated: 0,
+			health: if variant == 1 {50} else {20},
 		})
 	}
 	pub fn new(creator: &'a TextureCreator<WindowContext>, pos: Vector) -> io::Result<BoxCode<'a>> {
@@ -159,6 +161,38 @@ impl<'a> Cannon<'a> {
 		self.renderPosition.reposition(self.pos);
 		po.updatePosition(self.id.getID(), self.hitbox, oldPos);
 	}
+	fn calcTrajectory(&self, playerPos: Vector, playerVelocity: Vector) -> Vector {
+		/*println!("{:?}", playerVelocity);
+		let playerPos = playerPos - self.pos;
+		let center = playerVelocity.0 * playerPos.0 + playerPos.1 * playerVelocity.1;
+		let coefficient = 4f32 - playerVelocity.mag().powi(2);
+		if coefficient == 0f32 {return Vector(0f32, 0f32);}
+		let vertex = playerPos.mag().powi(2) / coefficient + (center / coefficient).powi(2);
+		if vertex < 0f32 {return Vector(0f32, 0f32);}
+		let t = vertex.sqrt() + center / coefficient;
+		let playerPos = playerPos + playerVelocity * t;
+		
+		if playerPos.0 == 0f32 {
+			Vector(0f32, 1f32)
+		}
+		else {
+			let m = playerPos.1 / playerPos.0;
+			Vector(1f32, m)
+		}*/
+		let playerPos = playerPos - self.pos;
+		let a = playerVelocity.dot(&playerVelocity) - 16f32;
+		let b = playerVelocity.dot(&playerPos);
+		let c = playerPos.dot(&playerPos);
+		let d = b*b - 16f32*a*c;
+		if d < 0f32 || a == 0f32 {
+			playerPos
+		}
+		else {
+			let t = (-b - d.sqrt())/(2f32 * a);
+			let t = if t < 0f32 {(-b + d.sqrt())/(2f32 * a)} else {t};
+			playerPos + playerVelocity * t
+		}
+	}
 }
 
 impl<'a> Collision for Cannon<'a> {
@@ -176,7 +210,6 @@ impl<'a> Collision for Cannon<'a> {
 					if displacement.x.abs() <= 15 && displacement.y.abs() <= 15 {
 						if self.elevated == 0 {
 							self.pos = Vector::from(<Point as Into<(i32, i32)>>::into(hitbox.top_left()));
-                            //println!("{:?}", (self.pos, hitbox));
 						}
 						else {
 							self.groundVelocity = *dp;
@@ -184,7 +217,14 @@ impl<'a> Collision for Cannon<'a> {
 						self.elevated = 2;
 					}
 				}
-				CollisionMsg::Damage(dmg) => (),
+				CollisionMsg::Damage(dmg) => {
+					let sender = msg.getSender();
+					if sender.mask() == po.getCtx().getPlayerID().getID().mask() && sender.getSubID() <= 4 && sender.getSubID() >= 2 {
+						self.health -= dmg;
+						println!("{:?}", sender.getSubID());
+						po.sendCollisionMsg(Envelope::new(CollisionMsg::Damage(1), sender, self.id.getID()));
+					}
+				},
 			};
 		}
 	}
@@ -229,7 +269,7 @@ impl<'a> EntityTraitsWrappable<'a> for Cannon<'a> {
             (player.getPosition(), player.getVelocity())
         };
 		if self.stateTimer == 1 && self.playerIsInDirection(playerPos) && Common::checkLineOfSight(self.pos, playerPos - self.pos, po) {
-			data.spawnBall = Some(Vector::fromPoints(self.pos, playerPos).normalizeOrZero());
+			data.spawnBall = Some(self.calcTrajectory(playerPos, playerVelocity).normalizeOrZero());
 		}
 		if !self.idle {
 			let mut tmp = self.hitbox;
@@ -258,6 +298,18 @@ impl<'a> EntityTraitsWrappable<'a> for Cannon<'a> {
 		key
 	}
 	fn update(&mut self, data: &Self::Data, po: &mut PO) {
+		if self.health <= 0 {
+			if self.variant == 1 {
+				po.win();
+			}
+			po.removeCollision(self.id.getID(), self.hitbox);
+			for i in 1..=3 {
+				if let Some(ref ball) = self.cannonsBalls[i - 1] {
+					po.removeCollision(self.id.getID().sub(i as u8), ball.hitbox);
+				}
+			}
+			po.addToPurgeList(self.id.getID());
+		}
 		self.pos += data.pos + self.groundVelocity;
 		self.updatePositions(po);
 		if let Some(velocity) = data.spawnBall {

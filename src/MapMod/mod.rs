@@ -244,5 +244,6 @@ const TILESETS: &'static [&'static [&'static str]] = &[
 		"SnakeBossBody",
 		"SnakeKill",
 		"Heart",
+		"CannonTile",
 	],
 ];

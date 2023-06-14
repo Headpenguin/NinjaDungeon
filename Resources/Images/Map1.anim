@@ -87,3 +87,7 @@ SnakeKill:
 Heart:
 	"Resources/Images/Heart.png"
 ;
+
+CannonTile:
+	"Resources/Images/CannonTile.png"
+;

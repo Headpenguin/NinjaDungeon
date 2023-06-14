@@ -22,7 +22,10 @@ use crate::MapMod::{self, Tile};
 
 const SWORD_FRAMES: &'static[&'static str] = &[
 	"Resources/Images/Sword__half.png",
-    "Resources/Images/CannonSword__half.png",
+    "Resources/Images/CannonSword_up.png",
+    "Resources/Images/CannonSword_left.png",
+	"Resources/Images/CannonSword_right.png",
+    "Resources/Images/CannonSword_down.png",
 ];
 
 const HEALTH_FRAMES: &'static[&'static str] = &[
@@ -145,6 +148,7 @@ pub struct PlayerData {
 	keys: u8,
 	burn: bool,
 	abyss: bool,
+	cannon: bool,
 }
 
 impl PlayerData {
@@ -204,10 +208,14 @@ impl PlayerData {
 				CollisionType::TriggerGen(id) => {
 					po.sendCounterMsg(Envelope::new(CounterMsg(i32::MIN), id, player.id.getID()));
 				},
+				CollisionType::CannonSword => {
+					self.cannon = true;
+					po.spawnTile(Tile::default(), location);
+				},
 				_ => (),
 			}
 		}
-		if player.attacking || player.attackTimer > 0 {
+		if (player.attacking || player.attackTimer > 0) && !player.cannon {
 			let tmp = relTupleToRect(player.getSwordCollision(), (self.nextPos + Vector(2f32, 2f32)).into());
 			let mut iter = map.calculateCollisionBounds(tmp);
 
@@ -280,6 +288,12 @@ impl PlayerData {
 		for id in po.getCtx().getCollisionList(player.id.getID().sub(1)).filter(|id| id.mask() != player.id.getID().mask()) {
 			po.sendCollisionMsg(Envelope::new(CollisionMsg::Damage(5), id, player.id.getID().sub(1)));
 		}
+		//balls
+		for i in 2..=4 {
+			for id in po.getCtx().getCollisionList(player.id.getID().sub(i)).filter(|id| id.mask() != player.id.getID().mask()) {
+				po.sendCollisionMsg(Envelope::new(CollisionMsg::Damage(5), id, player.id.getID().sub(i)));
+			}
+		}
 		for id in po.getCtx().getCollisionList(player.id.getID()).filter(|id| id.mask() != player.id.getID().mask()) {
 			let res = po.getEntity(id.mask(), key);
 			key = res.1;
@@ -332,14 +346,14 @@ impl<'a> Player<'a> {
 		let animations = Animations::new("Resources/Images/Ninja.anim", NAMES, creator)?;
 		let sword = Sprites::new(creator, SWORD_FRAMES)?;
 		let healthSprites = Sprites::new(creator, HEALTH_FRAMES)?;
-        let cannonBallSprites = Sprites::new(creator, CANNONBALL)?;
+        let cannonballSprites = Sprites::new(creator, CANNONBALL)?;
 		let renderPosition = Rect::new(positionX.round() as i32, positionY.round() as i32, 50, 50);
 		let hitbox = Rect::new(positionX.round() as i32 + 2, positionY as i32 + 2, 46, 46);
 
         Ok(
 			BoxCode::Player(
 				Entity::new(
-					Player {id: TypedID::new(ID::empty()), animations, direction, velocity, position, timer, idle, hitbox, renderPosition, attackTimer, sword, attacking, health, iframes, healthSprites, hitSwitchLastFrame, keys, abyss, respawn, burn, elevated, maybeAbyss, maybeBurn, snakeBoss, groundVelocity},
+					Player {id: TypedID::new(ID::empty()), animations, direction, velocity, position, timer, idle, hitbox, renderPosition, attackTimer, sword, attacking, health, iframes, healthSprites, hitSwitchLastFrame, keys, abyss, respawn, burn, elevated, maybeAbyss, maybeBurn, snakeBoss, groundVelocity, cannon, cannonballSprites, cannonBalls},
 					PlayerData {
 						keys,
 						nextPos: position,
@@ -347,6 +361,7 @@ impl<'a> Player<'a> {
 						dmg: 0,
 						abyss: false,
 						burn: false,
+						cannon: false,
 					},
 				)
 			)
@@ -381,6 +396,9 @@ impl<'a> Player<'a> {
 					maybeBurn: false,
 					snakeBoss: None,
 					groundVelocity: Vector(0f32, 0f32),
+					cannon: false,
+					cannonballSprites: Sprites::new(creator, CANNONBALL)?,
+					cannonBalls: [None, None, None],
 				},
 				PlayerData {
 					keys: 0,
@@ -389,6 +407,7 @@ impl<'a> Player<'a> {
 					dmg: 0,
 					abyss: false,
 					burn: false,
+					cannon: false,
 				}
 			)
 		))
@@ -399,6 +418,7 @@ impl<'a> Player<'a> {
 
 	fn getSwordCollision(&self) -> (i32, i32, u32, u32) {
 		match self.direction {
+			_ if self.cannon => (0, 0, 0, 0),
 			Direction::Up => SWORD_UP_COLLISION,
 			Direction::Down => SWORD_DOWN_COLLISION,
 			Direction::Left => SWORD_LEFT_COLLISION,
@@ -416,7 +436,7 @@ impl<'a> Player<'a> {
 		let prevHitbox = self.hitbox;
 		self.hitbox.reposition(self.position + Vector(2f32, 2f32));
 		po.updatePosition(self.id.getID(), self.hitbox, prevHitbox);
-		if self.attacking || self.attackTimer > 0 {
+		if self.attacking || self.attackTimer > 0 && !self.cannon {
 			let swordBox = self.getSwordCollision();
 			po.updatePosition(self.id.getID().sub(1), relTupleToRect(swordBox, self.hitbox.top_left().into()), relTupleToRect(swordBox, prevHitbox.top_left().into()));
 		}
@@ -521,7 +541,13 @@ impl<'a> Collision for Player<'a> {
 	fn collide(&mut self, msg: Envelope<CollisionMsg>, po: &PO) {
 		match msg.getMsg() {
 			CollisionMsg::Damage(dmg) => {
-				if self.iframes == 0 {
+				let recv = msg.getReciever();
+				println!("{:?}", recv);
+				if recv.getSubID() >= 2 && recv.getSubID() <= 4 {
+					println!("{:?}", recv);
+					self.cannonBalls[recv.getSubID() as usize - 2] = None;
+				}
+				else if self.iframes == 0 && recv.getSubID() == 0 {
 					self.health -= dmg;
 					self.iframes = 90;
 				}
@@ -581,6 +607,7 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 		key
 	}
 	fn update(&mut self, data: &Self::Data, po: &mut PO) {
+		if data.cannon {self.cannon = true;}
 		if data.abyss && self.maybeAbyss && self.elevated == 0 {
 			self.abyss = 31;
 			self.health -= 5;
@@ -627,6 +654,7 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 		}
 
 		if self.elevated > 0 {self.elevated -= 1;}
+
 	
 		self.hitSwitchLastFrame = !data.stopHitSwitch;
 
@@ -654,6 +682,17 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 			self.timer = 0;
 			self.animations.update();
 		}
+		if self.attackTimer == 21 {
+			if let Some((i, _)) = self.cannonBalls.iter().enumerate().filter(|b| b.1.is_none()).next() {
+				let velocity = match self.direction {
+					Direction::Up => Vector(0f32, -1f32),
+					Direction::Down => Vector(0f32, 1f32),
+					Direction::Left => Vector(-1f32, 0f32),
+					Direction::Right => Vector(1f32, 0f32),
+				};
+				self.cannonBalls[i] = Some(CannonBall::new(self.position, velocity));
+			}
+		}
 		if self.attackTimer > 0 {
 			self.attackTimer -= 1;
 		}	
@@ -666,10 +705,26 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 			};
 			// Add attack code here
 		}
+		for (i, ball) in self.cannonBalls.iter_mut().enumerate().filter_map(|(i, e)| e.as_mut().map(|e| (i, e))) {
+			let oldHitbox = ball.hitbox;
+			ball.update();
+			po.updatePosition(self.id.getID().sub(i as u8 + 2), ball.hitbox, oldHitbox);
+		}
+		for (i, ball) in self.cannonBalls.iter_mut().enumerate() {
+			if let Some(ref mut ballInner) = ball {
+				if ballInner.die {
+					po.removeCollision(self.id.getID().sub(i as u8 + 2), ballInner.hitbox);
+					*ball = None;
+				}
+			}
+		}
 		if !self.idle && !self.attacking && self.attackTimer == 0 {
-			po.removeCollision(self.id.getID().sub(1), relTupleToRect(self.getSwordCollision(), self.hitbox.top_left().into()));
+			if !self.cannon {
+				po.removeCollision(self.id.getID().sub(1), relTupleToRect(self.getSwordCollision(), self.hitbox.top_left().into()));
+			}
 			self.idle = true;
 		}
+
 		if self.iframes > 0 {self.iframes -= 1;}
 		if self.elevated == 0 {self.groundVelocity = Vector(0f32, 0f32);}
 	}
@@ -706,47 +761,60 @@ impl<'a> EntityTraitsWrappable<'a> for Player<'a> {
 			}
 			return;
 		}
-		if self.attacking || self.attackTimer > 0 {match self.direction {
-			Direction::Up => {
-				self.sword.getSprite(0).draw(canvas, Rect::new (
-					SWORD_UP.0 + self.renderPosition.x(),
-					SWORD_UP.1 + self.renderPosition.y(),
-					SWORD_UP.2,
-					SWORD_UP.3
-				), false, false);
-				self.animations.drawNextFrame(canvas, self.renderPosition);
-			},
-			Direction::Down => {
-				self.animations.drawNextFrame(canvas, self.renderPosition);
-				self.sword.getSprite(0).draw(canvas, Rect::new(
-					SWORD_DOWN.0 + self.renderPosition.x(),
-					SWORD_DOWN.1 + self.renderPosition.y(),
-					SWORD_DOWN.2,
-					SWORD_DOWN.3
-				), false, true);
-			},
-			Direction::Left => {
-				self.sword.getSprite(0).draw(canvas, Rect::new (
-					SWORD_LEFT.0 + self.renderPosition.x(),
-					SWORD_LEFT.1 + self.renderPosition.y(),
-					SWORD_LEFT.2,
-					SWORD_LEFT.3
-				), false, false);
-				self.animations.drawNextFrame(canvas, self.renderPosition);
-			},
-			Direction::Right => {
-				self.sword.getSprite(0).draw(canvas, Rect::new (
-					SWORD_RIGHT.0 + self.renderPosition.x(),
-					SWORD_RIGHT.1 + self.renderPosition.y(),
-					SWORD_RIGHT.2,
-					SWORD_RIGHT.3
-				), false, false);
-				self.animations.drawNextFrame(canvas, self.renderPosition);
-					
+		if self.attacking || self.attackTimer > 0 {
+			let idx = if self.cannon {
+				match self.direction {
+					Direction::Up => 1,
+					Direction::Down => 4,
+					Direction::Left => 2,
+					Direction::Right => 3,
+				}
+			} else {0};
+			match self.direction {
+				Direction::Up => {
+					self.sword.getSprite(idx).draw(canvas, Rect::new (
+						SWORD_UP.0 + self.renderPosition.x(),
+						SWORD_UP.1 + self.renderPosition.y(),
+						SWORD_UP.2,
+						SWORD_UP.3
+					), false, false);
+					self.animations.drawNextFrame(canvas, self.renderPosition);
+				},
+				Direction::Down => {
+					self.animations.drawNextFrame(canvas, self.renderPosition);
+					self.sword.getSprite(idx).draw(canvas, Rect::new(
+						SWORD_DOWN.0 + self.renderPosition.x(),
+						SWORD_DOWN.1 + self.renderPosition.y(),
+						SWORD_DOWN.2,
+						SWORD_DOWN.3
+					), false, true);
+				},
+				Direction::Left => {
+					self.sword.getSprite(idx).draw(canvas, Rect::new (
+						SWORD_LEFT.0 + self.renderPosition.x(),
+						SWORD_LEFT.1 + self.renderPosition.y(),
+						SWORD_LEFT.2,
+						SWORD_LEFT.3
+					), false, false);
+					self.animations.drawNextFrame(canvas, self.renderPosition);
+				},
+				Direction::Right => {
+					self.sword.getSprite(idx).draw(canvas, Rect::new (
+						SWORD_RIGHT.0 + self.renderPosition.x(),
+						SWORD_RIGHT.1 + self.renderPosition.y(),
+						SWORD_RIGHT.2,
+						SWORD_RIGHT.3
+					), false, false);
+					self.animations.drawNextFrame(canvas, self.renderPosition);
+						
+				}
 			}
-		}}
+		}
 		else {
 			self.animations.drawNextFrame(canvas, self.renderPosition);
+		}
+		for ball in self.cannonBalls.iter().filter_map(|e| e.as_ref()) {
+			self.cannonballSprites.getSprite(0).draw(canvas, ball.renderPosition, false, false);
 		}
 	}
 

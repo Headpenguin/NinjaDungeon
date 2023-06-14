@@ -18,6 +18,9 @@ impl Vector {
 		if self.0 == 0f32 && self.1 == 0f32 {Vector(0f32, 0f32)}
 		else {*self / self.mag()}
 	}
+	pub fn dot(&self, other: &Vector) -> f32 {
+		self.0 * other.0 + self.1 * other.1
+	}
 }
 
 impl Add for Vector {
